@@ -361,6 +361,59 @@ test.describe('CH Timeline 2.0', () => {
     expect(painted).toBeGreaterThan(0);
   });
 
+  // A trackpad pinch fires dozens of wheel events in a few frames, and React
+  // batches them. The zoom handler used to split the start year and the scale
+  // across two setters, nesting one inside the other and returning a stale
+  // closed-over start from the outer one; batched, that stale value won the
+  // last write and threw the viewport back to where it opened while the zoom
+  // carried on. A single pinch self-corrected, which is why only trackpad users
+  // hit it. The invariant that catches it: the year under the cursor holds.
+  test('a batched trackpad pinch zooms about the cursor, not back to the start', async ({ page }) => {
+    await loadPage(page);
+    const box = await page.locator('.timeline-container').boundingBox();
+
+    // Sample below the lanes: the readout hides while the cursor is over an item.
+    const probeY = box.y + box.height * 0.8;
+    const yearAt = async (offsetX) => {
+      await page.mouse.move(box.x + offsetX, probeY);
+      const readout = page.locator('.cursor-year-display').first();
+      await expect(readout).toBeVisible();
+      const m = /(-?\d+)\s*(BC|AD)?/i.exec((await readout.textContent()).trim());
+      const year = parseInt(m[1], 10);
+      return /BC/i.test(m[2] || '') ? -year : year;
+    };
+
+    // Zoom in first. This fixture spans only a few centuries, so at the opening
+    // scale the visible span is wider than the pannable range and the clamp
+    // legitimately pins the viewport — the anchor invariant only means
+    // something once the span fits inside the range.
+    for (let i = 0; i < 4; i++) {
+      await page.locator('button:has-text("Zoom in")').click();
+      await page.waitForTimeout(120);
+    }
+    await page.waitForTimeout(300);
+
+    const CURSOR_X = 700;
+    const before = await yearAt(CURSOR_X);
+
+    // The gesture: ctrlKey wheel events, which is how browsers report a pinch,
+    // dispatched back-to-back so they land in a single React pass.
+    await page.evaluate(({ x, y }) => {
+      const el = document.querySelector('.timeline-container');
+      for (let i = 0; i < 12; i++) {
+        el.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: -4, ctrlKey: true, bubbles: true, cancelable: true, clientX: x, clientY: y,
+        }));
+      }
+    }, { x: box.x + CURSOR_X, y: probeY });
+    await page.waitForTimeout(400);
+
+    const after = await yearAt(CURSOR_X);
+
+    // The year under the cursor is the anchor the zoom pivots about.
+    expect(Math.abs(after - before)).toBeLessThan(15);
+  });
+
   test('mobile falls back to the 1.0 swimlane', async ({ page }) => {
     await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
 

@@ -246,7 +246,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       lanePadding: 8,
       axisHeight: 30,
       // Bare pins collide at the pin's own width, not a label's.
-      pointMarkerWidth: showPointLabels ? null : 18,
+      pointMarkerWidth: showPointLabels ? null : 24,   // matches the collapsed chip
       ...layoutSizes,
     }
   );

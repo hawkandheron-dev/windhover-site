@@ -332,21 +332,22 @@ export function TimelineOverlay({
         ? (isTourMode ? ' point-drop-in' : ' point-pop-in')
         : '';
 
-      const flagStyle = showPointLabels
-        ? {
-            color: '#333',
-            backgroundColor: 'rgba(255, 255, 255, 0.92)',
-            padding: '2px 6px',
-            border: '1px solid #ccc',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-          }
-        : { padding: '0 1px', background: 'none', border: 'none' };
+      // One card style at both detail levels. Collapsed, the CSS strips the
+      // background and clips the width to the icon; the padding and the 1px
+      // border stay (transparent) so the icon does not jump when the label
+      // slides out on hover.
+      const flagStyle = {
+        color: '#333',
+        backgroundColor: 'rgba(255, 255, 255, 0.92)',
+        padding: '2px 6px',
+        border: '1px solid #ccc',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+      };
 
       return (
         <div
           key={point.id}
-          className={`point-callout${pointAnimClass}`}
-          title={showPointLabels ? undefined : `${point.name} — ${dateDisplay}`}
+          className={`point-callout${pointAnimClass}${showPointLabels ? '' : ' point-callout--collapsed'}`}
           style={{
             position: 'absolute',
             left: `${x}px`,
@@ -366,14 +367,10 @@ export function TimelineOverlay({
           onMouseLeave={() => onItemHover?.(null, null)}
           onClick={(e) => { e.stopPropagation(); if (!wasDraggingRef?.current) onItemClick?.('point', point); }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <div className="point-callout-body" style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <ShapeIcon shape={point.shape || 'circle'} color={point.color || '#ff6f00'} size={12} />
-            {showPointLabels && (
-              <>
-                <span style={{ fontSize: '14px', fontWeight: '600' }}>{point.name}</span>
-                <span style={{ fontSize: '10px', opacity: 0.5 }}>{dateDisplay}</span>
-              </>
-            )}
+            <span style={{ fontSize: '14px', fontWeight: '600' }}>{point.name}</span>
+            <span style={{ fontSize: '10px', opacity: 0.5 }}>{dateDisplay}</span>
           </div>
         </div>
       );
