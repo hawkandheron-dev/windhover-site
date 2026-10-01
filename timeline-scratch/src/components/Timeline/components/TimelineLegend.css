@@ -171,3 +171,24 @@
     color: #d8d0c4;
   }
 }
+
+/* Century ramp (CH Timeline 2.0) — a continuous scale rather than sixteen
+   filter rows. Nothing here toggles; it says what the colour means. */
+.legend-century-ramp {
+  margin: 2px 0 6px;
+}
+
+.legend-century-bar {
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border, rgba(30, 28, 24, 0.12));
+}
+
+.legend-century-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  color: var(--color-ink-faded, #6e6e66);
+}

@@ -19,6 +19,7 @@
  */
 
 import { TimelineCanvas } from './TimelineCanvas.jsx';
+import { MonarchLabels } from './MonarchLabels.jsx';
 
 const DEFAULT_DEPTH = {
   blur: 2.6,
@@ -47,6 +48,8 @@ export function DepthLayers({
   depthMode = 'watercolour',
   /** True while the focus comes from a hover rather than a click. */
   isPreview = false,
+  /** False when zoomed too far out for names to be readable. */
+  showLabels = true,
 }) {
   const depth = { ...DEFAULT_DEPTH, ...(config?.depth || {}) };
 
@@ -79,6 +82,18 @@ export function DepthLayers({
     transformOrigin: `50% ${axisScreenY}px`,
     transition: `filter ${depth.transitionMs}ms ease-out, opacity ${depth.transitionMs}ms ease-out, transform ${depth.transitionMs}ms ease-out`,
     willChange: 'filter, opacity, transform',
+  };
+
+  // Same geometry as the wash, so a name sits on its bar; no blur, and it
+  // keeps pointer events so the hover expansion works.
+  const labelStyle = {
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    transform: `scale(${scale})`,
+    transformOrigin: `50% ${axisScreenY}px`,
+    opacity: forward ? 1 : 0.9,
+    transition: `opacity ${depth.transitionMs}ms ease-out, transform ${depth.transitionMs}ms ease-out`,
   };
 
   const focusStyle = {
@@ -125,6 +140,22 @@ export function DepthLayers({
         <div className="ch2-layer ch2-layer-focus" style={focusStyle}>
           <TimelineCanvas {...shared} onlyIds={focusIds} />
         </div>
+      )}
+
+      {/* Names for the reign band. Outside the washed layer on purpose — these
+          stay crisp and hoverable while the bars behind them stay soft. */}
+      {showLabels && (
+      <div className="ch2-layer ch2-layer-labels" style={labelStyle}>
+        <MonarchLabels
+          people={layout.stackedPeople}
+          viewportStartYear={viewportStartYear}
+          yearsPerPixel={yearsPerPixel}
+          panOffsetY={backPanOffsetY}
+          yOffset={yOffset}
+          width={width}
+          height={height}
+        />
+      </div>
       )}
     </>
   );

@@ -26,8 +26,8 @@ import {
   buildWorksMap,
   buildEventConnectionMap,
 } from './churchHistoryShared.js';
-import { eraForYear } from './churchHistory2Eras.js';
-import { BACK_STYLES } from './churchHistory2Data.js';
+import { colorForLifespan, centuryOf, ordinal } from './churchHistory2Centuries.js';
+import { BACK_STYLES, POINT_STYLES } from './churchHistory2Data.js';
 import { NICENE_GOLD } from './heresiesData.js';
 
 // Tour scenes, linked media and the media-crop mutation are identical to 1.0;
@@ -36,13 +36,29 @@ export { fetchTourScenes, fetchLinkedMedia, updateLinkedMediaCrop } from './chur
 
 // ── Layer assignment ──────────────────────────────────────────────────────
 
-/** Doctrinal roles that put a non-monarch on the background layer. */
-const BACKGROUND_ROLES = new Set(['heresiarch', 'contested']);
+/**
+ * Doctrinal roles kept off the timeline entirely for now.
+ *
+ * Heresiarchs only. Contested figures used to sit here too, but several of
+ * them — Origen, Tertullian, Eusebius of Caesarea, John Cassian — are
+ * principals by any reading, and burying them in the background wash was
+ * wrong. They are ordinary foreground figures now; any individual who does not
+ * earn a place comes off through the `active` flag instead, which is a
+ * judgement about a person rather than about a category.
+ */
+const HIDDEN_ROLES = new Set(['heresiarch']);
 
-/** Whether a CH_People row belongs behind the main figures. */
+/** Whether a CH_People row belongs behind the main figures. Monarchs only. */
 export function isBackgroundPerson(person) {
-  return Boolean(person.is_monarch) || BACKGROUND_ROLES.has(person.doctrinal_role);
+  return Boolean(person.is_monarch);
 }
+
+/**
+ * Rows carry `active` since the 20261001 migration. `!== false` rather than
+ * `=== true` so fixtures and any row predating the column still count as
+ * active rather than silently vanishing.
+ */
+const isActive = (row) => row.active !== false;
 
 // ── Presentation ──────────────────────────────────────────────────────────
 
@@ -60,9 +76,9 @@ const monarchColorMap = {
 };
 
 const EVENT_STYLES = {
-  council:  { color: BACK_STYLES.councils.color,  shape: 'cross',     filterKey: 'councils',  itemType: 'councils' },
-  document: { color: BACK_STYLES.documents.color, shape: 'book',      filterKey: 'documents', itemType: 'documents' },
-  event:    { color: BACK_STYLES.events.color,    shape: 'reference', filterKey: 'events',    itemType: 'events' },
+  council:  { color: POINT_STYLES.councils.color,  shape: 'cross',     filterKey: 'councils',  itemType: 'councils' },
+  document: { color: POINT_STYLES.documents.color, shape: 'book',      filterKey: 'documents', itemType: 'documents' },
+  event:    { color: POINT_STYLES.events.color,    shape: 'reference', filterKey: 'events',    itemType: 'events' },
 };
 
 const MOVEMENT_KIND_LABELS = {
@@ -140,18 +156,41 @@ export async function fetchChurchHistory2Data() {
 // ── Transform ─────────────────────────────────────────────────────────────
 
 export function transformToTimelineFormat(db) {
+  // Who survives the `active` flag and the hidden roles. Every relationship
+  // below is filtered against this, so nothing points at a figure the timeline
+  // no longer draws — a connection pill that opens nothing is worse than an
+  // absent one.
+  const keptPersonIds = new Set(
+    db.people
+      .filter(p => isActive(p) && !HIDDEN_ROLES.has(p.doctrinal_role))
+      .map(p => p.person_id)
+  );
+  const keptEventIds = new Set(db.events.filter(isActive).map(e => e.event_id));
+
   const connectionMap = buildConnectionMap(db.connections);
   const sourceMap = buildSourceMap(db.sources, db.sourceFigures);
   const worksMap = buildWorksMap(db.works);
   const eventConnectionMap = buildEventConnectionMap(db.eventConnections);
+  for (const [eventId, personIds] of eventConnectionMap) {
+    if (!keptEventIds.has(eventId)) { eventConnectionMap.delete(eventId); continue; }
+    eventConnectionMap.set(eventId, personIds.filter(id => keptPersonIds.has(id)));
+  }
 
-  const movementById = new Map(db.movements.map(m => [m.movement_id, m]));
+  /** A person's connections, minus anyone who is no longer on the timeline. */
+  const connectionsFor = (personId) =>
+    (connectionMap.get(personId) || []).filter(c => keptPersonIds.has(c.id));
+
+  // Only active movements are indexed, so an affiliation can never name a
+  // movement that is switched off.
+  const movementById = new Map(
+    db.movements.filter(isActive).map(m => [m.movement_id, m])
+  );
 
   /** person_id → [{ movement, role }] */
   const movementsByPerson = new Map();
   for (const mf of db.movementFigures) {
     const movement = movementById.get(mf.movement_id);
-    if (!movement) continue;
+    if (!movement || !keptPersonIds.has(mf.person_id)) continue;
     if (!movementsByPerson.has(mf.person_id)) movementsByPerson.set(mf.person_id, []);
     movementsByPerson.get(mf.person_id).push({ movement, role: mf.role });
   }
@@ -160,7 +199,7 @@ export function transformToTimelineFormat(db) {
   const movementsByEvent = new Map();
   for (const me of db.movementEvents) {
     const movement = movementById.get(me.movement_id);
-    if (!movement) continue;
+    if (!movement || !keptEventIds.has(me.event_id)) continue;
     if (!movementsByEvent.has(me.event_id)) movementsByEvent.set(me.event_id, []);
     movementsByEvent.get(me.event_id).push({ movement, relation: me.relation });
   }
@@ -180,6 +219,8 @@ export function transformToTimelineFormat(db) {
   const reigns = [];
 
   for (const p of db.people) {
+    if (!isActive(p) || HIDDEN_ROLES.has(p.doctrinal_role)) continue;
+
     const shared = {
       id: p.person_id,
       name: p.name,
@@ -194,7 +235,7 @@ export function transformToTimelineFormat(db) {
       doctrinalRole: p.doctrinal_role || null,
       doctrinalRoleLabel: DOCTRINAL_ROLE_LABELS[p.doctrinal_role] || null,
       movements: affiliationsFor(p.person_id),
-      connections: connectionMap.get(p.person_id) || [],
+      connections: connectionsFor(p.person_id),
       sources: sourceMap.get(p.person_id) || [],
       works: worksMap.get(p.person_id) || [],
     };
@@ -224,33 +265,21 @@ export function transformToTimelineFormat(db) {
       continue;
     }
 
-    if (BACKGROUND_ROLES.has(p.doctrinal_role)) {
-      const style = BACK_STYLES[p.doctrinal_role === 'heresiarch' ? 'heresiarchs' : 'contested'];
-      backPeople.push({
-        ...shared,
-        layer: 'back',
-        periodId: p.doctrinal_role,
-        periodName: style.label,
-        preview: shared.doctrinalRoleLabel || style.label,
-        color: style.color,
-        aboveTimeline: true,
-        filterKey: p.doctrinal_role === 'heresiarch' ? 'heresiarchs' : 'contested',
-      });
-      continue;
-    }
-
-    // Front layer: coloured by the era their life falls in, nothing else.
-    const era = eraForYear(p.birth_year);
+    // Front layer: coloured by the century their life falls in, nothing else.
+    // No periodId or periodName — their absence is what removes the "Era:"
+    // line from the shared detail panel without touching that component.
+    const fill = colorForLifespan(p.birth_year, p.death_year);
     const isDefender = p.doctrinal_role === 'defender';
     frontPeople.push({
       ...shared,
       layer: 'front',
-      periodId: era.id,
-      periodName: era.name,
       preview: p.name,
-      color: era.color,
+      color: fill.color,
+      gradient: fill.gradient,
+      century: centuryOf(p.birth_year),
+      centuryLabel: `${ordinal(centuryOf(p.birth_year))} century`,
       aboveTimeline: true,
-      filterKey: era.id,
+      filterKey: 'people',
       // The defenders keep the gold emphasis ring they carry on the heresies
       // page — it is the one doctrinal distinction that stays in the front.
       emphasis: isDefender,
@@ -258,8 +287,12 @@ export function transformToTimelineFormat(db) {
     });
   }
 
-  // ── Events → back-layer points ─────────────────────────────────────────
-  const backPoints = db.events.map(ev => {
+  // ── Events → foreground points ─────────────────────────────────────────
+  // Councils, creeds and texts are landmarks, not background: they belong on
+  // the main layer with the pin-and-flag callout the 1.0 timeline used, where
+  // they are always labelled. Plain `event` rows are deactivated for now and
+  // fall out with the `active` filter rather than being special-cased here.
+  const frontPoints = db.events.filter(isActive).map(ev => {
     const style = EVENT_STYLES[ev.event_type] || EVENT_STYLES.event;
     return {
       id: ev.event_id,
@@ -267,7 +300,7 @@ export function transformToTimelineFormat(db) {
       date: ev.event_date,
       endDate: ev.end_date || null,
       dateCertainty: 'year only',
-      layer: 'back',
+      layer: 'front',
       shape: style.shape,
       color: style.color,
       preview: ev.name,
@@ -277,7 +310,7 @@ export function transformToTimelineFormat(db) {
       location: ev.location,
       description: ev.description || null,
       referenceUrl: ev.reference_url || null,
-      connectedPeople: eventConnectionMap.get(ev.event_id) || [],
+      connectedPeople: (eventConnectionMap.get(ev.event_id) || []).filter(id => keptPersonIds.has(id)),
       sources: sourceMap.get(ev.event_id) || [],
       movements: (movementsByEvent.get(ev.event_id) || []).map(l => ({
         id: l.movement.movement_id,
@@ -293,14 +326,14 @@ export function transformToTimelineFormat(db) {
   // emperors. Keeping it below would also strand an empty band between the
   // axis and the reigns everywhere outside the fourth century, since all
   // twenty movements fall between 48 and 451.
-  const backPeriods = db.movements.map(m => ({
+  const backPeriods = db.movements.filter(isActive).map(m => ({
     id: m.movement_id,
     name: m.name,
     startDate: yearToIsoDate(m.start_year),
     endDate: yearToIsoDate(m.end_year),
     dateCertainty: 'year only',
     layer: 'back',
-    color: m.color || BACK_STYLES.movements.color,
+    color: m.color || '#8e5a8e',
     preview: MOVEMENT_KIND_LABELS[m.kind] || m.kind,
     aboveTimeline: true,
     filterKey: 'movements',
@@ -309,15 +342,21 @@ export function transformToTimelineFormat(db) {
     referenceUrl: m.reference_url || null,
   }));
 
+  // The focus set resolves ids across both layers — a figure's councils and
+  // texts are foreground now, but they are still part of their background in
+  // the sense the focus interaction means.
   const backItemById = new Map();
   for (const item of backPeople) backItemById.set(item.id, item);
-  for (const item of backPoints) backItemById.set(item.id, item);
+  for (const item of frontPoints) backItemById.set(item.id, item);
   for (const item of backPeriods) backItemById.set(item.id, item);
 
   return {
     // The front layer has no periods — that is the whole point of 2.0.
-    data: { people: frontPeople, points: [], periods: [] },
-    backData: { people: backPeople, points: backPoints, periods: backPeriods },
+    // The background is reigns and nothing else: heresiarchs are hidden,
+    // contested figures came forward, movements are deactivated, and the
+    // councils and texts were promoted to pins and flags.
+    data: { people: frontPeople, points: frontPoints, periods: [] },
+    backData: { people: backPeople, points: [], periods: backPeriods },
     index: {
       connectionMap,
       eventConnectionMap,

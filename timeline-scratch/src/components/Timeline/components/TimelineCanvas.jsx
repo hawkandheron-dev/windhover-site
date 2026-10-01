@@ -214,7 +214,7 @@ export function TimelineCanvas({
         drawPersonBox(ctx, reignX, reignWidth, y, boxHeight, color, isHovered, emphasis);
       } else {
         // Regular person or monarch without reign data: single color box
-        drawPersonBox(ctx, x, displayWidth, y, boxHeight, color, isHovered, emphasis);
+        drawPersonBox(ctx, x, displayWidth, y, boxHeight, color, isHovered, emphasis, person.gradient || null);
       }
 
       // The focus layer is the only place a background figure gets a name —

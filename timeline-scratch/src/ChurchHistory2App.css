@@ -94,3 +94,27 @@
     background: #f7f7f5;
   }
 }
+
+/* Tour panel images: show the whole picture.
+   TourPanel is shared with the 1.0 page, which crops to fill with
+   object-fit: cover — fine for a landscape miniature, wrong for a portrait,
+   which loses its subject's head. Scoped here so 1.0 is untouched. With the
+   whole image visible there is nothing left to pan, so the admin crop control
+   is hidden on this page only; the stored crop values are left alone. */
+.ch2-app .tour-scene-image {
+  /* The 16:10 box is what forces the crop. Let the image set its own height
+     instead, bounded so a tall portrait cannot push the narrative off-panel. */
+  aspect-ratio: auto;
+  background: var(--color-parchment-dark, #f4f4f2);
+}
+
+.ch2-app .tour-scene-image img {
+  object-fit: contain;
+  height: auto;
+  max-height: 340px;
+}
+
+.ch2-app .tour-image-adjust-btn,
+.ch2-app .tour-image-adjust-controls {
+  display: none;
+}

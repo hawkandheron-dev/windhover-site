@@ -25,6 +25,11 @@ export function TimelineOverlay({
   // Optional colour overrides. Absent means the light-on-dark labels every
   // timeline before CH 2.0 used; that page reads on a white ground instead.
   palette = {},
+  // When false, points draw as a bare pin rather than a pin-and-flag card.
+  // A labelled callout is sized by its text, so a few dozen of them zoomed out
+  // stack into a wall; the pin alone keeps the landmark visible at a width the
+  // layout can collapse. Defaults true, so every other timeline is unchanged.
+  showPointLabels = true,
 }) {
   // Get hovered period date range for highlighting
   const hoveredPeriodRange = hoveredPeriod ? getYearRange(hoveredPeriod.startDate, hoveredPeriod.endDate) : null;
@@ -327,10 +332,21 @@ export function TimelineOverlay({
         ? (isTourMode ? ' point-drop-in' : ' point-pop-in')
         : '';
 
+      const flagStyle = showPointLabels
+        ? {
+            color: '#333',
+            backgroundColor: 'rgba(255, 255, 255, 0.92)',
+            padding: '2px 6px',
+            border: '1px solid #ccc',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+          }
+        : { padding: '0 1px', background: 'none', border: 'none' };
+
       return (
         <div
           key={point.id}
           className={`point-callout${pointAnimClass}`}
+          title={showPointLabels ? undefined : `${point.name} — ${dateDisplay}`}
           style={{
             position: 'absolute',
             left: `${x}px`,
@@ -339,16 +355,12 @@ export function TimelineOverlay({
             overflow: 'visible',
             pointerEvents: 'auto',
             cursor: 'pointer',
-            color: '#333',
-            backgroundColor: 'rgba(255, 255, 255, 0.92)',
-            padding: '2px 6px',
             borderRadius: '2px',
-            border: '1px solid #ccc',
             whiteSpace: 'nowrap',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
             opacity: getPointOpacity(point),
             transition: 'opacity 0.15s ease',
-            lineHeight: '1.2'
+            lineHeight: '1.2',
+            ...flagStyle,
           }}
           onMouseEnter={() => onItemHover?.('point', point)}
           onMouseLeave={() => onItemHover?.(null, null)}
@@ -356,8 +368,12 @@ export function TimelineOverlay({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <ShapeIcon shape={point.shape || 'circle'} color={point.color || '#ff6f00'} size={12} />
-            <span style={{ fontSize: '14px', fontWeight: '600' }}>{point.name}</span>
-            <span style={{ fontSize: '10px', opacity: 0.5 }}>{dateDisplay}</span>
+            {showPointLabels && (
+              <>
+                <span style={{ fontSize: '14px', fontWeight: '600' }}>{point.name}</span>
+                <span style={{ fontSize: '10px', opacity: 0.5 }}>{dateDisplay}</span>
+              </>
+            )}
           </div>
         </div>
       );

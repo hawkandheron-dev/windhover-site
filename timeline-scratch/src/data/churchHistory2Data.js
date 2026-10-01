@@ -7,31 +7,28 @@
  *   palette — canvas colours, so the shared renderer can draw on white instead
  *             of parchment without the other five apps changing
  *   depth   — how far "back" the background layer sits, and how it comes forward
- *   layers  — which filter keys belong to which layer, so the legend can drive
- *             two independent filter sets
+ *   centuryRamp — the legend strip that replaces per-era filter rows
  *
- * Data comes from churchHistory2Adapter.js; the era swatches come from
- * churchHistory2Eras.js so the legend and the bars can never disagree.
+ * Data comes from churchHistory2Adapter.js; the century swatches come from
+ * churchHistory2Centuries.js so the legend and the bars can never disagree.
  */
-import { CH2_ERAS } from './churchHistory2Eras.js';
-import { NICENE_GOLD, NICENE_LINE } from './heresiesData.js';
+import { CENTURY_COLORS, centuryLegendTicks, colorForCentury, ordinal } from './churchHistory2Centuries.js';
 
-/** Back-layer colours, shared with the adapter so key and bar always match. */
+/**
+ * Back-layer colours. The background is reigns only now — heresiarchs are
+ * hidden, contested figures came forward as ordinary figures, movements are
+ * deactivated, and councils and texts were promoted to foreground pins.
+ */
 export const BACK_STYLES = {
-  emperors:   { color: '#6d4c41', label: 'Emperors & monarchs' },
-  heresiarchs:{ color: '#b3261e', label: 'Heresiarchs' },
-  contested:  { color: '#e08a1e', label: 'Contested figures' },
-  movements:  { color: '#8e5a8e', label: 'Movements & schisms' },
-  councils:   { color: '#4caf50', label: 'Councils' },
-  documents:  { color: '#c79a1e', label: 'Texts & creeds' },
-  events:     { color: '#e07a3a', label: 'Events' },
+  emperors: { color: '#6d4c41', label: 'Emperors & monarchs' },
 };
 
-/** Every filter key that belongs to the background layer. */
-export const BACK_FILTER_KEYS = Object.keys(BACK_STYLES);
-
-/** Every filter key that belongs to the foreground layer (one per era). */
-export const FRONT_FILTER_KEYS = CH2_ERAS.map(era => era.id);
+/** Foreground point styling, drawn as 1.0's pin-and-flag callouts. */
+export const POINT_STYLES = {
+  councils:  { color: '#3f7d46', label: 'Councils' },
+  documents: { color: '#9a7b1f', label: 'Texts & creeds' },
+  events:    { color: '#b2622c', label: 'Events' },
+};
 
 export const churchHistory2Config = {
   siteTitle: 'History of the Christian Church',
@@ -43,6 +40,16 @@ export const churchHistory2Config = {
   maxTimeSpan: 2000,
   laneOrder: ['people', 'points', 'periods'],
 
+  /** Detail panel: one "Works & Sources" section rather than two. */
+  mergeWorksAndSources: true,
+
+  /**
+   * Above this zoom-out level a landmark drops its flag and shows only its
+   * pin. One year per pixel is roughly where sixty labelled cards stop fitting
+   * between the people lane and the axis; past it they cascade.
+   */
+  pointLabelMaxYearsPerPixel: 1.0,
+
   /**
    * Canvas colours for a white ground. Passed through Timeline → TimelineCanvas
    * → rendering.js; every draw function defaults to the parchment values when
@@ -52,10 +59,9 @@ export const churchHistory2Config = {
     ground: '#ffffff',
     axis: '#c9c4bc',
     axisText: '#5a5a55',
-    axisTick: '#b8b3aa',
     guide: 'rgba(30, 28, 24, 0.07)',
     // The 1.0 pages label figures in white on near-black, which reads as a
-    // wall of dark blocks once the parchment is gone. On white the bar's era
+    // wall of dark blocks once the parchment is gone. On white the bar's own
     // colour should carry, so the label backs off to a light scrim.
     labelText: '#1e1c18',
     labelBg: 'rgba(255, 255, 255, 0.86)',
@@ -79,33 +85,29 @@ export const churchHistory2Config = {
     transitionMs: 220,
   },
 
-  /** The christological spine, drawn as a chain across the people lane. */
-  chains: [
-    {
-      id: 'nicene-line',
-      name: 'The Nicene line',
-      color: NICENE_GOLD,
-      memberIds: NICENE_LINE,
-    },
-  ],
+  /**
+   * Centuries are a ramp, not a set of categories: sixteen checkbox rows would
+   * be a worse legend than the nine eras they replace. A strip with a few
+   * labelled ticks says "colour means when" in one glance, and nothing here is
+   * filterable by century.
+   */
+  centuryRamp: {
+    colors: CENTURY_COLORS,
+    ticks: centuryLegendTicks().map(c => ({ century: c, label: ordinal(c), color: colorForCentury(c) })),
+  },
 
   legend: [
-    { type: 'heading', id: 'heading-eras', name: 'Eras' },
-    ...CH2_ERAS.map(era => ({
-      type: 'people',
-      id: era.id,
-      name: era.name,
-      color: era.color,
-      filterKey: era.id,
-    })),
+    { type: 'heading', id: 'heading-figures', name: 'Figures' },
+    { type: 'century-ramp', id: 'century-ramp', name: 'Coloured by century' },
+    { type: 'people', id: 'people', name: 'Church figures', color: CENTURY_COLORS[3], filterKey: 'people' },
+
+    // No row for plain events: they are all deactivated, and a checkbox that
+    // filters nothing is clutter. Restore this line if they come back.
+    { type: 'heading', id: 'heading-landmarks', name: 'Landmarks' },
+    { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross',     filterKey: 'councils' },
+    { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',      filterKey: 'documents' },
 
     { type: 'heading', id: 'heading-background', name: 'Background' },
-    { type: 'people', id: 'back-emperors',    name: BACK_STYLES.emperors.label,    color: BACK_STYLES.emperors.color,    filterKey: 'emperors', isMonarch: true },
-    { type: 'people', id: 'back-heresiarchs', name: BACK_STYLES.heresiarchs.label, color: BACK_STYLES.heresiarchs.color, filterKey: 'heresiarchs' },
-    { type: 'people', id: 'back-contested',   name: BACK_STYLES.contested.label,   color: BACK_STYLES.contested.color,   filterKey: 'contested' },
-    { type: 'bracket', id: 'back-movements',  name: BACK_STYLES.movements.label,   color: BACK_STYLES.movements.color,   filterKey: 'movements' },
-    { type: 'point', id: 'back-councils',     name: BACK_STYLES.councils.label,    color: BACK_STYLES.councils.color,    shape: 'cross',     filterKey: 'councils' },
-    { type: 'point', id: 'back-documents',    name: BACK_STYLES.documents.label,   color: BACK_STYLES.documents.color,   shape: 'book',      filterKey: 'documents' },
-    { type: 'point', id: 'back-events',       name: BACK_STYLES.events.label,      color: BACK_STYLES.events.color,      shape: 'reference', filterKey: 'events' },
+    { type: 'people', id: 'back-emperors', name: BACK_STYLES.emperors.label, color: BACK_STYLES.emperors.color, filterKey: 'emperors', isMonarch: true },
   ],
 };

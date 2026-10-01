@@ -16,7 +16,6 @@ import { TimelineLegend } from './components/TimelineLegend.jsx';
 import { MobileTimeline } from './components/MobileTimeline.jsx';
 import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
-import { ParallaxField } from './components/ParallaxField.jsx';
 import { getYear, getYearRange } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import bgManuscript from '../../assets/bg-manuscript.jpg';
@@ -228,6 +227,13 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     }
   }, [itemIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Landmarks carry their full pin-and-flag card when there is room for it,
+  // and collapse to a bare pin when zoomed out. Without this the sixty
+  // councils and texts stack by label width into a wall of cards that buries
+  // the people lane — the cost of promoting them to the foreground, paid only
+  // where it buys legibility.
+  const showPointLabels = yearsPerPixel <= (defaultConfig.pointLabelMaxYearsPerPixel ?? Infinity);
+
   // Layout calculation
   const layout = useTimelineLayout(
     filteredData,
@@ -239,6 +245,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       periodRowHeight: 40,
       lanePadding: 8,
       axisHeight: 30,
+      // Bare pins collide at the pin's own width, not a label's.
+      pointMarkerWidth: showPointLabels ? null : 18,
       ...layoutSizes,
     }
   );
@@ -772,14 +780,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         </>
       )}
 
-      {/* CH 2.0: grey-rule depth field in place of the manuscript */}
-      {filteredBackData && (
-        <ParallaxField
-          viewportStartYear={viewportStartYear}
-          yearsPerPixel={yearsPerPixel}
-          panOffsetY={panOffsetY}
-        />
-      )}
+
 
       {/* Cursor year line - behind all elements */}
       {!isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
@@ -830,6 +831,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           focusIds={focusIds}
           depthMode={depthMode}
           isPreview={isFocusPreview}
+          showLabels={showPointLabels}
         />
       )}
 
@@ -870,6 +872,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         animatingPointIds={animatingPointIds}
         isTourMode={isTourMode}
         palette={defaultConfig.palette}
+        showPointLabels={showPointLabels}
       />
 
       {/* Cursor year display - follows cursor */}
@@ -904,6 +907,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           onMouseEnter={() => setIsOverControls(true)}
           onMouseLeave={() => setIsOverControls(false)}
           siteTitle={defaultConfig.siteTitle}
+          config={defaultConfig}
         />
       )}
 
@@ -1010,22 +1014,23 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     </div>
   );
 
-  // The docked panel takes width from the row it shares with the timeline;
-  // the container's ResizeObserver then re-measures and the canvas narrows to
-  // match, so nothing ends up hidden behind the panel.
-  if (detailVariant === 'panel') {
-    return (
-      <div className="timeline-with-panel">
-        {timelineBody}
-        {selectedItem !== null && detail}
-      </div>
-    );
-  }
-
+  // One wrapper for both variants, always.
+  //
+  // Returning a different root per variant (a flex div for the docked panel, a
+  // fragment for the modal) makes React tear the whole timeline down and
+  // rebuild it whenever the variant flips — which CH Timeline 2.0 does every
+  // time a tour starts or ends, since the tour panel owns the right rail and
+  // the detail falls back to a centred modal. The remount resets the
+  // ResizeObserver measurement along with zoom and pan, and the canvases come
+  // back sized 0×0, so a tour scene renders its DOM labels and none of its
+  // bars. Keeping the root stable is what keeps that state alive.
+  //
+  // The modal variant is unaffected by the flex row: `.timeline-modal` is
+  // position-fixed, so it is out of flow and takes no space in it.
   return (
-    <>
+    <div className="timeline-with-panel">
       {timelineBody}
-      {detail}
-    </>
+      {detailVariant === 'panel' ? (selectedItem !== null && detail) : detail}
+    </div>
   );
 });

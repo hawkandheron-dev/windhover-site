@@ -143,6 +143,11 @@ function linkifyDescription(description, itemIndex, currentItemId) {
  */
 export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal' }) {
   const isPanel = variant === 'panel';
+  // CH Timeline 2.0 shows one "Works & Sources" section; the 1.0 pages keep
+  // the two they have. Works and Sources sit far apart in this render, so the
+  // merged form hoists the sources list up into the works block.
+  const mergeWorksAndSources = config?.mergeWorksAndSources === true;
+  const hasSources = Boolean(item?.sources?.length);
   // ── Delete confirmation state ──────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -472,6 +477,24 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     );
   }
 
+  const sourcesList = (
+    <ul className="modal-reference-list">
+      {(item.sources || []).map((source) => {
+        const metaParts = [source.source, source.year].filter(Boolean);
+        const metaText = metaParts.length ? ` (${metaParts.join(', ')})` : '';
+        return (
+          <li key={source.id}>
+            <a href={source.url} target="_blank" rel="noopener noreferrer">
+              {source.title}
+            </a>
+            {metaText && <span>{metaText}</span>}
+            {source.notes && <div>{source.notes}</div>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
     <div
       className={isPanel ? 'timeline-modal timeline-modal--panel' : 'timeline-modal'}
@@ -607,29 +630,37 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </div>
         )}
 
-        {/* Works / Texts — comma-separated hyperlinks (not a list) */}
-        {worksForPerson.length > 0 && editSection !== 'works' && (
+        {/* Works / Texts — comma-separated hyperlinks (not a list).
+            When merged, the sources list follows under the same heading, and
+            the section also appears for a figure who has sources but no works. */}
+        {(worksForPerson.length > 0 || (mergeWorksAndSources && hasSources)) && editSection !== 'works' && (
           <div className="modal-links modal-works">
             <h3>
-              Works
-              {canEdit && (
+              {mergeWorksAndSources ? 'Works & Sources' : 'Works'}
+              {canEdit && worksForPerson.length > 0 && (
                 <button type="button" className="modal-edit-btn" onClick={startEditWorks}>Edit</button>
               )}
+              {canEdit && mergeWorksAndSources && hasSources && (
+                <button type="button" className="modal-edit-btn" onClick={startEditSources}>Edit sources</button>
+              )}
             </h3>
-            <p className="modal-works-inline">
-              {worksForPerson.map((work, i) => (
-                <span key={work.name}>
-                  {i > 0 && ', '}
-                  {work.textUrl ? (
-                    <a href={work.textUrl} target="_blank" rel="noopener noreferrer">
-                      {work.name}
-                    </a>
-                  ) : (
-                    <span>{work.name}</span>
-                  )}
-                </span>
-              ))}
-            </p>
+            {worksForPerson.length > 0 && (
+              <p className="modal-works-inline">
+                {worksForPerson.map((work, i) => (
+                  <span key={work.name}>
+                    {i > 0 && ', '}
+                    {work.textUrl ? (
+                      <a href={work.textUrl} target="_blank" rel="noopener noreferrer">
+                        {work.name}
+                      </a>
+                    ) : (
+                      <span>{work.name}</span>
+                    )}
+                  </span>
+                ))}
+              </p>
+            )}
+            {mergeWorksAndSources && hasSources && editSection !== 'sources' && sourcesList}
           </div>
         )}
 
@@ -877,8 +908,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </div>
         )}
 
-        {/* Sources — for People and Points */}
-        {item.sources && item.sources.length > 0 && editSection !== 'sources' && (
+        {/* Sources — for People and Points. Rendered here only when they are
+            their own section; the merged form puts them under Works above. */}
+        {!mergeWorksAndSources && item.sources && item.sources.length > 0 && editSection !== 'sources' && (
           <div className="modal-links">
             <h3>
               Sources
@@ -886,21 +918,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
                 <button type="button" className="modal-edit-btn" onClick={startEditSources}>Edit</button>
               )}
             </h3>
-            <ul className="modal-reference-list">
-              {item.sources.map((source) => {
-                const metaParts = [source.source, source.year].filter(Boolean);
-                const metaText = metaParts.length ? ` (${metaParts.join(', ')})` : '';
-                return (
-                  <li key={source.id}>
-                    <a href={source.url} target="_blank" rel="noopener noreferrer">
-                      {source.title}
-                    </a>
-                    {metaText && <span>{metaText}</span>}
-                    {source.notes && <div>{source.notes}</div>}
-                  </li>
-                );
-              })}
-            </ul>
+            {sourcesList}
           </div>
         )}
 
