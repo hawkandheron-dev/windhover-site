@@ -72,8 +72,8 @@ function HeresiesApp() {
             />
           </div>
           <div className="header-right">
-            <a className="btn btn-action" href="./church-history-2.html" title="This page's figures and movements, merged into the redesigned Church History timeline">
-              Try 2.0
+            <a className="btn btn-action" href="./church-history-2.html" title="Lifelines: This page's figures and movements, merged into the redesigned Church History timeline">
+              Try Lifelines
             </a>
           </div>
         </div>

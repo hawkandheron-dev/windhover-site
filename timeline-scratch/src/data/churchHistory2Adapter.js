@@ -28,7 +28,6 @@ import {
 } from './churchHistoryShared.js';
 import { colorForLifespan, centuryOf, ordinal } from './churchHistory2Centuries.js';
 import { BACK_STYLES, POINT_STYLES } from './churchHistory2Data.js';
-import { NICENE_GOLD } from './heresiesData.js';
 
 // Tour scenes, linked media and the media-crop mutation are identical to 1.0;
 // re-export rather than duplicate so there is one implementation to maintain.
@@ -269,7 +268,6 @@ export function transformToTimelineFormat(db) {
     // No periodId or periodName — their absence is what removes the "Era:"
     // line from the shared detail panel without touching that component.
     const fill = colorForLifespan(p.birth_year, p.death_year);
-    const isDefender = p.doctrinal_role === 'defender';
     frontPeople.push({
       ...shared,
       layer: 'front',
@@ -280,10 +278,6 @@ export function transformToTimelineFormat(db) {
       centuryLabel: `${ordinal(centuryOf(p.birth_year))} century`,
       aboveTimeline: true,
       filterKey: 'people',
-      // The defenders keep the gold emphasis ring they carry on the heresies
-      // page — it is the one doctrinal distinction that stays in the front.
-      emphasis: isDefender,
-      emphasisColor: isDefender ? NICENE_GOLD : undefined,
     });
   }
 

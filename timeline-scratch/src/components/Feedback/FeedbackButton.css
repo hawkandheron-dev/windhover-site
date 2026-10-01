@@ -1,0 +1,88 @@
+/* Public feedback dialog. Sits above the timeline chrome (the legend is 10,
+   the tour panel higher), so it takes a level of its own. */
+.feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 20, 16, 0.42);
+}
+
+.feedback-modal {
+  width: 100%;
+  max-width: 520px;
+  padding: 22px 24px 18px;
+  border-radius: 8px;
+  background: var(--color-surface, #fffdf8);
+  box-shadow: 0 8px 36px rgba(20, 20, 16, 0.3);
+  font-family: 'Alegreya Sans', var(--font-body, sans-serif);
+}
+
+.feedback-heading {
+  margin: 0 0 6px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--color-ink, #1e1c18);
+}
+
+.feedback-intro {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-faded, #6e6e66);
+}
+
+.feedback-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border, rgba(120, 100, 70, 0.3));
+  border-radius: 4px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink, #1e1c18);
+  resize: vertical;
+}
+
+.feedback-textarea:focus {
+  outline: 2px solid var(--color-accent, #6d4c41);
+  outline-offset: -1px;
+}
+
+.feedback-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 18px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.feedback-count { color: var(--color-ink-faded, #6e6e66); }
+.feedback-count-over { color: #b3261e; font-weight: 600; }
+.feedback-error { color: #b3261e; text-align: right; }
+
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .feedback-modal {
+    background: #26241f;
+  }
+  .feedback-heading { color: #f0ebe0; }
+  .feedback-intro, .feedback-count { color: #a09888; }
+  .feedback-textarea {
+    background: #1c1a16;
+    border-color: rgba(160, 152, 136, 0.3);
+    color: #f0ebe0;
+  }
+}

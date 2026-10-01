@@ -907,6 +907,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           onMouseEnter={() => setIsOverControls(true)}
           onMouseLeave={() => setIsOverControls(false)}
           siteTitle={defaultConfig.siteTitle}
+          siteSubtitle={defaultConfig.siteSubtitle}
           config={defaultConfig}
         />
       )}

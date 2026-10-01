@@ -277,8 +277,8 @@ function AuthenticatedApp({ timelineData, loading, error, allPeople, onReloadDat
             )}
           </div>
           <div className="header-right">
-            <a className="btn btn-action" href="./church-history-2.html" title="The redesigned timeline: white ground, no period brackets, and a background layer that comes into focus">
-              Try 2.0
+            <a className="btn btn-action" href="./church-history-2.html" title="Lifelines: The redesigned timeline: white ground, no period brackets, and a background layer that comes into focus">
+              Try Lifelines
             </a>
             <button type="button" className="btn" onClick={tour.startTour} title="Take the guided tour">
               <Icon name="book" size={14} />
@@ -431,8 +431,8 @@ function UnauthenticatedApp({ timelineData, loading, error, tourScenes }) {
             )}
           </div>
           <div className="header-right">
-            <a className="btn btn-action" href="./church-history-2.html" title="The redesigned timeline: white ground, no period brackets, and a background layer that comes into focus">
-              Try 2.0
+            <a className="btn btn-action" href="./church-history-2.html" title="Lifelines: The redesigned timeline: white ground, no period brackets, and a background layer that comes into focus">
+              Try Lifelines
             </a>
             <button type="button" className="btn" onClick={tour.startTour} title="Take the guided tour">
               <Icon name="book" size={14} />

@@ -31,7 +31,8 @@ export const POINT_STYLES = {
 };
 
 export const churchHistory2Config = {
-  siteTitle: 'History of the Christian Church',
+  siteTitle: 'Lifelines',
+  siteSubtitle: 'A church history timeline by lifespans',
   initialViewport: {
     startDate: '0001-01-01',
     endDate: '0500-12-31',

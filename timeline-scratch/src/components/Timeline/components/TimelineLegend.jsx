@@ -7,7 +7,7 @@ import './TimelineLegend.css';
 
 const LOGO_PATH = new URL('../../../../../../resources/logos/Windhover_BLK.png', import.meta.url).href;
 
-export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, config }) {
+export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, config }) {
   if (!isVisible || !legend || legend.length === 0) return null;
 
   const handleToggle = (filterKey) => {
@@ -23,7 +23,12 @@ export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilte
         <span className="legend-brand-title">Windhover</span>
       </div>
       {siteTitle && (
-        <h1 className="legend-site-title">{siteTitle}</h1>
+        <h1 className="legend-site-title">
+          {siteTitle}
+          {/* The strapline sits inside the heading so the two read as one name,
+              but at a size that does not compete with it. */}
+          {siteSubtitle && <span className="legend-site-subtitle">{siteSubtitle}</span>}
+        </h1>
       )}
       <h3 className="legend-title">Legend</h3>
       <div className="legend-items">

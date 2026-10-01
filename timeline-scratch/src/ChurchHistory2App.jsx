@@ -20,6 +20,7 @@ import { AdminSuggestionsPage } from './components/Suggestions/AdminSuggestionsP
 import { SuggestNewModal } from './components/Suggestions/SuggestNewModal.jsx';
 import { IssueCreatorButton } from './components/IssueCreator/IssueCreatorButton.jsx';
 import { Icon } from './components/Timeline/components/Icon.jsx';
+import { FeedbackButton } from './components/Feedback/FeedbackButton.jsx';
 import { SiteNavPanel } from './components/SiteNavPanel.jsx';
 import { useTour } from './components/Tour/useTour.js';
 import { WelcomeDialog } from './components/Tour/WelcomeDialog.jsx';
@@ -376,7 +377,7 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
           <div className="header-content">
             <SiteNavToggle onOpen={() => setNavOpen(true)} />
             <div className="header-left">
-              <h1 className="site-title"><strong>History of the Christian Church</strong> <span>Lifespans</span></h1>
+              <h1 className="site-title"><strong>Lifelines</strong> <span>A church history timeline by lifespans</span></h1>
             </div>
             <div className="header-right">
               <ClerkAuthHeader
@@ -430,6 +431,7 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
               <Icon name="book" size={14} />
               {' '}Tour
             </button>
+            <FeedbackButton />
             <ClerkAuthHeader
               onAddNote={() => setAddNoteOpen(true)}
               onViewNotes={() => setViewNotesOpen(true)}
@@ -559,6 +561,7 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
               <Icon name="book" size={14} />
               {' '}Tour
             </button>
+            <FeedbackButton />
             <div className="auth-actions">
               <button
                 className="btn"
