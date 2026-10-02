@@ -71,7 +71,16 @@ function TurnstileWidget({ siteKey, onToken, onError }) {
           // A token is single-use and expires; clear it so a stale one is
           // never sent, and let the widget re-challenge.
           'expired-callback': () => onToken(''),
-          'error-callback': () => { onToken(''); onError?.('The challenge failed. Please try again.'); },
+          'error-callback': (code) => {
+            onToken('');
+            // Turnstile hands back a numeric code that says WHY, and without
+            // logging it every failure looks the same from the outside. The
+            // common one in practice is a hostname the widget is not
+            // registered for — a preview deploy, say, when the key was
+            // created for the production domain.
+            console.warn('Turnstile challenge failed. Code:', code, 'on host:', window.location.hostname);
+            onError?.('The challenge failed. Please try again.');
+          },
         });
       })
       .catch((err) => { if (!cancelled) onError?.(err.message); });
