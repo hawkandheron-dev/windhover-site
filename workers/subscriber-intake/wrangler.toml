@@ -1,0 +1,16 @@
+# Email Workers cannot live in a Pages project, so this deploys separately.
+# Receiving mail is free on the Workers Free plan; only sending needs Paid.
+name = "subscriber-intake"
+main = "src/index.js"
+compatibility_date = "2026-10-02"
+
+# Plain variables. Secrets are set with `wrangler secret put`, never here:
+#   FEEDBACK_SIGNING_SECRET    — must match the Pages project exactly
+#   SUPABASE_SERVICE_ROLE_KEY  — same value as the Pages project
+[vars]
+# Where the notification continues to after processing.
+FORWARD_TO = "admin@windhoverhistory.com"
+# Never enrol the publisher's own address; it appears as the recipient.
+PUBLISHER_EMAIL = "matthewlanebrown@gmail.com"
+# Deliberate, visible escape hatch if DKIM does not survive forwarding.
+# ALLOW_UNSIGNED = "true"
