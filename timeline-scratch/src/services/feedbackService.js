@@ -40,7 +40,7 @@ export function gateEnabled() {
 }
 
 /** Where your Substack lives, for the invitation on the email step. */
-export const SUBSTACK_URL = 'https://windhoverhistory.substack.com';
+export const SUBSTACK_URL = 'https://postapocalyptic.substack.com';
 
 const TOKEN_KEY = 'lifelines.feedback.access';
 
