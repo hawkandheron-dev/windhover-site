@@ -19,6 +19,12 @@ jobs:
             package-lock.json
             timeline-scratch/package-lock.json
       - run: npm ci
+      # The app's dependencies live in timeline-scratch, not at the root, and
+      # a unit test that imports app code needs them resolvable. Without this
+      # the suite passes on a developer's machine (which has the tree from an
+      # earlier build) and fails here — which is exactly how a broken unit job
+      # went unnoticed for nine runs.
+      - run: npm ci --prefix timeline-scratch
       - run: npm run test:unit
 
   build:

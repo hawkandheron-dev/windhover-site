@@ -49,23 +49,63 @@ jobs:
           # We read the Supabase migration history table to determine
           # which files are already applied, then run only new ones.
 
+          # THE HISTORY TABLE AND THIS DIRECTORY HAVE DIVERGED, and the fix has
+          # to respect that rather than try to reconcile it mechanically.
+          #
+          # What went wrong: this job matched a file to a history row by the
+          # version in the filename. But migrations applied any other way — the
+          # Supabase SQL editor, the MCP tooling, the CLI — are recorded under a
+          # timestamp that tool generated, which never equals ours. So nothing
+          # ever looked applied, the loop tried to re-run all 80 files, and the
+          # first non-idempotent one failed under ON_ERROR_STOP. That is why
+          # this job had not applied a migration in months while failing loudly
+          # each time, and why every recent migration went on by hand.
+          #
+          # Why names alone cannot rescue it: of 80 files, 12 are recorded under
+          # their full basename (by this job, long ago), 23 under their logical
+          # name, and 45 under neither — because names were changed as they were
+          # applied (arthuriana_rls -> arthuriana_rls_and_constraints) or one
+          # file became several rows (ch_heresies_seed -> ..._1 ... _4). Those 45
+          # ARE applied; the schema is live and correct. Only the bookkeeping is
+          # missing. Re-running them would duplicate seed data or break on
+          # constraints.
+          #
+          # So: everything at or before MIGRATION_BASELINE is declared applied
+          # and never attempted. That is simply true, and it needs no surgery on
+          # the history table. Files after it are matched normally — by version,
+          # or by logical name so an out-of-band application is still noticed —
+          # and applied when genuinely new.
+          #
+          # Moving this baseline forward is a deliberate act: only raise it to
+          # cover migrations you have confirmed are applied.
+          MIGRATION_BASELINE=20261002000000
+
           echo "=== Checking applied migrations ==="
-          APPLIED=$(psql "$MIGRATION_DB_URL" -t -A -c \
-            "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;" 2>/dev/null || echo "")
+          APPLIED_VERSIONS=$(psql "$MIGRATION_DB_URL" -t -A -c \
+            "SELECT version FROM supabase_migrations.schema_migrations;" 2>/dev/null || echo "")
+          APPLIED_NAMES=$(psql "$MIGRATION_DB_URL" -t -A -c \
+            "SELECT name FROM supabase_migrations.schema_migrations WHERE name IS NOT NULL;" 2>/dev/null || echo "")
 
           echo "=== Scanning migration files ==="
           PENDING=0
           for file in supabase/migrations/*.sql; do
-            # Extract version from filename (e.g., 20260131120000 from 20260131120000_init_ch_tables.sql)
-            VERSION=$(basename "$file" | grep -oP '^\d+')
-            if echo "$APPLIED" | grep -q "^${VERSION}$"; then
-              echo "Already applied: $(basename "$file")"
+            BASE=$(basename "$file" .sql)
+            # 20260131120000_init_ch_tables -> version 20260131120000, name init_ch_tables
+            VERSION=$(printf '%s' "$BASE" | grep -oP '^\d+')
+            NAME=${BASE#*_}
+            if [ "$VERSION" -le "$MIGRATION_BASELINE" ] 2>/dev/null; then
+              echo "Pre-baseline, assumed applied: ${BASE}"
+            elif echo "$APPLIED_VERSIONS" | grep -qx "$VERSION"; then
+              echo "Already applied (version): ${BASE}"
+            elif echo "$APPLIED_NAMES" | grep -qx "$NAME"; then
+              echo "Already applied (name, applied out-of-band): ${BASE}"
             else
-              echo "Applying: $(basename "$file")"
+              echo "Applying: ${BASE}"
               psql "$MIGRATION_DB_URL" -v ON_ERROR_STOP=1 -f "$file"
-              # Record migration in Supabase's tracking table
-              psql "$MIGRATION_DB_URL" -c \
-                "INSERT INTO supabase_migrations.schema_migrations(version, name, statements) VALUES ('${VERSION}', '$(basename "$file" .sql)', '{}');"
+              # Record it the same way the other tools do — the logical name,
+              # not the full basename — so both routes recognise each other.
+              psql "$MIGRATION_DB_URL" -v ON_ERROR_STOP=1 -c \
+                "INSERT INTO supabase_migrations.schema_migrations(version, name, statements) VALUES ('${VERSION}', '${NAME}', '{}');"
               PENDING=$((PENDING + 1))
             fi
           done
