@@ -16,6 +16,8 @@
  * was accepted and nothing about the database behind it.
  */
 
+import { gateEnabled, verifyToken } from '../_lib/gate.js';
+
 const APP_ID = 'ch-timeline-2';
 const MAX_MESSAGE = 4000;
 const MAX_TITLE = 120;
@@ -85,12 +87,27 @@ export async function onRequest({ request, env }) {
 
   const message = typeof payload?.message === 'string' ? payload.message.trim() : '';
   const token = typeof payload?.token === 'string' ? payload.token : '';
+  const accessToken = typeof payload?.accessToken === 'string' ? payload.accessToken : '';
 
   if (!message) return json(400, { error: 'Please write something first.' });
   if (message.length > MAX_MESSAGE) {
     return json(400, { error: `Please keep it under ${MAX_MESSAGE} characters.` });
   }
   if (!token) return json(400, { error: 'Please complete the challenge.' });
+
+  // The subscriber gate, when it is switched on. Checked before Turnstile so
+  // an unsubscribed caller is not made to solve a puzzle only to be refused.
+  // When the gate is off (its secrets absent) feedback behaves as it did
+  // before — Turnstile alone — because the gate decides WHO may use the
+  // feature while Turnstile and the closed RLS policy are the security
+  // boundary. See functions/_lib/gate.js.
+  let subscriber = null;
+  if (gateEnabled(env)) {
+    subscriber = await verifyToken(env.FEEDBACK_SIGNING_SECRET, accessToken);
+    if (!subscriber) {
+      return json(401, { error: 'Please confirm your subscriber email before sending feedback.' });
+    }
+  }
 
   const verdict = await verifyTurnstile(
     token,
@@ -121,6 +138,12 @@ export async function onRequest({ request, env }) {
       status: 'submitted',
       source: 'public',
       submitted_by: null,
+      // Which subscriber, as a truncated address hash — never the address.
+      // Enough to see that four hundred notes came from one account; not
+      // enough to learn whose. It goes in page_context rather than
+      // submitted_by because that column means "clerk_user_id" everywhere
+      // else, and the admin view resolves it against the users table.
+      page_context: subscriber ? { subscriber_ref: subscriber.emailHash.slice(0, 16) } : null,
     }),
   });
 

@@ -94,3 +94,45 @@
   min-height: 65px;
   margin-top: 10px;
 }
+
+/* Email and code inputs on the gate steps. */
+.feedback-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border, rgba(120, 100, 70, 0.3));
+  border-radius: 4px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-ink, #1e1c18);
+}
+
+.feedback-input:focus {
+  outline: 2px solid var(--color-accent, #6d4c41);
+  outline-offset: -1px;
+}
+
+/* A six-digit code is easier to check when it is not crammed together. */
+.feedback-code-input {
+  font-size: 22px;
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.feedback-subscribe {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-ink-faded, #6e6e66);
+}
+
+@media (prefers-color-scheme: dark) {
+  .feedback-input {
+    background: #1c1a16;
+    border-color: rgba(160, 152, 136, 0.3);
+    color: #f0ebe0;
+  }
+  .feedback-subscribe { color: #a09888; }
+}
