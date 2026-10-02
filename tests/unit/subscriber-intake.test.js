@@ -10,9 +10,9 @@
  *
  * No real address appears here.
  */
-import { describe, it, expect } from 'vitest';
-import {
-  extractSubscriberAddress, decodeQuotedPrintable, hashEmail,
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import intake, {
+  extractSubscriberAddress, decodeQuotedPrintable, hashEmail, missingBindings,
 } from '../../workers/subscriber-intake/src/index.js';
 import { hashEmail as gateHashEmail } from '../../functions/_lib/gate.js';
 
@@ -99,5 +99,107 @@ describe('the digest matches the gate', () => {
     const secret = 'shared-secret';
     expect(await hashEmail(secret, '  New.Reader@EXAMPLE.com '))
       .toBe(await gateHashEmail(secret, SUBSCRIBER));
+  });
+});
+
+/**
+ * The Worker's configuration, which is nobody's idea of interesting until it
+ * is wrong.
+ *
+ * A Worker shares no variables with the Pages project, so SUPABASE_URL being
+ * absent here is an ordinary mistake rather than an exotic one — and the shape
+ * of the failure is the problem: enrol() would POST to "undefined/rest/v1/...",
+ * the throw would be caught by the handler's own catch, the notification would
+ * forward as normal, and enrolment would be dead with nothing but a generic
+ * fetch error to say so. These cases pin the guard that makes it loud.
+ */
+const AUTHENTIC_HEADERS = {
+  from: 'Substack <no-reply@substack.com>',
+  'reply-to': SUBSCRIBER,
+  subject: "New free subscriber to Let's get post-apocalyptic!",
+  'authentication-results': 'mx.cloudflare.net; dkim=pass header.d=mg1.substack.com; spf=pass',
+};
+
+const GOOD_ENV = {
+  ...ENV,
+  SUPABASE_URL: 'https://example.supabase.co',
+  SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+  FEEDBACK_SIGNING_SECRET: 'shared-secret',
+  FORWARD_TO: 'admin@example.org',
+};
+
+function fakeMessage(rawText, hdrs) {
+  const forwarded = [];
+  return {
+    forwarded,
+    from: 'no-reply@substack.com',
+    headers: headers(hdrs),
+    raw: new ReadableStream({
+      start(c) { c.enqueue(new TextEncoder().encode(rawText)); c.close(); },
+    }),
+    forward: async (to) => { forwarded.push(to); },
+  };
+}
+
+afterEach(() => { vi.restoreAllMocks(); });
+
+describe('the configuration guard', () => {
+  it('names every missing binding, and nothing that is present', () => {
+    expect(missingBindings(GOOD_ENV)).toEqual([]);
+    expect(missingBindings({ ...GOOD_ENV, SUPABASE_URL: undefined }))
+      .toEqual(['SUPABASE_URL']);
+    expect(missingBindings({})).toEqual([
+      'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'FEEDBACK_SIGNING_SECRET',
+    ]);
+  });
+
+  it('does not attempt to enrol when SUPABASE_URL is unset', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const errors = [];
+    vi.spyOn(console, 'error').mockImplementation((...a) => errors.push(a.join(' ')));
+
+    const message = fakeMessage(NOTIFICATION, AUTHENTIC_HEADERS);
+    await intake.email(message, { ...GOOD_ENV, SUPABASE_URL: undefined }, {});
+
+    // The whole point: no request is made to a URL built from `undefined`.
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(errors.join('\n')).toMatch(/MISCONFIGURED.*SUPABASE_URL/s);
+  });
+
+  it('still forwards the notification when misconfigured', async () => {
+    // A configuration mistake must not also eat the publisher's mail.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const message = fakeMessage(NOTIFICATION, AUTHENTIC_HEADERS);
+    await intake.email(message, { ...GOOD_ENV, SUPABASE_URL: undefined }, {});
+    expect(message.forwarded).toEqual(['admin@example.org']);
+  });
+
+  it('forwards exactly once, not twice, when misconfigured', async () => {
+    // The early return skips the trailing forward; if that ever stops being
+    // true the publisher gets every notification in duplicate.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const message = fakeMessage(NOTIFICATION, AUTHENTIC_HEADERS);
+    await intake.email(message, { ...GOOD_ENV, SUPABASE_URL: undefined }, {});
+    expect(message.forwarded).toHaveLength(1);
+  });
+
+  it('enrols as normal once every binding is present', async () => {
+    // The guard must gate the broken case only. Without this, a guard that
+    // rejected everything would look identical to a working one.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true, status: 201, text: async () => '' });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const message = fakeMessage(NOTIFICATION, AUTHENTIC_HEADERS);
+    await intake.email(message, GOOD_ENV, {});
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('https://example.supabase.co/rest/v1/Feedback_Subscribers');
+    // The address itself must never be what gets stored.
+    const body = JSON.parse(init.body);
+    expect(body.email_hmac).toBe(await hashEmail('shared-secret', SUBSCRIBER));
+    expect(JSON.stringify(body)).not.toContain(SUBSCRIBER);
+    expect(message.forwarded).toEqual(['admin@example.org']);
   });
 });

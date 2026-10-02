@@ -1,0 +1,12 @@
+{
+  "name": "subscriber-intake",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Email Worker that enrols new Substack subscribers on the feedback gate's roll.",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.113.0"
+  }
+}

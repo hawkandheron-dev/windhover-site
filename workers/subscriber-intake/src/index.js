@@ -45,6 +45,19 @@ export default {
       }
     };
 
+    // A Worker is a separate project from Pages and inherits none of its
+    // variables, so a missing binding here is a live possibility, not a
+    // theoretical one. Checked first and named in the log, because otherwise
+    // enrol() POSTs to "undefined/rest/v1/..." and the only symptom is a
+    // generic fetch error swallowed by the catch below.
+    const missing = missingBindings(env);
+    if (missing.length) {
+      console.error(`intake: MISCONFIGURED — missing ${missing.join(', ')}. ` +
+                    'Enrolment cannot run until these are set on the Worker.');
+      await forward();
+      return;
+    }
+
     try {
       const raw = await readRaw(message);
       const headers = message.headers;
@@ -214,6 +227,18 @@ async function enrol(address, env) {
   }
   // The digest, never the address — this log is not a place to leak a reader.
   console.log('intake: enrolled', digest.slice(0, 12));
+}
+
+/**
+ * The bindings enrolment cannot run without, by name.
+ *
+ * Names only: the values are a service-role key and a signing pepper, and
+ * neither belongs anywhere near a log line. Exported so the guard can be
+ * tested without standing up a message.
+ */
+export function missingBindings(env) {
+  return ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'FEEDBACK_SIGNING_SECRET']
+    .filter((name) => !env?.[name]);
 }
 
 /** Identical to hashEmail in functions/_lib/gate.js; the digests must match. */
