@@ -34,6 +34,7 @@ const PERSON_FIELDS = [
   { key: 'role_type', label: 'Role Type', type: 'text', placeholder: 'person or emperor' },
   { key: 'era_id', label: 'Era', type: 'era-select' },
   { key: 'is_monarch', label: 'Is Monarch', type: 'checkbox' },
+  { key: 'active', label: 'Active (shown on the timeline)', type: 'checkbox' },
   { key: 'monarch_type', label: 'Monarch Type', type: 'text', placeholder: 'roman-unified, frankish, etc.' },
   { key: 'reign_start', label: 'Reign Start', type: 'date' },
   { key: 'reign_end', label: 'Reign End', type: 'date' },
@@ -48,6 +49,7 @@ const EVENT_FIELDS = [
   { key: 'event_id', label: 'ID', type: 'text', readOnly: true },
   { key: 'name', label: 'Name', type: 'text' },
   { key: 'event_type', label: 'Event Type', type: 'select', options: ['council', 'document', 'event', 'era'] },
+  { key: 'active', label: 'Active (shown on the timeline)', type: 'checkbox' },
   { key: 'event_date', label: 'Event Date', type: 'date' },
   { key: 'end_date', label: 'End Date', type: 'date' },
   { key: 'location', label: 'Location', type: 'text' },
@@ -72,14 +74,14 @@ export function getFieldDefs(itemType) {
   return [];
 }
 
-function getTableConfig(itemType) {
+export function getTableConfig(itemType) {
   if (itemType === 'person') return { table: 'CH_People', pk: 'person_id' };
   if (itemType === 'point') return { table: 'CH_Events', pk: 'event_id' };
   if (itemType === 'period') return { table: 'CH_Eras', pk: 'era_id' };
   return null;
 }
 
-function getUpdateFn(itemType) {
+export function getUpdateFn(itemType) {
   if (itemType === 'person') return updatePerson;
   if (itemType === 'point') return updateEvent;
   if (itemType === 'period') return updateEra;

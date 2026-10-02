@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useCallback, useState } from 'react';
 import { formatDateRange, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
+import { EditableText } from './EditableText.jsx';
 import { sanitizeHtml } from '../../../utils/sanitize.js';
 import { getWorksForAuthor } from '../../../data/works.js';
 import { fetchDescription } from '../../../services/wikipediaService.js';
@@ -143,6 +144,18 @@ function linkifyDescription(description, itemIndex, currentItemId) {
  */
 export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal' }) {
   const isPanel = variant === 'panel';
+
+  // One binding for every pencil in this panel. Built here rather than inside
+  // EditableText because only the caller knows which table an item came from:
+  // the view-model carries the primary key but not the table, and itemType
+  // alone cannot tell CH_Movements from CH_Eras.
+  const editBinding = {
+    itemType,
+    pkValue: item?.id,
+    getToken: adminContext?.getToken,
+    isAdmin: Boolean(adminContext?.isAdmin),
+    onSaved: onEntityUpdated,
+  };
   // CH Timeline 2.0 shows one "Works & Sources" section; the 1.0 pages keep
   // the two they have. Works and Sources sit far apart in this render, so the
   // merged form hoists the sources list up into the works block.
@@ -529,7 +542,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           {item.isMonarch && (
             <Icon name="crown" size={24} color="#ffd700" className="emperor-crown" />
           )}
-          {item.name}
+          <EditableText {...editBinding} value={item.name} column="name" label="Name">
+            {item.name}
+          </EditableText>
           {searchQuery && (
             <a
               className="modal-search-link"
@@ -565,8 +580,12 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           <p className="modal-date">{dateString}</p>
         )}
 
-        {item.location && (
-          <p className="modal-location">{item.location}</p>
+        {(item.location || editBinding.isAdmin) && (
+          <p className="modal-location">
+            <EditableText {...editBinding} value={item.location} column="location" label="Location">
+              {item.location || null}
+            </EditableText>
+          </p>
         )}
 
         {(itemType === 'person' || itemType === 'point') && item.location && (
@@ -597,12 +616,25 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
         )}
 
         {/* Description — shown for all item types that have one */}
-        {item.description && (
-          <div
-            className="modal-description"
-            onClick={handleReferenceClick}
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(descriptionHtml) }}
-          />
+        {(item.description || editBinding.isAdmin) && (
+          <div className="modal-description">
+            <EditableText
+              {...editBinding}
+              value={item.description}
+              column="description"
+              label="Description"
+              multiline
+            >
+              {item.description ? (
+                // The rendered HTML is linkified and sanitised; the pencil
+                // above edits item.description, the raw column behind it.
+                <span
+                  onClick={handleReferenceClick}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(descriptionHtml) }}
+                />
+              ) : null}
+            </EditableText>
+          </div>
         )}
 
         {/* Wikipedia / Britannica — attribution at the TOP, "From Wikipedia" */}

@@ -1,0 +1,121 @@
+/* Inline admin editing. The pencil is quiet until the text is hovered, so an
+   admin reading the panel sees what everyone else sees. */
+.editable-text {
+  position: relative;
+}
+
+.editable-pencil {
+  margin-left: 5px;
+  padding: 1px 3px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--color-ink-faded, #6e6e66);
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+  vertical-align: middle;
+}
+
+/* Revealed on hover, and always once focused — a keyboard user never hovers. */
+.editable-text:hover .editable-pencil,
+.editable-pencil:focus-visible {
+  opacity: 1;
+}
+
+.editable-pencil:hover {
+  background: rgba(120, 100, 70, 0.14);
+  color: var(--color-ink, #1e1c18);
+}
+
+.editable-empty {
+  color: var(--color-ink-faded, #6e6e66);
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.editable-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 290px;
+  max-width: min(420px, 80vw);
+  margin-top: 4px;
+  padding: 10px;
+  border: 1px solid var(--color-border, rgba(120, 100, 70, 0.3));
+  border-radius: 6px;
+  background: var(--color-surface, #fffdf8);
+  box-shadow: 0 4px 18px rgba(20, 20, 16, 0.22);
+  /* The panel sets its own type scale; an editor should not inherit a heading. */
+  font-family: 'Alegreya Sans', var(--font-body, sans-serif);
+  font-size: 13px;
+  font-weight: 400;
+  font-style: normal;
+  text-align: left;
+  white-space: normal;
+  cursor: default;
+}
+
+.editable-popover-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-faded, #6e6e66);
+}
+
+.editable-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border, rgba(120, 100, 70, 0.3));
+  border-radius: 4px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-ink, #1e1c18);
+  resize: vertical;
+}
+
+.editable-input:focus {
+  outline: 2px solid var(--color-accent, #6d4c41);
+  outline-offset: -1px;
+}
+
+.editable-error {
+  font-size: 12px;
+  color: #b3261e;
+}
+
+.editable-popover-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.editable-hint {
+  margin-right: auto;
+  font-size: 11px;
+  color: var(--color-ink-faded, #6e6e66);
+  opacity: 0.8;
+}
+
+@media (prefers-color-scheme: dark) {
+  .editable-popover {
+    background: #26241f;
+    border-color: rgba(160, 152, 136, 0.3);
+  }
+  .editable-input {
+    background: #1c1a16;
+    border-color: rgba(160, 152, 136, 0.3);
+    color: #f0ebe0;
+  }
+  .editable-popover-label, .editable-hint, .editable-empty { color: #a09888; }
+}

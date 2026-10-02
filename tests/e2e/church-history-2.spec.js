@@ -414,6 +414,30 @@ test.describe('CH Timeline 2.0', () => {
     expect(Math.abs(after - before)).toBeLessThan(15);
   });
 
+  // Inline editing is admin-only. RLS is the real boundary — only an admin can
+  // UPDATE CH_People — but the affordance must not appear for anyone else
+  // either, or a reader is invited to make a change that cannot land.
+  test('shows no edit affordance to a reader who is not an admin', async ({ page }) => {
+    await loadPage(page);
+
+    // Open a figure, so the whole detail panel is on screen to inspect.
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Athanasius');
+    await page.locator('.timeline-search-option').first().click();
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+
+    await expect(page.locator('.editable-pencil')).toHaveCount(0);
+    await expect(page.locator('.editable-popover')).toHaveCount(0);
+
+    // The text itself still renders — the gate hides the pencil, not the panel.
+    await expect(page.locator('.modal-title')).toContainText('Athanasius');
+
+    // And hovering the title must not summon one.
+    await page.locator('.modal-title').hover();
+    await page.waitForTimeout(250);
+    await expect(page.locator('.editable-pencil')).toHaveCount(0);
+  });
+
   test('mobile falls back to the 1.0 swimlane', async ({ page }) => {
     await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
 
