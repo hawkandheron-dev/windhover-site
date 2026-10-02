@@ -1,0 +1,29 @@
+# Email Workers cannot live in a Pages project, so this deploys separately.
+# Receiving mail is free on the Workers Free plan; only sending needs Paid.
+name = "subscriber-intake"
+main = "src/index.js"
+compatibility_date = "2026-10-02"
+
+# Declares the Email Routing rule, so the address-to-Worker binding is created
+# by the deploy rather than clicked in the dashboard — and lives in review with
+# the code that reads the mail. Needs Wrangler 4.113.0+, which package.json
+# pins. Must stay above [vars]: TOML top-level keys cannot follow a table.
+addresses = ["subscribers@windhoverhistory.com"]
+
+# Plain variables. Secrets are set in the dashboard under Variables & Secrets
+# (or `wrangler secret put`), never here:
+#   FEEDBACK_SIGNING_SECRET    — must match the Pages project exactly
+#   SUPABASE_SERVICE_ROLE_KEY  — same value as the Pages project
+[vars]
+# Not a secret: supabase-config.js already publishes it to every browser.
+# It lives here because a Worker is a separate project from Pages and shares
+# none of its variables — without this, enrol() would POST to "undefined/...".
+SUPABASE_URL = "https://fnxsfdbbnjbveyjmwanc.supabase.co"
+# Where the notification continues to after processing. Must be a *verified
+# destination address* in Email Routing; a custom address on the zone is not
+# one, and message.forward() refuses anything else.
+FORWARD_TO = "admin@windhoverhistory.com"
+# Never enrol the publisher's own address; it appears as the recipient.
+PUBLISHER_EMAIL = "matthewlanebrown@gmail.com"
+# Deliberate, visible escape hatch if DKIM does not survive forwarding.
+# ALLOW_UNSIGNED = "true"

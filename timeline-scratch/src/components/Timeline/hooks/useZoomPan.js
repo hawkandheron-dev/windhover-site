@@ -6,6 +6,19 @@ import { useState, useCallback, useRef } from 'react';
 import { calculateZoomAroundPoint, clamp } from '../utils/coordinates.js';
 
 /**
+ * Clamp a viewport start year to the pannable range.
+ *
+ * `clamp` is min-then-max, so when the visible span is wider than the whole
+ * allowed range — zoomed right out, or on a dataset covering only a century or
+ * two — `maxYear - span` falls BELOW `minYear` and the ceiling wins, dumping
+ * the viewport hundreds of years off the data. Collapsing the range to minYear
+ * in that case shows everything from the start, which is what the reader wants.
+ */
+function clampStart(start, minYear, maxYear, viewportYearSpan) {
+  return clamp(start, minYear, Math.max(minYear, maxYear - viewportYearSpan));
+}
+
+/**
  * Hook for zoom and pan functionality
  * @param {Object} config - Configuration
  * @param {number} config.initialViewportStartYear - Initial viewport start year
@@ -24,9 +37,37 @@ export function useZoomPan({
   minYear = -3000,
   maxYear = 2100
 }) {
-  const [viewportStartYear, setViewportStartYear] = useState(initialViewportStartYear);
-  const [yearsPerPixel, setYearsPerPixel] = useState(initialYearsPerPixel);
+  // The start year and the scale are one piece of state, not two.
+  //
+  // A zoom has to change both together: the new start is derived from the new
+  // scale so the year under the cursor stays put. Splitting them across two
+  // setters meant the zoom handler had to nest one inside the other and return
+  // a stale closed-over value from the outer one, which a trackpad pinch (dozens
+  // of events batched into one React pass) would then make the last write —
+  // throwing the viewport back to wherever it started while the zoom carried on.
+  // Holding them together makes every update a single pure function of the
+  // previous pair, so batched events compose instead of fighting.
+  const [viewport, setViewport] = useState({
+    startYear: initialViewportStartYear,
+    yearsPerPixel: initialYearsPerPixel,
+  });
+  const { startYear: viewportStartYear, yearsPerPixel } = viewport;
   const [panOffsetY, setPanOffsetY] = useState(0);
+
+  // Kept so callers can still set one value on its own, updater form included.
+  const setViewportStartYear = useCallback(value => {
+    setViewport(prev => ({
+      ...prev,
+      startYear: typeof value === 'function' ? value(prev.startYear) : value,
+    }));
+  }, []);
+
+  const setYearsPerPixel = useCallback(value => {
+    setViewport(prev => ({
+      ...prev,
+      yearsPerPixel: typeof value === 'function' ? value(prev.yearsPerPixel) : value,
+    }));
+  }, []);
 
   // Track if currently panning
   const isPanning = useRef(false);
@@ -39,36 +80,25 @@ export function useZoomPan({
    * Handle zoom centered on a point
    */
   const handleZoom = useCallback((zoomDelta, mouseX, canvasWidth) => {
-    setViewportStartYear(prevStart => {
-      setYearsPerPixel(prevYPP => {
-        const { viewportStartYear: newStart, yearsPerPixel: newYPP } =
-          calculateZoomAroundPoint(zoomDelta, mouseX, prevStart, prevYPP);
+    setViewport(({ startYear: prevStart, yearsPerPixel: prevYPP }) => {
+      const { viewportStartYear: newStart, yearsPerPixel: newYPP } =
+        calculateZoomAroundPoint(zoomDelta, mouseX, prevStart, prevYPP);
 
-        // Clamp years per pixel to zoom limits
-        const clampedYPP = clamp(newYPP, minYearsPerPixel, maxYearsPerPixel);
+      const clampedYPP = clamp(newYPP, minYearsPerPixel, maxYearsPerPixel);
 
-        // If we hit zoom limits, recalculate to keep mouse position stable
-        if (clampedYPP !== newYPP) {
-          const yearAtMouse = prevStart + (mouseX * prevYPP);
-          const clampedStart = yearAtMouse - (mouseX * clampedYPP);
+      // At a zoom limit the scale stops moving, so the start has to be
+      // re-derived from the clamped scale — otherwise the year under the
+      // cursor drifts on every further nudge against the stop.
+      const unclampedStart = clampedYPP === newYPP
+        ? newStart
+        : (prevStart + mouseX * prevYPP) - (mouseX * clampedYPP);
 
-          // Clamp to valid year range
-          const viewportYearSpan = canvasWidth * clampedYPP;
-          const finalStart = clamp(clampedStart, minYear, maxYear - viewportYearSpan);
+      const viewportYearSpan = canvasWidth * clampedYPP;
 
-          setViewportStartYear(finalStart);
-          return clampedYPP;
-        }
-
-        // Clamp viewport to valid year range
-        const viewportYearSpan = canvasWidth * clampedYPP;
-        const clampedStart = clamp(newStart, minYear, maxYear - viewportYearSpan);
-
-        setViewportStartYear(clampedStart);
-        return clampedYPP;
-      });
-
-      return viewportStartYear; // Dummy return, actual update happens in nested setter
+      return {
+        startYear: clampStart(unclampedStart, minYear, maxYear, viewportYearSpan),
+        yearsPerPixel: clampedYPP,
+      };
     });
   }, [minYearsPerPixel, maxYearsPerPixel, minYear, maxYear]);
 
@@ -76,15 +106,16 @@ export function useZoomPan({
    * Handle horizontal pan (time scrolling)
    */
   const handlePanX = useCallback((deltaPixels, canvasWidth) => {
-    setViewportStartYear(prevStart => {
-      const deltaYears = deltaPixels * yearsPerPixel;
-      const newStart = prevStart - deltaYears;
+    setViewport(prev => {
+      const deltaYears = deltaPixels * prev.yearsPerPixel;
+      const viewportYearSpan = canvasWidth * prev.yearsPerPixel;
 
-      // Clamp to valid range
-      const viewportYearSpan = canvasWidth * yearsPerPixel;
-      return clamp(newStart, minYear, maxYear - viewportYearSpan);
+      return {
+        ...prev,
+        startYear: clampStart(prev.startYear - deltaYears, minYear, maxYear, viewportYearSpan),
+      };
     });
-  }, [yearsPerPixel, minYear, maxYear]);
+  }, [minYear, maxYear]);
 
   /**
    * Handle vertical pan (lane scrolling)
@@ -131,8 +162,7 @@ export function useZoomPan({
    * Reset to initial viewport
    */
   const reset = useCallback(() => {
-    setViewportStartYear(initialViewportStartYear);
-    setYearsPerPixel(initialYearsPerPixel);
+    setViewport({ startYear: initialViewportStartYear, yearsPerPixel: initialYearsPerPixel });
     setPanOffsetY(0);
   }, [initialViewportStartYear, initialYearsPerPixel]);
 
@@ -140,14 +170,16 @@ export function useZoomPan({
    * Jump to a specific year
    */
   const jumpToYear = useCallback((year, canvasWidth) => {
-    // Center the viewport on the target year
-    const viewportYearSpan = canvasWidth * yearsPerPixel;
-    const newStart = year - (viewportYearSpan / 2);
+    setViewport(prev => {
+      // Center the viewport on the target year, at whatever the scale is now.
+      const viewportYearSpan = canvasWidth * prev.yearsPerPixel;
 
-    // Clamp to valid range
-    const clampedStart = clamp(newStart, minYear, maxYear - viewportYearSpan);
-    setViewportStartYear(clampedStart);
-  }, [yearsPerPixel, minYear, maxYear]);
+      return {
+        ...prev,
+        startYear: clampStart(year - (viewportYearSpan / 2), minYear, maxYear, viewportYearSpan),
+      };
+    });
+  }, [minYear, maxYear]);
 
   /**
    * Set vertical pan offset directly (for search centering)
@@ -180,8 +212,12 @@ export function useZoomPan({
       const t = Math.min(elapsed / duration, 1);
       const p = ease(t);
 
-      setViewportStartYear(fromStart + (targetStartYear - fromStart) * p);
-      setYearsPerPixel(fromYPP + (targetYPP - fromYPP) * p);
+      // Both in one write: a frame that moved the start but not yet the scale
+      // would paint a viewport that never existed.
+      setViewport({
+        startYear: fromStart + (targetStartYear - fromStart) * p,
+        yearsPerPixel: fromYPP + (targetYPP - fromYPP) * p,
+      });
       setPanOffsetY(fromOffsetY + (targetOffsetY - fromOffsetY) * p);
 
       if (t < 1) {

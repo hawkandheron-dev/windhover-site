@@ -149,9 +149,14 @@ function estimatePointCalloutWidth(point, fontSize = 14) {
  * @param {Array} points - Array of point items
  * @param {number} pointWidth - Unused, kept for API compatibility
  * @param {number} yearsPerPixel - Current zoom scale
+ * @param {number|null} markerWidth - Collision width in px when the layer
+ *   draws bare markers instead of HTML callouts. A callout is sized by its
+ *   label (~200px), so estimating one for a layer that has no labels stacks
+ *   near-simultaneous points into dozens of rows. CH Timeline 2.0's
+ *   background layer passes the marker's own width instead.
  * @returns {Array} Points with row assignments
  */
-export function stackPoints(points, pointWidth = 150, yearsPerPixel = 1) {
+export function stackPoints(points, pointWidth = 150, yearsPerPixel = 1, markerWidth = null) {
   if (!points || points.length === 0) return [];
 
   // Sort by date, then alphabetically
@@ -169,7 +174,7 @@ export function stackPoints(points, pointWidth = 150, yearsPerPixel = 1) {
   const withRows = sorted.map(point => {
     const year = getYear(point.date);
     // Left-aligned: callout extends rightward from the date position
-    const estimatedWidth = estimatePointCalloutWidth(point);
+    const estimatedWidth = markerWidth ?? estimatePointCalloutWidth(point);
     const widthInYears = estimatedWidth * yearsPerPixel;
     const start = year;
     const end = year + widthInYears;
@@ -371,7 +376,8 @@ export function stackPeopleAndPoints(people, points, pointWidth = 150, yearsPerP
  * @param {number} yearsPerPixel - Current zoom scale
  * @returns {Object} Stacked items separated by above/below: { above: {...}, below: {...} }
  */
-export function stackTimelineItems(data, pointWidth = 150, yearsPerPixel = 1) {
+export function stackTimelineItems(data, pointWidth = 150, yearsPerPixel = 1, options = {}) {
+  const { pointMarkerWidth = null } = options;
   const { people = [], points = [], periods = [] } = data;
 
   // Split items by aboveTimeline (default to true)
@@ -392,8 +398,8 @@ export function stackTimelineItems(data, pointWidth = 150, yearsPerPixel = 1) {
   const abovePeopleStacked = stackPeople(abovePeople, yearsPerPixel);
   const belowPeopleStacked = stackPeople(belowPeople, yearsPerPixel);
 
-  const abovePointsStacked = stackPoints(abovePoints, pointWidth, yearsPerPixel);
-  const belowPointsStacked = stackPoints(belowPoints, pointWidth, yearsPerPixel);
+  const abovePointsStacked = stackPoints(abovePoints, pointWidth, yearsPerPixel, pointMarkerWidth);
+  const belowPointsStacked = stackPoints(belowPoints, pointWidth, yearsPerPixel, pointMarkerWidth);
 
   return {
     above: {

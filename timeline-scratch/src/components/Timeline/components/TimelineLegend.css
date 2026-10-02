@@ -39,13 +39,31 @@
 
 .legend-site-title {
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   font-family: 'Alegreya Sans', var(--font-body, sans-serif);
   color: var(--color-ink, var(--color-ink));
   line-height: 1.3;
   border-bottom: 1px solid var(--color-border, rgba(120, 100, 70, 0.25));
   padding-bottom: 10px;
+}
+
+/* Section divider inside a long legend (CH Timeline 2.0: Eras / Background) */
+.legend-section-heading {
+  margin: 10px 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-ink-faded, var(--color-ink-faded));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-top: 1px solid var(--color-border, rgba(120, 100, 70, 0.25));
+  padding-top: 8px;
+}
+
+.legend-section-heading:first-child {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
 }
 
 .legend-title {
@@ -151,5 +169,45 @@
 
   .legend-item {
     color: #d8d0c4;
+  }
+}
+
+/* Century ramp (CH Timeline 2.0) — a continuous scale rather than sixteen
+   filter rows. Nothing here toggles; it says what the colour means. */
+.legend-century-ramp {
+  margin: 2px 0 6px;
+}
+
+.legend-century-bar {
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border, rgba(30, 28, 24, 0.12));
+}
+
+.legend-century-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  color: var(--color-ink-faded, #6e6e66);
+}
+
+
+/* The strapline under the timeline's name. Its own line, lighter and smaller,
+   so the name carries and the description explains. */
+.legend-site-subtitle {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  color: var(--color-ink-faded, #6e6e66);
+}
+
+@media (prefers-color-scheme: dark) {
+  .legend-site-subtitle {
+    color: #a09888;
   }
 }

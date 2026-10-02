@@ -1,3 +1,16 @@
+/* Row shared by the timeline and its docked detail panel (CH Timeline 2.0). */
+.timeline-with-panel {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.timeline-with-panel > .timeline-container {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .timeline-container {
   width: 100%;
   height: 100%;
@@ -30,6 +43,26 @@
   opacity: 0.45;
   pointer-events: none;
   z-index: 0;
+}
+
+/* ── CH Timeline 2.0 depth stack ─────────────────────────────────────────
+   Painted bottom to top: the watercolour background layer, its focus overlay,
+   then the foreground canvas and its HTML overlay (which carry no z-index and
+   so paint in DOM order above). The ground is plain white — the grey-rule
+   parallax field that used to sit under this read as drifting noise rather
+   than depth, and the background layer carries the depth cue on its own. */
+
+.ch2-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* The label layer rides above the foreground canvas so its chips are
+   hoverable; see MonarchLabels.css. */
+.ch2-layer-labels {
+  z-index: 5;
 }
 
 body.modal-open .timeline-container {
@@ -102,6 +135,30 @@ body.modal-open .timeline-container {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Depth control — the three resting states of the background layer */
+.depth-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: 5px;
+  background: var(--color-parchment-light);
+}
+
+.depth-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-faded);
+}
+
+.depth-btn.active {
+  background: var(--color-accent);
+  color: #fff;
 }
 
 .zoom-info {

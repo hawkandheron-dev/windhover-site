@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useCallback, useState } from 'react';
 import { formatDateRange, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
+import { EditableText } from './EditableText.jsx';
 import { sanitizeHtml } from '../../../utils/sanitize.js';
 import { getWorksForAuthor } from '../../../data/works.js';
 import { fetchDescription } from '../../../services/wikipediaService.js';
@@ -134,7 +135,32 @@ function linkifyDescription(description, itemIndex, currentItemId) {
   }
 }
 
-export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated }) {
+/**
+ * @param {'modal'|'panel'} [variant] - 'modal' (default) is the centred
+ *   dialog every timeline has used: a backdrop, the page frozen behind it.
+ *   'panel' docks the same content down the right-hand side as a flex sibling
+ *   of the timeline, leaving it live — which is what CH Timeline 2.0 needs, so
+ *   a figure's background stays in focus while you read about them.
+ */
+export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal' }) {
+  const isPanel = variant === 'panel';
+
+  // One binding for every pencil in this panel. Built here rather than inside
+  // EditableText because only the caller knows which table an item came from:
+  // the view-model carries the primary key but not the table, and itemType
+  // alone cannot tell CH_Movements from CH_Eras.
+  const editBinding = {
+    itemType,
+    pkValue: item?.id,
+    getToken: adminContext?.getToken,
+    isAdmin: Boolean(adminContext?.isAdmin),
+    onSaved: onEntityUpdated,
+  };
+  // CH Timeline 2.0 shows one "Works & Sources" section; the 1.0 pages keep
+  // the two they have. Works and Sources sit far apart in this render, so the
+  // merged form hoists the sources list up into the works block.
+  const mergeWorksAndSources = config?.mergeWorksAndSources === true;
+  const hasSources = Boolean(item?.sources?.length);
   // ── Delete confirmation state ──────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -178,15 +204,23 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     }
 
     document.addEventListener('keydown', handleEscape);
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('modal-open');
+
+    // Only the centred variant takes the page hostage. The docked panel has
+    // its own scroll container and sits beside a timeline that must stay
+    // pannable, so it leaves the body alone.
+    if (!isPanel) {
+      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+    }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = '';
-      document.body.classList.remove('modal-open');
+      if (!isPanel) {
+        document.body.style.overflow = '';
+        document.body.classList.remove('modal-open');
+      }
     };
-  }, [isOpen, onClose, deleteConfirm, editSection]);
+  }, [isOpen, onClose, deleteConfirm, editSection, isPanel]);
 
   const connections = useMemo(() => {
     if (itemType !== 'person' || !item?.connections?.length || !itemIndex) return [];
@@ -456,17 +490,37 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     );
   }
 
+  const sourcesList = (
+    <ul className="modal-reference-list">
+      {(item.sources || []).map((source) => {
+        const metaParts = [source.source, source.year].filter(Boolean);
+        const metaText = metaParts.length ? ` (${metaParts.join(', ')})` : '';
+        return (
+          <li key={source.id}>
+            <a href={source.url} target="_blank" rel="noopener noreferrer">
+              {source.title}
+            </a>
+            {metaText && <span>{metaText}</span>}
+            {source.notes && <div>{source.notes}</div>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
     <div
-      className="timeline-modal"
-      onClick={onClose}
+      className={isPanel ? 'timeline-modal timeline-modal--panel' : 'timeline-modal'}
+      // Clicking outside dismisses the centred dialog. The docked panel has no
+      // "outside" — it is part of the layout — so it closes from its own button.
+      onClick={isPanel ? undefined : onClose}
       onMouseDown={handleModalWheel}
       onMouseUp={handleModalWheel}
       onWheel={handleModalWheel}
       onTouchStart={handleModalWheel}
       onTouchMove={handleModalWheel}
     >
-      <div className="modal-backdrop" />
+      {!isPanel && <div className="modal-backdrop" />}
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button
           className="modal-close"
@@ -488,7 +542,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           {item.isMonarch && (
             <Icon name="crown" size={24} color="#ffd700" className="emperor-crown" />
           )}
-          {item.name}
+          <EditableText {...editBinding} value={item.name} column="name" label="Name">
+            {item.name}
+          </EditableText>
           {searchQuery && (
             <a
               className="modal-search-link"
@@ -524,8 +580,12 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           <p className="modal-date">{dateString}</p>
         )}
 
-        {item.location && (
-          <p className="modal-location">{item.location}</p>
+        {(item.location || editBinding.isAdmin) && (
+          <p className="modal-location">
+            <EditableText {...editBinding} value={item.location} column="location" label="Location">
+              {item.location || null}
+            </EditableText>
+          </p>
         )}
 
         {(itemType === 'person' || itemType === 'point') && item.location && (
@@ -556,12 +616,25 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
         )}
 
         {/* Description — shown for all item types that have one */}
-        {item.description && (
-          <div
-            className="modal-description"
-            onClick={handleReferenceClick}
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(descriptionHtml) }}
-          />
+        {(item.description || editBinding.isAdmin) && (
+          <div className="modal-description">
+            <EditableText
+              {...editBinding}
+              value={item.description}
+              column="description"
+              label="Description"
+              multiline
+            >
+              {item.description ? (
+                // The rendered HTML is linkified and sanitised; the pencil
+                // above edits item.description, the raw column behind it.
+                <span
+                  onClick={handleReferenceClick}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(descriptionHtml) }}
+                />
+              ) : null}
+            </EditableText>
+          </div>
         )}
 
         {/* Wikipedia / Britannica — attribution at the TOP, "From Wikipedia" */}
@@ -589,29 +662,37 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </div>
         )}
 
-        {/* Works / Texts — comma-separated hyperlinks (not a list) */}
-        {worksForPerson.length > 0 && editSection !== 'works' && (
+        {/* Works / Texts — comma-separated hyperlinks (not a list).
+            When merged, the sources list follows under the same heading, and
+            the section also appears for a figure who has sources but no works. */}
+        {(worksForPerson.length > 0 || (mergeWorksAndSources && hasSources)) && editSection !== 'works' && (
           <div className="modal-links modal-works">
             <h3>
-              Works
-              {canEdit && (
+              {mergeWorksAndSources ? 'Works & Sources' : 'Works'}
+              {canEdit && worksForPerson.length > 0 && (
                 <button type="button" className="modal-edit-btn" onClick={startEditWorks}>Edit</button>
               )}
+              {canEdit && mergeWorksAndSources && hasSources && (
+                <button type="button" className="modal-edit-btn" onClick={startEditSources}>Edit sources</button>
+              )}
             </h3>
-            <p className="modal-works-inline">
-              {worksForPerson.map((work, i) => (
-                <span key={work.name}>
-                  {i > 0 && ', '}
-                  {work.textUrl ? (
-                    <a href={work.textUrl} target="_blank" rel="noopener noreferrer">
-                      {work.name}
-                    </a>
-                  ) : (
-                    <span>{work.name}</span>
-                  )}
-                </span>
-              ))}
-            </p>
+            {worksForPerson.length > 0 && (
+              <p className="modal-works-inline">
+                {worksForPerson.map((work, i) => (
+                  <span key={work.name}>
+                    {i > 0 && ', '}
+                    {work.textUrl ? (
+                      <a href={work.textUrl} target="_blank" rel="noopener noreferrer">
+                        {work.name}
+                      </a>
+                    ) : (
+                      <span>{work.name}</span>
+                    )}
+                  </span>
+                ))}
+              </p>
+            )}
+            {mergeWorksAndSources && hasSources && editSection !== 'sources' && sourcesList}
           </div>
         )}
 
@@ -859,8 +940,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </div>
         )}
 
-        {/* Sources — for People and Points */}
-        {item.sources && item.sources.length > 0 && editSection !== 'sources' && (
+        {/* Sources — for People and Points. Rendered here only when they are
+            their own section; the merged form puts them under Works above. */}
+        {!mergeWorksAndSources && item.sources && item.sources.length > 0 && editSection !== 'sources' && (
           <div className="modal-links">
             <h3>
               Sources
@@ -868,21 +950,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
                 <button type="button" className="modal-edit-btn" onClick={startEditSources}>Edit</button>
               )}
             </h3>
-            <ul className="modal-reference-list">
-              {item.sources.map((source) => {
-                const metaParts = [source.source, source.year].filter(Boolean);
-                const metaText = metaParts.length ? ` (${metaParts.join(', ')})` : '';
-                return (
-                  <li key={source.id}>
-                    <a href={source.url} target="_blank" rel="noopener noreferrer">
-                      {source.title}
-                    </a>
-                    {metaText && <span>{metaText}</span>}
-                    {source.notes && <div>{source.notes}</div>}
-                  </li>
-                );
-              })}
-            </ul>
+            {sourcesList}
           </div>
         )}
 

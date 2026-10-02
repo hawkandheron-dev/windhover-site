@@ -7,6 +7,7 @@ import { yearToPixel, getYearLabelInterval } from '../utils/coordinates.js';
 import { getYearRange } from '../utils/dateUtils.js';
 import {
   clearCanvas,
+  drawRoundedRect,
   drawTimeAxis,
   drawVerticalGuideLines,
   drawPersonBox,
@@ -31,10 +32,25 @@ export function TimelineCanvas({
   wasDraggingRef,
   highlightedItemIds = new Set(),
   currentHighlightId = null,
-  animatingIds
+  animatingIds,
+  // ── CH Timeline 2.0 additions. Every one defaults to the behaviour the
+  // other five timelines already have, so this file renders them unchanged.
+  /** Canvas colour overrides; absent means the parchment palette. */
+  palette = {},
+  /** Vertical shift, used to register a second layout against a shared axis. */
+  yOffset = 0,
+  /** When set, only these ids are drawn — this is the focus layer. */
+  onlyIds = null,
+  /** False for decorative layers: no hit map, no cursor, no pointer events. */
+  interactive = true,
+  /** 'front' draws the axis and leaves points to the overlay; 'back' draws
+   *  point markers itself and renders movement spans as soft washes. */
+  layerMode = 'front',
 }) {
   const canvasRef = useRef(null);
   const hitMapRef = useRef(new Map()); // For click detection
+  const isBackLayer = layerMode === 'back';
+  const showLabels = isBackLayer && Boolean(onlyIds);
 
   // Grow animation state — progress 0→1 drives a clip on newly added bars
   const [animProgress, setAnimProgress] = useState(1);
@@ -90,35 +106,48 @@ export function TimelineCanvas({
 
     // Draw time axis
     const labelInterval = getYearLabelInterval(yearsPerPixel);
-    const axisY = layout.axisY - panOffsetY;
+    const axisY = layout.axisY - panOffsetY + yOffset;
 
-    // Draw vertical guide lines behind everything for parallax depth
-    drawVerticalGuideLines(ctx, width, height, viewportStartYear, yearsPerPixel, labelInterval);
+    // A background layer sits behind a foreground one that already draws the
+    // axis and the guide rules; drawing them twice would double their weight.
+    if (!isBackLayer) {
+      // Draw vertical guide lines behind everything for parallax depth
+      drawVerticalGuideLines(ctx, width, height, viewportStartYear, yearsPerPixel, labelInterval, palette);
+    }
 
     // Render periods BEFORE axis so year labels appear on top of period fills
-    renderPeriods(ctx, layout.stackedPeriods, axisY);
+    renderPeriods(ctx, visible(layout.stackedPeriods), axisY);
 
-    drawTimeAxis(
-      ctx,
-      width,
-      height,
-      axisY,
-      viewportStartYear,
-      yearsPerPixel,
-      labelInterval,
-      config.eraLabels
-    );
+    if (!isBackLayer) {
+      drawTimeAxis(
+        ctx,
+        width,
+        height,
+        axisY,
+        viewportStartYear,
+        yearsPerPixel,
+        labelInterval,
+        config.eraLabels,
+        palette
+      );
+    }
 
     // Render all other items (they already have y positions calculated)
-    renderPeople(ctx, layout.stackedPeople);
-    renderPoints(ctx, layout.stackedPoints);
+    renderPeople(ctx, visible(layout.stackedPeople));
+    renderPoints(ctx, visible(layout.stackedPoints));
 
     // Draw configured chains (e.g. the Nicene line) over the people lane
     renderChains(ctx, layout.stackedPeople);
 
     // Draw search highlights on top
     renderSearchHighlights(ctx, layout);
-  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animProgress]);
+  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animProgress, palette, yOffset, onlyIds, layerMode]);
+
+  /** The focus layer draws a subset; every other layer draws everything. */
+  function visible(items) {
+    if (!onlyIds) return items || [];
+    return (items || []).filter(item => onlyIds.has(item.id));
+  }
 
   // Render people
   function renderPeople(ctx, people) {
@@ -127,7 +156,7 @@ export function TimelineCanvas({
 
       const x = yearToPixel(start, viewportStartYear, yearsPerPixel);
       const boxWidth = yearToPixel(end, viewportStartYear, yearsPerPixel) - x;
-      const y = person.y - panOffsetY;
+      const y = person.y - panOffsetY + yOffset;
       const boxHeight = person.height - 6;
 
       // Min width for readability
@@ -142,8 +171,9 @@ export function TimelineCanvas({
       // Apply opacity based on period highlighting and monarch dimming
       const inPeriod = isInHoveredPeriod(start, end);
       let opacity = hoveredPeriod ? (inPeriod ? 1.0 : 0.3) : 1.0;
-      // Monarchs are dimmed unless hovered
-      if (person.isMonarch && !isHovered && !hoveredPeriod) {
+      // Monarchs are dimmed unless hovered — but not on a background layer,
+      // which is already dimmed as a whole and would double the fade.
+      if (person.isMonarch && !isHovered && !hoveredPeriod && !isBackLayer) {
         opacity = 0.4;
       }
 
@@ -184,19 +214,49 @@ export function TimelineCanvas({
         drawPersonBox(ctx, reignX, reignWidth, y, boxHeight, color, isHovered, emphasis);
       } else {
         // Regular person or monarch without reign data: single color box
-        drawPersonBox(ctx, x, displayWidth, y, boxHeight, color, isHovered, emphasis);
+        drawPersonBox(ctx, x, displayWidth, y, boxHeight, color, isHovered, emphasis, person.gradient || null);
+      }
+
+      // The focus layer is the only place a background figure gets a name —
+      // blurred labels on the resting layer are noise, not information.
+      if (showLabels) {
+        drawLayerLabel(ctx, person.name, x + 4, y + boxHeight / 2, color);
       }
 
       // Restore context
       ctx.restore();
 
       // Store in hit map for click detection
-      hitMapRef.current.set(person.id, {
-        type: 'person',
-        item: person,
-        bounds: { x, y, width: displayWidth, height: boxHeight }
-      });
+      if (interactive) {
+        hitMapRef.current.set(person.id, {
+          type: 'person',
+          item: person,
+          bounds: { x, y, width: displayWidth, height: boxHeight }
+        });
+      }
     });
+  }
+
+  /**
+   * A short label drawn straight onto the canvas, used only by the focus
+   * layer. Front-layer labels come from TimelineOverlay as HTML, which is what
+   * gives them their hover behaviour; the focus layer has none, so canvas text
+   * is enough and avoids a second DOM tree.
+   */
+  function drawLayerLabel(ctx, text, x, centerY, color) {
+    if (!text) return;
+    ctx.save();
+    ctx.font = '600 11px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const metrics = ctx.measureText(text);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+    ctx.beginPath();
+    ctx.roundRect(x - 3, centerY - 8, metrics.width + 6, 16, 3);
+    ctx.fill();
+    ctx.fillStyle = color || '#333';
+    ctx.fillText(text, x, centerY);
+    ctx.restore();
   }
 
   // Render chains — successions the config asks to be drawn as a continuous
@@ -228,7 +288,7 @@ export function TimelineCanvas({
 
       const x = yearToPixel(start, viewportStartYear, yearsPerPixel);
       const periodWidth = yearToPixel(end, viewportStartYear, yearsPerPixel) - x;
-      const y = period.y - panOffsetY;
+      const y = period.y - panOffsetY + yOffset;
       // Use bracketHeight for the actual bracket, falling back to height for backwards compatibility
       const bracketHeight = period.bracketHeight || period.height;
 
@@ -238,6 +298,28 @@ export function TimelineCanvas({
       // Apply opacity based on period highlighting
       const isThisPeriodHovered = hoveredPeriod?.id === period.id;
       const opacity = hoveredPeriod ? (isThisPeriodHovered ? 1.0 : 0.3) : 1.0;
+
+      // On a background layer a span is a wash of colour, not a labelled
+      // bracket — the curly braces are exactly the ornament 2.0 sheds.
+      if (isBackLayer) {
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = hexToRgba(color, showLabels ? 0.4 : 0.55);
+        drawRoundedRect(ctx, x, y, Math.max(periodWidth, 3), bracketHeight, 5);
+        ctx.fill();
+        if (showLabels) {
+          drawLayerLabel(ctx, period.name, x + 5, y + bracketHeight / 2, color);
+        }
+        ctx.restore();
+        if (interactive) {
+          hitMapRef.current.set(period.id, {
+            type: 'period',
+            item: period,
+            bounds: { x, y, width: periodWidth, height: bracketHeight }
+          });
+        }
+        return;
+      }
 
       ctx.save();
       ctx.globalAlpha = opacity;
@@ -308,11 +390,13 @@ export function TimelineCanvas({
       const fillMinY = Math.min(y, axisY);
       const fillMaxY = Math.max(y + bracketHeight, axisY);
 
-      hitMapRef.current.set(period.id, {
-        type: 'period',
-        item: period,
-        bounds: { x, y: fillMinY, width: periodWidth, height: fillMaxY - fillMinY }
-      });
+      if (interactive) {
+        hitMapRef.current.set(period.id, {
+          type: 'period',
+          item: period,
+          bounds: { x, y: fillMinY, width: periodWidth, height: fillMaxY - fillMinY }
+        });
+      }
     });
   }
 
@@ -322,18 +406,29 @@ export function TimelineCanvas({
       const year = getYearRange(point.date).start;
 
       const x = yearToPixel(year, viewportStartYear, yearsPerPixel);
-      const y = point.y - panOffsetY + (point.height / 2);
+      const y = point.y - panOffsetY + yOffset + (point.height / 2);
 
-      // Point markers are now rendered inside labels, so we don't draw them on canvas
-      // Just set up hit detection
+      // On the foreground layer, markers are drawn inside the HTML labels that
+      // TimelineOverlay renders, so there is nothing to paint here. A
+      // background layer has no overlay of its own — it draws its own markers.
+      if (isBackLayer) {
+        ctx.save();
+        drawPointMarker(ctx, x, y - 9, 9, point.shape, point.color || '#888');
+        if (showLabels) {
+          drawLayerLabel(ctx, point.name, x + 9, y - 9, point.color);
+        }
+        ctx.restore();
+      }
 
       // Store in hit map for clicking (left-aligned from date position)
       const hitWidth = 120;
-      hitMapRef.current.set(point.id, {
-        type: 'point',
-        item: point,
-        bounds: { x: x, y: y - 18, width: hitWidth, height: 20 }
-      });
+      if (interactive) {
+        hitMapRef.current.set(point.id, {
+          type: 'point',
+          item: point,
+          bounds: { x: x, y: y - 18, width: hitWidth, height: 20 }
+        });
+      }
     });
   }
 
@@ -518,13 +613,14 @@ export function TimelineCanvas({
       ref={canvasRef}
       width={width}
       height={height}
-      onMouseMove={handleMouseMove}
-      onClick={handleClick}
+      onMouseMove={interactive ? handleMouseMove : undefined}
+      onClick={interactive ? handleClick : undefined}
       style={{
         display: 'block',
         position: 'absolute',
         top: 0,
-        left: 0
+        left: 0,
+        ...(interactive ? null : { pointerEvents: 'none' }),
       }}
     />
   );

@@ -268,7 +268,7 @@ export function drawPeriodBracket(ctx, x, width, y, height, color) {
  * @param {object} [emphasis] - Optional emphasis ring, e.g. the defenders of
  *   orthodoxy on the heresies timeline: { color }. Omit for normal figures.
  */
-export function drawPersonBox(ctx, x, width, y, height, color, isHovered = false, emphasis = null) {
+export function drawPersonBox(ctx, x, width, y, height, color, isHovered = false, emphasis = null, gradient = null) {
   ctx.save();
 
   // Shadow for hovered state
@@ -278,8 +278,17 @@ export function drawPersonBox(ctx, x, width, y, height, color, isHovered = false
     ctx.shadowOffsetY = 2;
   }
 
-  // Draw box
-  ctx.fillStyle = color;
+  // Draw box. A lifespan that crosses a century boundary is filled left to
+  // right between the two centuries' colours, so the bar shows the crossing
+  // rather than having to pick one side of it.
+  if (gradient) {
+    const fill = ctx.createLinearGradient(x, 0, x + width, 0);
+    fill.addColorStop(0, gradient.from);
+    fill.addColorStop(1, gradient.to);
+    ctx.fillStyle = fill;
+  } else {
+    ctx.fillStyle = color;
+  }
   drawRoundedRect(ctx, x, y, width, height, 3);
   ctx.fill();
 
@@ -410,14 +419,15 @@ export function clearCanvas(ctx, width, height) {
  * @param {number} viewportStartYear - Starting year of viewport
  * @param {number} yearsPerPixel - Scale factor
  * @param {number} labelInterval - Year interval between labels
+ * @param {Object} [palette] - Optional colour overrides; defaults to parchment
  */
-export function drawVerticalGuideLines(ctx, width, height, viewportStartYear, yearsPerPixel, labelInterval) {
+export function drawVerticalGuideLines(ctx, width, height, viewportStartYear, yearsPerPixel, labelInterval, palette = {}) {
   ctx.save();
 
   // Primary lines at major tick intervals - subtle vertical rules
   const firstLabelYear = Math.ceil(viewportStartYear / labelInterval) * labelInterval;
 
-  ctx.strokeStyle = 'rgba(120, 100, 70, 0.16)';
+  ctx.strokeStyle = palette.guide || 'rgba(120, 100, 70, 0.16)';
   ctx.lineWidth = 1;
 
   for (let year = firstLabelYear; year < viewportStartYear + (width * yearsPerPixel); year += labelInterval) {
@@ -443,11 +453,12 @@ export function drawVerticalGuideLines(ctx, width, height, viewportStartYear, ye
  * @param {number} yearsPerPixel - Scale factor
  * @param {number} labelInterval - Year interval between labels
  * @param {string} eraLabels - "BC/AD" or "BCE/CE"
+ * @param {Object} [palette] - Optional colour overrides; defaults to parchment
  */
-export function drawTimeAxis(ctx, width, height, axisY, viewportStartYear, yearsPerPixel, labelInterval, eraLabels = 'BC/AD') {
+export function drawTimeAxis(ctx, width, height, axisY, viewportStartYear, yearsPerPixel, labelInterval, eraLabels = 'BC/AD', palette = {}) {
   ctx.save();
-  ctx.strokeStyle = '#bbb0a0';
-  ctx.fillStyle = '#5a4e3a';
+  ctx.strokeStyle = palette.axis || '#bbb0a0';
+  ctx.fillStyle = palette.axisText || '#5a4e3a';
   ctx.font = '14px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';

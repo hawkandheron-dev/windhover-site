@@ -5,6 +5,7 @@
 export const APP_SECTIONS = [
   { id: 'general',              label: 'General' },
   { id: 'ch-timeline',          label: 'Church History Timeline' },
+  { id: 'ch-timeline-2',        label: 'Church History Timeline 2.0' },
   { id: 'heresies',             label: 'Heresies & Christological Controversies' },
   { id: 'first-century-church', label: 'First Century Church Directory' },
   { id: 'bible-atlas',          label: 'Biblical History Atlas' },

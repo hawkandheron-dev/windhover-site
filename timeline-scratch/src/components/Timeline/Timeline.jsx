@@ -15,12 +15,23 @@ import { YearSummaryModal } from './components/YearSummaryModal.jsx';
 import { TimelineLegend } from './components/TimelineLegend.jsx';
 import { MobileTimeline } from './components/MobileTimeline.jsx';
 import { Icon } from './components/Icon.jsx';
+import { DepthLayers } from './components/DepthLayers.jsx';
 import { getYear, getYearRange } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import bgManuscript from '../../assets/bg-manuscript.jpg';
 import './Timeline.css';
 
-export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false }, ref) {
+/** Stable empty dataset, so the background layout hook keeps a steady identity. */
+const EMPTY_LAYER_DATA = { people: [], points: [], periods: [] };
+
+/** The three resting states of the background layer (CH Timeline 2.0). */
+const DEPTH_MODES = [
+  { id: 'hidden',      label: 'Off',    title: 'Hide the background layer' },
+  { id: 'watercolour', label: 'Soft',   title: 'Background as a watercolour wash (default)' },
+  { id: 'forward',     label: 'Front',  title: 'Bring the whole background into focus — or hold Alt' },
+];
+
+export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange }, ref) {
   const isMobile = useMobileDetect();
 
   // Render mobile timeline on small viewports
@@ -61,11 +72,19 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       animatingPointIds={animatingPointIds}
       hideLegend={hideLegend}
       isTourMode={isTourMode}
+      backData={backData}
+      focusIds={focusIds}
+      depthMode={depthMode}
+      isFocusPreview={isFocusPreview}
+      detailVariant={detailVariant}
+      onPersonHover={onPersonHover}
+      onPersonSelect={onPersonSelect}
+      onDepthModeChange={onDepthModeChange}
     />
   );
 });
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false }, ref) {
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -110,9 +129,13 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const dataExtent = useMemo(() => {
     let min = initialStartYear;
     let max = initialEndYear;
+    // The background counts towards the extent too: an emperor reigning
+    // outside the foreground's span still has to be reachable by panning.
     const allItems = [
       ...(data.people || []),
       ...(data.periods || []),
+      ...(backData?.people || []),
+      ...(backData?.periods || []),
     ];
     for (const item of allItems) {
       const s = getYear(item.startDate);
@@ -120,7 +143,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       if (s < min) min = s;
       if (e > max) max = e;
     }
-    for (const point of (data.points || [])) {
+    for (const point of [...(data.points || []), ...(backData?.points || [])]) {
       const y = getYear(point.date);
       if (y < min) min = y;
       if (y > max) max = y;
@@ -130,7 +153,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       }
     }
     return { min, max };
-  }, [data, initialStartYear, initialEndYear]);
+  }, [data, backData, initialStartYear, initialEndYear]);
 
   const yearPadding = Math.max((dataExtent.max - dataExtent.min) * 0.1, 200);
   const derivedMinYear = Math.floor(dataExtent.min - yearPadding);
@@ -166,19 +189,33 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // Filter data based on active filters
   const filteredData = useMemo(() => applyFilters(data, filters), [data, filters]);
 
+  // The background layer runs through the same legend filters — its rows just
+  // declare their own filterKeys — so toggling "Emperors" off empties it the
+  // same way toggling an era empties the foreground.
+  const filteredBackData = useMemo(
+    () => (backData ? applyFilters(backData, filters) : null),
+    [backData, filters]
+  );
+
   const itemIndex = useMemo(() => {
     const map = new Map();
-    data.people?.forEach(person => {
-      map.set(person.id, { type: 'person', item: person });
-    });
-    data.points?.forEach(point => {
-      map.set(point.id, { type: 'point', item: point });
-    });
-    data.periods?.forEach(period => {
-      map.set(period.id, { type: 'period', item: period });
-    });
+    // Background items are indexed alongside foreground ones so the detail
+    // panel can still resolve a connection to an emperor or a heresiarch —
+    // they are only *drawn* on another layer, not held apart from the data.
+    const layers = backData ? [data, backData] : [data];
+    for (const layer of layers) {
+      layer.people?.forEach(person => {
+        map.set(person.id, { type: 'person', item: person });
+      });
+      layer.points?.forEach(point => {
+        map.set(point.id, { type: 'point', item: point });
+      });
+      layer.periods?.forEach(period => {
+        map.set(period.id, { type: 'period', item: period });
+      });
+    }
     return map;
-  }, [data]);
+  }, [data, backData]);
 
   // Re-select the current item from fresh data after a refetch
   useEffect(() => {
@@ -189,6 +226,13 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       }
     }
   }, [itemIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Landmarks carry their full pin-and-flag card when there is room for it,
+  // and collapse to a bare pin when zoomed out. Without this the sixty
+  // councils and texts stack by label width into a wall of cards that buries
+  // the people lane — the cost of promoting them to the foreground, paid only
+  // where it buys legibility.
+  const showPointLabels = yearsPerPixel <= (defaultConfig.pointLabelMaxYearsPerPixel ?? Infinity);
 
   // Layout calculation
   const layout = useTimelineLayout(
@@ -201,7 +245,33 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       periodRowHeight: 40,
       lanePadding: 8,
       axisHeight: 30,
+      // Bare pins collide at the pin's own width, not a label's.
+      pointMarkerWidth: showPointLabels ? null : 24,   // matches the collapsed chip
       ...layoutSizes,
+    }
+  );
+
+  // The background gets its own stacking pass — it has its own row counts, so
+  // it cannot share the foreground's layout. DepthLayers registers the two
+  // against a single axis afterwards.
+  // Deliberately tighter than the foreground. The background is read as mass,
+  // not as a list: bare markers rather than labelled callouts, and rows close
+  // enough that eighty-five events form a band beside the axis instead of a
+  // cascade running off the bottom of the screen.
+  const backLayout = useTimelineLayout(
+    filteredBackData || EMPTY_LAYER_DATA,
+    defaultConfig.laneOrder,
+    yearsPerPixel,
+    {
+      personRowHeight: 20,
+      pointRowHeight: 13,
+      periodRowHeight: 24,
+      periodBracketHeight: 11,
+      lanePadding: 6,
+      axisHeight: 30,
+      pointMarkerWidth: 16,
+      ...layoutSizes,
+      ...(defaultConfig.backLayoutSizes || {}),
     }
   );
 
@@ -265,7 +335,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     return () => observer.disconnect();
   }, []);
 
-  const isModalOpen = selectedItem !== null || yearSummaryOpen;
+  // A docked detail panel sits *beside* the timeline rather than over it, so
+  // unlike a centred modal it must not freeze panning and zooming — reading
+  // the detail against the background is the whole reason it is docked.
+  const isModalOpen = (selectedItem !== null && detailVariant !== 'panel') || yearSummaryOpen;
 
   // Handle wheel/trackpad: pinch → zoom, two-finger scroll → pan
   const handleWheel = useCallback((e) => {
@@ -390,7 +463,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     } else {
       setHoveredItem(null);
     }
-  }, [mousePos]);
+    // Depth preview: hovering a figure lifts their background, and only theirs.
+    onPersonHover?.(type === 'person' ? item?.id ?? null : null);
+  }, [mousePos, onPersonHover]);
 
   // Handle item click
   const handleItemClickInternal = useCallback((type, item) => {
@@ -398,8 +473,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     if (!suppressModal) {
       setSelectedItem({ type, item });
     }
+    onPersonSelect?.(type === 'person' ? item?.id ?? null : null, type, item);
     onItemClick?.(type, item);
-  }, [onItemClick, suppressModal]);
+  }, [onItemClick, suppressModal, onPersonSelect]);
 
   const handleModalItemSelect = useCallback((type, item) => {
     setSelectedItem({ type, item });
@@ -409,7 +485,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // Handle modal close
   const handleModalClose = useCallback(() => {
     setSelectedItem(null);
-  }, []);
+    onPersonSelect?.(null, null, null);
+  }, [onPersonSelect]);
 
   // Handle filter toggle
   const handleFilterToggle = useCallback((filterKey) => {
@@ -460,8 +537,11 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     if (!suppressModal) {
       setSelectedItem({ type, item });
     }
+    // Arriving at a figure through search is the same act as clicking them, so
+    // it focuses their background the same way.
+    onPersonSelect?.(type === 'person' ? item?.id ?? null : null, type, item);
     onItemClick?.(type, item);
-  }, [jumpToYear, dimensions, getItemY, layout.totalHeight, setVerticalOffset, suppressModal, onItemClick]);
+  }, [jumpToYear, dimensions, getItemY, layout.totalHeight, setVerticalOffset, suppressModal, onItemClick, onPersonSelect]);
 
   // Handle search find mode — highlight matches and scroll to current
   const handleSearchHighlight = useCallback((matches, currentIdx, query) => {
@@ -654,7 +734,29 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     }
   }, [viewportStartYear, yearsPerPixel, dimensions.width, onViewportChange]);
 
-  return (
+  const detail = (
+    <TimelineModal
+      isOpen={selectedItem !== null}
+      variant={detailVariant}
+      item={selectedItem?.item}
+      itemType={selectedItem?.type}
+      config={defaultConfig}
+      onClose={handleModalClose}
+      itemIndex={itemIndex}
+      onSelectItem={handleModalItemSelect}
+      authContext={authContext}
+      allPeople={allPeople}
+      adminContext={adminContext}
+      contributorContext={contributorContext}
+      onEntityUpdated={onEntityUpdated}
+      onItemDeleted={() => {
+        setSelectedItem(null);
+      }}
+      onDataChanged={onDataChanged}
+    />
+  );
+
+  const timelineBody = (
     <div
       ref={containerRef}
       className="timeline-container"
@@ -677,6 +779,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           <div className="timeline-bg-overlay" />
         </>
       )}
+
+
 
       {/* Cursor year line - behind all elements */}
       {!isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
@@ -712,6 +816,25 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         />
       )}
 
+      {/* CH 2.0: the watercolour background and its focus overlay, behind the
+          main figures but above the parallax field. */}
+      {filteredBackData && (
+        <DepthLayers
+          width={dimensions.width}
+          height={dimensions.height}
+          viewportStartYear={viewportStartYear}
+          yearsPerPixel={yearsPerPixel}
+          panOffsetY={panOffsetY}
+          layout={backLayout}
+          frontAxisY={layout.axisY}
+          config={defaultConfig}
+          focusIds={focusIds}
+          depthMode={depthMode}
+          isPreview={isFocusPreview}
+          showLabels={showPointLabels}
+        />
+      )}
+
       <TimelineCanvas
         width={dimensions.width}
         height={dimensions.height}
@@ -720,6 +843,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         panOffsetY={panOffsetY}
         layout={layout}
         config={defaultConfig}
+        palette={defaultConfig.palette}
         hoveredItem={hoveredItem}
         hoveredPeriod={hoveredPeriod}
         onItemHover={handleItemHover}
@@ -747,6 +871,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         wasDraggingRef={wasDraggingRef}
         animatingPointIds={animatingPointIds}
         isTourMode={isTourMode}
+        palette={defaultConfig.palette}
+        showPointLabels={showPointLabels}
       />
 
       {/* Cursor year display - follows cursor */}
@@ -781,27 +907,14 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           onMouseEnter={() => setIsOverControls(true)}
           onMouseLeave={() => setIsOverControls(false)}
           siteTitle={defaultConfig.siteTitle}
+          siteSubtitle={defaultConfig.siteSubtitle}
+          config={defaultConfig}
         />
       )}
 
-      <TimelineModal
-        isOpen={selectedItem !== null}
-        item={selectedItem?.item}
-        itemType={selectedItem?.type}
-        config={defaultConfig}
-        onClose={handleModalClose}
-        itemIndex={itemIndex}
-        onSelectItem={handleModalItemSelect}
-        authContext={authContext}
-        allPeople={allPeople}
-        adminContext={adminContext}
-        contributorContext={contributorContext}
-        onEntityUpdated={onEntityUpdated}
-        onItemDeleted={(type, id) => {
-          setSelectedItem(null);
-        }}
-        onDataChanged={onDataChanged}
-      />
+      {/* The detail view is rendered outside this container — see the return
+          below — so the docked panel variant can be a sibling of the timeline
+          rather than an overlay on top of it. */}
 
       {/* Year Summary Modal */}
       {yearSummaryOpen && pinnedYear !== null && (
@@ -880,7 +993,45 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
             {yearsPerPixel > 0 ? (1 / yearsPerPixel).toFixed(1) : '1.0'}x
           </span>
         </div>
+
+        {/* Depth control — only where there is a background layer to lift */}
+        {filteredBackData && onDepthModeChange && (
+          <div className="depth-controls">
+            {DEPTH_MODES.map(mode => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => onDepthModeChange(mode.id)}
+                title={mode.title}
+                className={`btn btn-sm depth-btn${depthMode === mode.id ? ' active' : ''}`}
+                aria-pressed={depthMode === mode.id}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
+  );
+
+  // One wrapper for both variants, always.
+  //
+  // Returning a different root per variant (a flex div for the docked panel, a
+  // fragment for the modal) makes React tear the whole timeline down and
+  // rebuild it whenever the variant flips — which CH Timeline 2.0 does every
+  // time a tour starts or ends, since the tour panel owns the right rail and
+  // the detail falls back to a centred modal. The remount resets the
+  // ResizeObserver measurement along with zoom and pan, and the canvases come
+  // back sized 0×0, so a tour scene renders its DOM labels and none of its
+  // bars. Keeping the root stable is what keeps that state alive.
+  //
+  // The modal variant is unaffected by the flex row: `.timeline-modal` is
+  // position-fixed, so it is out of flow and takes no space in it.
+  return (
+    <div className="timeline-with-panel">
+      {timelineBody}
+      {detailVariant === 'panel' ? (selectedItem !== null && detail) : detail}
     </div>
   );
 });

@@ -1,0 +1,120 @@
+/**
+ * CH Timeline 2.0 — white ground.
+ *
+ * The Mews parchment tokens in index.css are shared by every app in this
+ * project, so they are overridden here on the app root rather than edited at
+ * source: everything under .ch2-app reads white, everything else is untouched.
+ *
+ * The type is deliberately unchanged — Cormorant for display, Alegreya Sans
+ * for body, both inherited from index.css.
+ */
+
+.ch2-app {
+  --color-parchment:       #ffffff;
+  --color-parchment-light: #ffffff;
+  --color-parchment-dark:  #f4f4f2;
+  --color-ink:             #23231f;
+  --color-ink-light:       #45453e;
+  --color-ink-faded:       #6e6e66;
+  --color-accent:          #4a4a44;
+  --color-accent-hover:    #2e2e29;
+  --color-border:          rgba(30, 28, 24, 0.12);
+  --color-border-hover:    rgba(30, 28, 24, 0.24);
+  --color-shadow:          rgba(20, 20, 16, 0.08);
+  --color-shadow-hover:    rgba(20, 20, 16, 0.14);
+
+  background: #ffffff;
+}
+
+.ch2-app .app-header {
+  background: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ch2-app .timeline-container {
+  background: #ffffff;
+}
+
+/* The timeline and its docked detail panel share this row. */
+.ch2-timeline-wrapper {
+  display: flex;
+  min-height: 0;
+}
+
+.ch2-timeline-wrapper > .timeline-with-panel,
+.ch2-timeline-wrapper > .timeline-container {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* .app-header is absolutely positioned across the top of the page (App.css),
+   so a full-height panel would run underneath it and bury its own close
+   button. Start the panel's content below the header instead of raising it
+   above: the header's buttons have to stay reachable while the panel is open. */
+.ch2-app {
+  --ch2-header-height: 56px;
+}
+
+.ch2-app .timeline-modal--panel {
+  padding-top: var(--ch2-header-height);
+  background: #ffffff;
+  border-left: 1px solid var(--color-border);
+  box-shadow: -8px 0 24px var(--color-shadow);
+}
+
+.ch2-app .timeline-modal--panel .modal-content {
+  height: 100%;
+  border-left: none;
+  box-shadow: none;
+}
+
+/* Legend and panel sit on white, so they need a real edge rather than the
+   parchment tint that used to separate them from the manuscript. */
+.ch2-app .timeline-legend {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--color-border-hover);
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.ch2-app .modal-content {
+  background: #ffffff;
+}
+
+/* Dark mode: the brief is a white ground, so this page does not invert with
+   the system theme the way the parchment pages do. Hold the light palette and
+   only soften the pure white so it is not glaring. */
+@media (prefers-color-scheme: dark) {
+  .ch2-app {
+    --color-parchment:       #f7f7f5;
+    --color-parchment-light: #ffffff;
+  }
+
+  .ch2-app .timeline-container,
+  .ch2-app .app-header {
+    background: #f7f7f5;
+  }
+}
+
+/* Tour panel images: show the whole picture.
+   TourPanel is shared with the 1.0 page, which crops to fill with
+   object-fit: cover — fine for a landscape miniature, wrong for a portrait,
+   which loses its subject's head. Scoped here so 1.0 is untouched. With the
+   whole image visible there is nothing left to pan, so the admin crop control
+   is hidden on this page only; the stored crop values are left alone. */
+.ch2-app .tour-scene-image {
+  /* The 16:10 box is what forces the crop. Let the image set its own height
+     instead, bounded so a tall portrait cannot push the narrative off-panel. */
+  aspect-ratio: auto;
+  background: var(--color-parchment-dark, #f4f4f2);
+}
+
+.ch2-app .tour-scene-image img {
+  object-fit: contain;
+  height: auto;
+  max-height: 340px;
+}
+
+.ch2-app .tour-image-adjust-btn,
+.ch2-app .tour-image-adjust-controls {
+  display: none;
+}

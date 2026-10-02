@@ -28,12 +28,16 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
     lanePadding = 8,
     axisHeight = 30,
     peopleInsidePeriods = false,
+    // Layers that draw bare markers rather than HTML callouts say so here, so
+    // point collisions are sized by the marker instead of by a label they
+    // never render (see stackPoints).
+    pointMarkerWidth = null,
   } = sizes;
 
   // Stack all items with above/below separation
   const stacked = useMemo(() => {
-    return stackTimelineItems(data, 120, yearsPerPixel);
-  }, [data, yearsPerPixel]);
+    return stackTimelineItems(data, 120, yearsPerPixel, { pointMarkerWidth });
+  }, [data, yearsPerPixel, pointMarkerWidth]);
 
   // Calculate layout with positions
   // Layout: People (outer) → Period brackets → Points inside period area → Axis

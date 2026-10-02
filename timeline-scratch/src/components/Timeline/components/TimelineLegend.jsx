@@ -7,7 +7,7 @@ import './TimelineLegend.css';
 
 const LOGO_PATH = new URL('../../../../../../resources/logos/Windhover_BLK.png', import.meta.url).href;
 
-export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle }) {
+export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, config }) {
   if (!isVisible || !legend || legend.length === 0) return null;
 
   const handleToggle = (filterKey) => {
@@ -23,12 +23,48 @@ export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilte
         <span className="legend-brand-title">Windhover</span>
       </div>
       {siteTitle && (
-        <h1 className="legend-site-title">{siteTitle}</h1>
+        <h1 className="legend-site-title">
+          {siteTitle}
+          {/* The strapline sits inside the heading so the two read as one name,
+              but at a size that does not compete with it. */}
+          {siteSubtitle && <span className="legend-site-subtitle">{siteSubtitle}</span>}
+        </h1>
       )}
       <h3 className="legend-title">Legend</h3>
       <div className="legend-items">
         {legend.map(item => {
           const isActive = item.filterKey ? filters[item.filterKey] !== false : true;
+
+          // A legend long enough to need sections can declare them. CH 2.0
+          // uses two — the eras in front, the background behind.
+          if (item.type === 'heading') {
+            return (
+              <div key={item.id} className="legend-section-heading">
+                {item.name}
+              </div>
+            );
+          }
+
+          // A ramp, not a set of categories. Sixteen century checkboxes would
+          // be a worse legend than the eras they replace, so the strip just
+          // says "colour means when" and offers nothing to toggle.
+          if (item.type === 'century-ramp') {
+            const ramp = config?.centuryRamp;
+            if (!ramp) return null;
+            return (
+              <div key={item.id} className="legend-century-ramp">
+                <div
+                  className="legend-century-bar"
+                  style={{ backgroundImage: `linear-gradient(to right, ${ramp.colors.join(', ')})` }}
+                />
+                <div className="legend-century-ticks">
+                  {ramp.ticks.map(t => (
+                    <span key={t.century}>{t.label}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div

@@ -71,6 +71,11 @@ function HeresiesApp() {
               onClearHighlight={handleSearchClearHighlight}
             />
           </div>
+          <div className="header-right">
+            <a className="btn btn-action" href="./church-history-2.html" title="Lifelines: This page's figures and movements, merged into the redesigned Church History timeline">
+              Try Lifelines
+            </a>
+          </div>
         </div>
       </header>
       <SiteNavPanel

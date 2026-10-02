@@ -1,0 +1,61 @@
+/* Monarch labels on the background layer (CH Timeline 2.0).
+   Crisp text over a washed canvas: the labels are siblings of the blurred
+   layer, never children of it, so the blur does not reach them. */
+
+/* Above the foreground canvas (z-index auto, painted later in DOM order) so
+   the labels can actually be hovered, and below the foreground overlay
+   (z-index 10) so a figure's own label still wins. The container itself is
+   inert; only the label chips take the pointer. */
+.ch2-monarch-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.ch2-monarch-label {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #4a3f2f;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 3px;
+  /* The labels are the one hoverable thing on an otherwise inert layer. */
+  pointer-events: auto;
+  cursor: default;
+  transition: background 0.15s ease, max-width 0.2s ease;
+}
+
+/* The birth year is the detail you want when you stop on a reign, not while
+   scanning the band — so it costs nothing until then. */
+.ch2-monarch-birth {
+  display: none;
+  color: var(--color-ink-faded, #6e6e66);
+  font-weight: 500;
+}
+
+.ch2-monarch-reign {
+  color: var(--color-ink-faded, #6e6e66);
+  font-weight: 500;
+}
+
+.ch2-monarch-label:hover {
+  max-width: none !important;
+  background: #ffffff;
+  box-shadow: 0 1px 6px var(--color-shadow, rgba(20, 20, 16, 0.18));
+  z-index: 2;
+}
+
+.ch2-monarch-label:hover .ch2-monarch-birth {
+  display: inline;
+}

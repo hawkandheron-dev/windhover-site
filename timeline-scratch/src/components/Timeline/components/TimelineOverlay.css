@@ -88,3 +88,45 @@
     transform: translateY(0);
   }
 }
+
+
+/* Collapsed landmarks.
+   Past the zoom threshold a council or text is just its pin — sixty labelled
+   cards do not fit between the lanes and the axis, and they cascade. The label
+   stays in the DOM, clipped to the icon, and shoots out to full length on
+   hover. Zoomed in, past the threshold, none of this applies and the flag
+   reads as it always did.
+
+   The width is clipped rather than the label removed because only a clip can
+   animate, and `!important` is needed throughout: the callout sets its card
+   style and z-index inline, and a stylesheet rule cannot otherwise beat that.
+   The pin shaft and head are anchored to the left edge, so the flag opens
+   rightward out of the pin. */
+.point-callout--collapsed {
+  background: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transition: background-color 140ms ease-out;
+}
+
+/* The clip goes on the inner body, never on the callout itself: the callout
+   sets `overflow: visible` inline so its pin shaft and head — drawn as ::before
+   and ::after outside its box — are not cut off. Clipping here collapses the
+   label while leaving the pin whole. */
+.point-callout--collapsed .point-callout-body {
+  max-width: 12px;          /* the icon, nothing else */
+  overflow: hidden;
+  transition: max-width 150ms ease-out;
+}
+
+.point-callout--collapsed:hover {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: #ccc !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14) !important;
+  /* Above its neighbours, which carry an inline z-index derived from their y. */
+  z-index: 900 !important;
+}
+
+.point-callout--collapsed:hover .point-callout-body {
+  max-width: 44ch;
+}
