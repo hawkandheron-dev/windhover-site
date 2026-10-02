@@ -40,7 +40,11 @@ async function sendCodeEmail(env, email, code) {
     method: 'POST',
     headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
     body: JSON.stringify({
-      from: env.FEEDBACK_FROM_EMAIL || 'Lifelines <feedback@windhoverhistory.com>',
+      // The sender address. It needs no mailbox — Resend may send from any
+      // address at a verified domain — but pointing it at one that Cloudflare
+      // Email Routing forwards means a reply reaches a human instead of
+      // bouncing.
+      from: env.VERIFICATION_FROM_EMAIL || 'Lifelines <admin@windhoverhistory.com>',
       to: [email],
       subject: `${code} is your Lifelines feedback code`,
       text: [
