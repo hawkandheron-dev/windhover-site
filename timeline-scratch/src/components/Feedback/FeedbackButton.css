@@ -86,3 +86,11 @@
     color: #f0ebe0;
   }
 }
+
+/* The challenge sits between the message and the buttons. Turnstile renders a
+   fixed-size iframe; reserve the height so the dialog does not jump when it
+   finishes loading. */
+.feedback-turnstile {
+  min-height: 65px;
+  margin-top: 10px;
+}

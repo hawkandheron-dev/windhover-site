@@ -1,35 +1,30 @@
 /**
  * Public feedback — a note anyone can leave, signed in or not.
  *
- * This is the one write in the app that uses the UNAUTHENTICATED client. Every
- * other write goes through makeSupabaseClient(getToken), which attaches a Clerk
- * JWT; here there is no session to attach, so the anon key carries the request
- * and the row-level policy is the only gate.
- *
- * That policy ("Anyone can submit public feedback") constrains the whole row,
- * not just who may write it: source must be 'public', submitted_by must be
- * null, the status must be the untriaged one, and the resolver fields must be
- * empty. So a hostile caller armed with the anon key — which ships in the
- * client by design — can leave a note and nothing else. It cannot read notes
- * back, attribute one to a signed-in user, or mark anything resolved.
+ * The browser no longer writes to the database. It posts to /api/feedback, a
+ * Cloudflare Pages Function that verifies a Turnstile token and then inserts
+ * server-side with a key the client never sees. The matching anonymous insert
+ * policy is dropped, so this endpoint is not a guard in front of an open door
+ * — it is the only door.
  *
  * Notes land in App_Issues alongside contributor-reported issues, tagged
- * source='public' so the admin view can tell them apart.
+ * source='public', so they appear in the admin triage view already built.
  */
-import { getSupabase } from '../data/churchHistoryShared.js';
 
-/** Matches the char_length bound in the insert policy. */
+/** Matches the bound enforced by the function and by the column. */
 export const FEEDBACK_MAX_LENGTH = 4000;
 
-/** The App_Issues.title column is NOT NULL, and the policy bounds it to 120. */
+/** App_Issues.title is NOT NULL; the server derives the same way. */
 const TITLE_MAX_LENGTH = 120;
-
-const APP_ID = 'ch-timeline-2';
 
 /**
  * A title is required by the schema but not by the reader, who is given one
- * box and told to write in it. Take the first line, or the first sentence's
- * worth, so the admin list is scannable without asking for a second field.
+ * box and told to write in it. Take the first line so the admin list is
+ * scannable without asking for a second field.
+ *
+ * Kept here as well as on the server because it is the server's value that is
+ * stored — this one exists so the behaviour is unit-testable, and the two are
+ * covered by the same cases.
  */
 export function deriveTitle(message) {
   const firstLine = message.trim().split('\n')[0].trim();
@@ -39,12 +34,17 @@ export function deriveTitle(message) {
   return `${(lastSpace > 40 ? clipped.slice(0, lastSpace) : clipped).trimEnd()}…`;
 }
 
+/** Whether the page was served with a Turnstile site key configured. */
+export function turnstileSiteKey() {
+  return (typeof window !== 'undefined' && window.TURNSTILE_SITE_KEY) || '';
+}
+
 /**
  * Submit a public note. Resolves on success and throws on failure, so the
  * caller can tell the reader their words did not get through rather than
  * showing a thank-you over a dropped request.
  */
-export async function submitPublicFeedback(message) {
+export async function submitPublicFeedback(message, token) {
   const body = (message || '').trim();
 
   if (!body) throw new Error('Please write something first.');
@@ -52,20 +52,17 @@ export async function submitPublicFeedback(message) {
     throw new Error(`Please keep it under ${FEEDBACK_MAX_LENGTH.toLocaleString()} characters.`);
   }
 
-  const supabase = await getSupabase();
-
-  // Every column the policy pins is sent explicitly. The defaults would satisfy
-  // it today, but a future change to a default should break loudly here rather
-  // than silently start failing the policy for readers.
-  const { error } = await supabase.from('App_Issues').insert({
-    app_id: APP_ID,
-    title: deriveTitle(body),
-    description: body,
-    issue_type: 'general',
-    status: 'submitted',
-    source: 'public',
-    submitted_by: null,
+  const res = await fetch('/api/feedback', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ message: body, token: token || '' }),
   });
 
-  if (error) throw error;
+  if (!res.ok) {
+    // The function returns a short, deliberately uninformative message; use it
+    // when present so the reader learns whether to retry or reword.
+    let detail = '';
+    try { detail = (await res.json())?.error || ''; } catch { /* non-JSON body */ }
+    throw new Error(detail || 'Could not send your note. Please try again.');
+  }
 }
