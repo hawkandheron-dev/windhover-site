@@ -18,7 +18,7 @@ export function JourneyOverlayControl({
   return (
     <div className="fcc-controls">
       <div className="fcc-controls-title">
-        <a className="fcc-home-link" href="../../index.html" title="Back to Windhover">‹</a>
+        <a className="fcc-home-link" href="/home.html" title="Back to Windhover">‹</a>
         <span>First Century Church Directory</span>
       </div>
 

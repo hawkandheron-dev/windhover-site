@@ -186,7 +186,7 @@ function HistoricalErasApp() {
         <div className="header-content">
           <h1>Historical Eras — Vision Board</h1>
           <nav className="tab-nav">
-            <a href="../../index.html" className="tab-button">Home</a>
+            <a href="/home.html" className="tab-button">Home</a>
             <a href="./index.html" className="tab-button">Timeline-Scratch</a>
           </nav>
         </div>

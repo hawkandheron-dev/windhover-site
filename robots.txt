@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# Nothing is disallowed on purpose: pages other than the front page are kept
+# out of search results with an X-Robots-Tag: noindex header (see _headers),
+# which a crawler can only read if it is allowed to fetch the page.

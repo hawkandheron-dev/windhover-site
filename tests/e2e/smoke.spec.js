@@ -1,7 +1,7 @@
 /**
  * E2E smoke tests for the auth bootstrap path and build outputs.
  *
- * Scope is deliberately small: home-page Sign In behaviours, the
+ * Scope is deliberately small: home-page (/home.html) Sign In behaviours, the
  * landing-nav build-output checks, and a basic CH Timeline page-load
  * check. Deep behavioural tests of the timeline app belong in a
  * follow-up PR with React Testing Library.
@@ -25,10 +25,12 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '../..');
 
+// The old landing page moved to /home.html when Lifelines became the front
+// page (see _redirects); its auth bootstrap is unchanged and still tested.
 test.describe('home page auth bootstrap', () => {
   test('renders the Sign In button when config and Clerk are healthy', async ({ page }) => {
     await installAllMocks(page, {});
-    await page.goto('/');
+    await page.goto('/home.html');
     const signInBtn = page.locator('#ec-sign-in-btn');
     await expect(signInBtn).toBeVisible();
     await expect(signInBtn).toContainText(/Sign In|Sign Up/);
@@ -50,7 +52,7 @@ test.describe('home page auth bootstrap', () => {
       return route.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
     });
 
-    await page.goto('/');
+    await page.goto('/home.html');
     const btn = page.locator('#ec-sign-in-btn');
     await expect(btn).toBeVisible();
     await expect(btn).toContainText('Sign-in unavailable');
@@ -73,18 +75,18 @@ test.describe('home page auth bootstrap', () => {
     });
 
     const start = Date.now();
-    await page.goto('/');
+    await page.goto('/home.html');
     await expect(page.locator('#ec-sign-in-btn')).toBeVisible({ timeout: 1500 });
     expect(Date.now() - start).toBeLessThan(2000);
   });
 });
 
 test.describe('build outputs', () => {
-  // Reads the live index.html, extracts every landing-nav href that points
-  // into apps/, and asserts the file exists on disk. This is the build-check
-  // expressed as a test: a renamed/missing Vite entry fails CI immediately.
+  // Reads the old landing page (now home.html), extracts every landing-nav
+  // href that points into apps/, and asserts the file exists on disk. This is
+  // the build-check expressed as a test: a renamed/missing Vite entry fails CI.
   test('every apps/* landing-nav target exists in the built site', () => {
-    const indexHtml = fs.readFileSync(path.join(REPO_ROOT, 'index.html'), 'utf-8');
+    const indexHtml = fs.readFileSync(path.join(REPO_ROOT, 'home.html'), 'utf-8');
     const hrefs = [...indexHtml.matchAll(/href="(apps\/[^"]+\.html)"/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThan(0);
     const missing = hrefs.filter((h) => !fs.existsSync(path.join(REPO_ROOT, h)));

@@ -89,7 +89,7 @@ function AuthenticatedPortal() {
         <div className="header-content">
           <SiteNavToggle onOpen={() => setNavOpen(true)} />
           <div className="header-left">
-            <a href="../../index.html" className="header-bird-link" title="Back to Windhover">
+            <a href="/home.html" className="header-bird-link" title="Back to Windhover">
               <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
             </a>
             <h1 className="site-title"><strong>Windhover</strong> <span>Contributor Portal</span></h1>
@@ -139,7 +139,7 @@ function UnauthenticatedPortal() {
         <div className="header-content">
           <SiteNavToggle onOpen={() => setNavOpen(true)} />
           <div className="header-left">
-            <a href="../../index.html" className="header-bird-link" title="Back to Windhover">
+            <a href="/home.html" className="header-bird-link" title="Back to Windhover">
               <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
             </a>
             <h1 className="site-title"><strong>Windhover</strong> <span>Contributor Portal</span></h1>

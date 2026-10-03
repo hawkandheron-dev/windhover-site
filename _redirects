@@ -1,0 +1,9 @@
+# Cloudflare Pages redirects. Lifelines is the site's front page: "/" serves
+# the Lifelines app (a 200 proxy, so the address bar keeps "/" and any query
+# such as ?admin). The target is the clean URL because Pages itself redirects
+# *.html to it, and proxying to a redirect is fragile.
+#
+# serve.json mirrors this rule for the local test server (npx serve, which
+# rejects comments in its config, so the explanation lives here); a unit test
+# (tests/unit/site-routing.test.js) keeps the two in agreement.
+/  /apps/church-history-2  200

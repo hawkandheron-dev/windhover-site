@@ -269,7 +269,7 @@ function AuthenticatedApp({ timelineData, loading, error, allPeople, onReloadDat
                 onHighlight={handleSearchHighlight}
                 onClearHighlight={handleSearchClearHighlight}
                 homeLink={
-                  <a href="../../index.html" className="header-bird-link" title="Back to Windhover">
+                  <a href="/home.html" className="header-bird-link" title="Back to Windhover">
                     <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
                   </a>
                 }
@@ -423,7 +423,7 @@ function UnauthenticatedApp({ timelineData, loading, error, tourScenes }) {
                 onHighlight={handleSearchHighlight}
                 onClearHighlight={handleSearchClearHighlight}
                 homeLink={
-                  <a href="../../index.html" className="header-bird-link" title="Back to Windhover">
+                  <a href="/home.html" className="header-bird-link" title="Back to Windhover">
                     <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
                   </a>
                 }

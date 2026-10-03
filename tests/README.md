@@ -59,6 +59,8 @@ Clerk JS CDN) are intercepted by `page.route()` — see
 
 ### `home page auth bootstrap`
 
+These load `/home.html`: the site root became Lifelines in milestone 2 (see `_redirects`). In the cloud sandbox they fail because the page loads Supabase from a CDN the sandbox cannot reach; they pass in CI and with that request served locally.
+
 | # | Scenario | Asserts |
 |---|---|---|
 | 1 | Happy path | With valid mocked config, mocked Supabase, and a stubbed Clerk JS, `#ec-sign-in-btn` is visible, enabled, and its text matches `/Sign In\|Sign Up/`. |
@@ -69,7 +71,7 @@ Clerk JS CDN) are intercepted by `page.route()` — see
 
 | # | Scenario | Asserts |
 |---|---|---|
-| 4 | Landing-nav integrity | Parses every `href="apps/*.html"` out of `index.html` and asserts each target file exists under `apps/` on disk. Catches the "renamed a Vite entry without rebuilding" class of bug that started this whole investigation. |
+| 4 | Landing-nav integrity | Parses every `href="apps/*.html"` out of `home.html` (the former landing page, formerly `index.html`) and asserts each target file exists under `apps/` on disk. Catches the "renamed a Vite entry without rebuilding" class of bug that started this whole investigation. |
 
 ### `CH Timeline page`
 

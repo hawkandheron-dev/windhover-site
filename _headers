@@ -1,7 +1,16 @@
+# Only the front page is for search engines. Every other page (the old
+# homepage at /home.html, the other apps, and Lifelines' own
+# /apps/church-history-2 address) still works by URL but carries noindex, so
+# Lifelines has one indexed address. tests/unit/site-routing.test.js checks
+# that "/" is the only path that drops it.
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
+  X-Robots-Tag: noindex
+
+/
+  ! X-Robots-Tag
 
 /api/*
   Cache-Control: no-store

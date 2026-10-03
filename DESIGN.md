@@ -99,6 +99,7 @@ Every UI change is still checked in the `default-dark` screenshots.
 | Timeline | Fills the rest | Figures and councils above the axis; texts and reigns below. The back layer shares the foreground's horizontal pan exactly; it must stay time-true. |
 | Detail panel | Docked right on desktop; a modal below 768px | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
 | Opening view | 1–500 AD, centred, framed on the measured width | The welcome dialog offers the tour on a first visit (remembered under its own key). |
+| Address | Lifelines is the site's front page, `/` | It is the only indexed page. The owner's admin entry is `/?admin`. Lifelines has no link to any other part of the site. |
 | Legend | Floating, top right | Must not hide figures a reader is trying to read; it should collapse or move out of the way when space is tight. |
 | Controls | Bottom left | Zoom, pan, depth (Off / Soft / Front). |
 
