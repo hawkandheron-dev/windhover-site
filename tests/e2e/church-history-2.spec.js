@@ -555,3 +555,23 @@ test.describe('Lifelines as the front page (milestone 2)', () => {
     await expect(page.getByRole('link', { name: 'Go to Lifelines' })).toHaveAttribute('href', '/');
   });
 });
+
+test.describe('Review round fixes (milestone 3)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  test('moving into the header leaves no hover card or year chip behind', async ({ page }) => {
+    await loadPage(page);
+    // Sweep across the timeline (showing the year chip, and hovering whatever
+    // lies under the path), then up into the header. The header is a solid
+    // bar on Lifelines, so it must not hover the figures hidden behind it.
+    await page.mouse.move(300, 400);
+    await expect(page.locator('.cursor-year-display')).toBeVisible();
+    await page.mouse.move(700, 20, { steps: 8 });
+    await expect(page.locator('.cursor-year-display')).toHaveCount(0);
+    await expect(page.locator('.hover-preview')).toHaveCount(0);
+  });
+});
+

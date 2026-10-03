@@ -403,6 +403,7 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
           <div className="header-left">
             {frontData && (
               <TimelineSearch
+                ranked
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}
@@ -533,6 +534,7 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
           <div className="header-left">
             {frontData && (
               <TimelineSearch
+                ranked
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}

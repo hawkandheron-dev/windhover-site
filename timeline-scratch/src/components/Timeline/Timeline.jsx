@@ -106,6 +106,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const [hoveredItem, setHoveredItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  // The cursor line and year chip follow the pointer only while it is over the
+  // timeline; otherwise they froze at the last position, often under the header.
+  const [pointerInside, setPointerInside] = useState(false);
   const [filters, setFilters] = useState(() => buildInitialFilters(config));
   // Cursor line and year summary state
   const [pinnedYear, setPinnedYear] = useState(null);
@@ -436,6 +439,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     const y = e.clientY - rect.top;
 
     setMousePos({ x, y });
+    setPointerInside(true);
 
     if (isPanning) {
       const maxOffsetY = Math.max(0, layout.totalHeight - dimensions.height);
@@ -494,6 +498,16 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     // Depth preview: hovering a figure lifts their background, and only theirs.
     onPersonHover?.(type === 'person' ? item?.id ?? null : null);
   }, [mousePos, onPersonHover]);
+
+  // Leaving the timeline ends any hover as well as any drag. Canvas items only
+  // clear their hover on a mousemove over empty canvas, so a pointer that left
+  // straight into the header kept the last hover card on screen indefinitely.
+  const handleContainerLeave = useCallback((e) => {
+    handleMouseUp(e);
+    setHoveredItem(null);
+    setPointerInside(false);
+    onPersonHover?.(null);
+  }, [handleMouseUp, onPersonHover]);
 
   // Handle item click
   const handleItemClickInternal = useCallback((type, item) => {
@@ -791,7 +805,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={handleContainerLeave}
     >
       {/* Background manuscript image with parallax */}
       {showBackgroundImage && (
@@ -811,7 +825,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
 
       {/* Cursor year line - behind all elements */}
-      {!isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
+      {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
         <div
           className="cursor-year-line"
           style={{
@@ -904,7 +918,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       />
 
       {/* Cursor year display - follows cursor */}
-      {!isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
+      {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
         <div
           className="cursor-year-display"
           style={{

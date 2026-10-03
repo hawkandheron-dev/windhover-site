@@ -11,6 +11,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
 import './TimelineSearch.css';
+import { matchRank } from '../utils/searchRank.js';
 
 /**
  * Build a flat search index from timeline data.
@@ -52,7 +53,7 @@ function buildIndex(data) {
 
 const TYPE_LABELS = { person: 'Person', point: 'Event', period: 'Period' };
 
-export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink }) {
+export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink, ranked = false }) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -67,8 +68,10 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
   const filtered = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return index.filter(e => e.name.toLowerCase().includes(q)).slice(0, 12);
-  }, [query, index]);
+    const matches = index.filter(e => e.name.toLowerCase().includes(q));
+    if (ranked) matches.sort((a, b) => matchRank(a, q) - matchRank(b, q) || a.name.localeCompare(b.name));
+    return matches.slice(0, 12);
+  }, [query, index, ranked]);
 
   // Keep activeIdx in bounds when results change
   useEffect(() => {

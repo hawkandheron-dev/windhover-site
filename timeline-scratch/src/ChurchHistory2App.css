@@ -34,6 +34,12 @@
 .ch2-app .app-header {
   background: #ffffff;
   border-bottom: 1px solid var(--color-border);
+  /* App.css lets the pointer through the header to the timeline, which suits
+     the transparent header of the parchment pages. Here the header is a solid
+     bar, so the pointer passing through hovered figures hidden behind it: a
+     stray hover card and year chip appeared while the reader was in the
+     header. A solid bar catches the pointer. */
+  pointer-events: auto;
 }
 
 .ch2-app .timeline-container {
