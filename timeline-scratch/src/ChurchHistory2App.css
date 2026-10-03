@@ -176,6 +176,24 @@
   }
 }
 
+/* The same for the vertical timeline at any width (layout toggle): its
+   toolbar sits at the top, where the floating header would cover it. */
+.ch2-app:has(.mobile-timeline) {
+  display: flex;
+  flex-direction: column;
+}
+
+.ch2-app:has(.mobile-timeline) > .app-header {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ch2-app:has(.mobile-timeline) > .tab-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
 /* The slim legend (DESIGN.md §6) sits just below the header, and folds to a
    "Key" button that carries no panel chrome of its own. */
 .ch2-app .timeline-legend--slim {
@@ -302,8 +320,94 @@
     white-space: nowrap;
   }
 
-  .ch2-app .timeline-container--phone .depth-btn {
+  .ch2-app .timeline-container--phone .ch2-layout-btn {
     min-height: 40px;
-    padding: 0 8px;
   }
+}
+
+/* Layout toggle (Vertical / Horizontal), in the timeline's controls where
+   the Rulers control was. One segmented control, the same quiet chrome as
+   the zoom readout; the chosen half is ink, not action blue (§3). */
+.ch2-layout-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: 5px;
+  background: #ffffff;
+  pointer-events: auto;
+}
+
+.ch2-layout-toggle-heading {
+  padding: 0 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink-faded);
+}
+
+.ch2-app .ch2-layout-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-faded);
+}
+
+.ch2-app .ch2-layout-btn.active {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+/* In the vertical timeline's toolbar it sits at the end of the row. */
+.ch2-app .mobile-timeline-toolbar .ch2-layout-toggle {
+  margin-left: 8px;
+}
+
+/* At phone width the toolbar row is full: the group keeps its "Layout" name
+   for screen readers, and drops the visible word. */
+@media (max-width: 768px) {
+  .ch2-app .mobile-timeline-toolbar .ch2-layout-toggle-heading {
+    display: none;
+  }
+
+  .ch2-app .mobile-timeline-toolbar .ch2-layout-toggle {
+    margin-left: 4px;
+  }
+
+  .ch2-app .mobile-timeline-toolbar .ch2-layout-btn {
+    min-height: 36px;
+    padding: 0 7px;
+  }
+}
+
+/* iOS Safari: 100vh is the height with its toolbars hidden, so with the
+   address bar showing, the bottom of the timeline (controls, the vertical
+   timeline's last rows) sat behind it. 100dvh is the height actually
+   visible; browsers without it keep 100vh. */
+body:has(.ch2-app) {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+#root:has(> .ch2-app),
+.app.ch2-app {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.ch2-app .timeline-controls,
+.ch2-app .mobile-timeline {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* The strapline under "Lifelines" stands upright (owner's call, M3 round 2).
+   Upright it is wider, so the key grows a little to keep it on one line. */
+.ch2-app .timeline-legend--slim .legend-site-subtitle {
+  font-style: normal;
+  text-wrap: balance;
+}
+
+.ch2-app .timeline-legend--slim:not(.timeline-legend--collapsed) {
+  width: 256px;
 }

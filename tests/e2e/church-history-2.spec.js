@@ -251,8 +251,13 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.ch2-layer-focus')).toHaveCount(0);
   });
 
-  test('the depth control lifts the whole background layer', async ({ page }) => {
+  // Milestone 3 renamed the depth control (Rulers: Hide / Faint / Clear);
+  // round 2 removed it from Lifelines (owner's decision): the rulers stay
+  // faint and lift with a figure, or while Alt is held. The other apps keep
+  // their control.
+  test('the rulers stay faint with no depth control, and Alt lifts them', async ({ page }) => {
     await loadPage(page);
+    await expect(page.locator('.depth-controls')).toHaveCount(0);
 
     const wash = page.locator('.ch2-layer-wash');
     // The filter is transitioned, so poll rather than sampling mid-animation.
@@ -262,17 +267,34 @@ test.describe('CH Timeline 2.0', () => {
     });
     expect(await blurPx()).toBeGreaterThan(1);
 
-    // Milestone 3 renamed the modes in the reader's terms (Rulers: Hide /
-    // Faint / Clear, was Off / Soft / Front); what each does is unchanged.
-    const rulers = page.getByRole('group', { name: 'Rulers' });
-    await rulers.getByRole('button', { name: 'Clear' }).click();
+    await page.keyboard.down('Alt');
     await expect.poll(blurPx, { timeout: 3000 }).toBe(0);
+    await page.keyboard.up('Alt');
+    await expect.poll(blurPx, { timeout: 3000 }).toBeGreaterThan(1);
+  });
 
-    await rulers.getByRole('button', { name: 'Hide' }).click();
-    await expect(wash).toHaveCount(0);
+  test('the layout toggle switches between the two timelines and is remembered', async ({ page }) => {
+    await loadPage(page);
+    const toggle = page.getByRole('group', { name: 'Layout' });
+    await expect(toggle.getByRole('button', { name: 'Horizontal' })).toHaveAttribute('aria-pressed', 'true');
 
-    await rulers.getByRole('button', { name: 'Faint' }).click();
-    await expect(page.locator('.ch2-layer-wash')).toBeVisible();
+    await toggle.getByRole('button', { name: 'Vertical' }).click();
+    await expect(page.locator('.mobile-timeline')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Vertical' }))
+      .toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    await expect(page.locator('.mobile-timeline')).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Horizontal' }).click();
+    await expect(page.locator('.mobile-timeline')).toHaveCount(0);
+    await expect(page.locator('canvas').first()).toBeVisible();
+  });
+
+  test('phones start vertical, with the layout toggle in the toolbar', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    await expect(page.locator('.mobile-timeline-toolbar').getByRole('group', { name: 'Layout' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Vertical' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('selecting a figure docks the detail panel beside a live timeline', async ({ page }) => {
@@ -747,15 +769,16 @@ test.describe('Review round fixes (milestone 3)', () => {
 });
 
 
-// Milestone 3, step 9: the desktop's horizontal timeline on a phone
-// (?mobile=horizontal, a prototype to compare with the vertical layout).
+// Milestone 3, step 9: the desktop's horizontal timeline on a phone, chosen
+// with the layout toggle (remembered under lifelines-layout).
 // The timeline had no touch handling at all, so these drive real touch
 // events through the DevTools protocol (Chromium only, like the suite).
 test.describe('Horizontal phone prototype (milestone 3)', () => {
   test.use({ hasTouch: true, isMobile: true });
-  const PHONE = { viewport: { width: 390, height: 844 }, query: '?mobile=horizontal', realData: true };
+  const PHONE = { viewport: { width: 390, height: 844 }, realData: true };
 
-  test.beforeEach(() => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('lifelines-layout', 'horizontal'));
     const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
     test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
   });

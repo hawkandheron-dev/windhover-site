@@ -24,6 +24,7 @@ import { FeedbackButton } from './components/Feedback/FeedbackButton.jsx';
 import { useTour } from './components/Tour/useTour.js';
 import { WelcomeDialog } from './components/Tour/WelcomeDialog.jsx';
 import { TourPanel } from './components/Tour/TourPanel.jsx';
+import { useMobileDetect } from './components/Timeline/hooks/useMobileDetect.js';
 import './App.css';
 import './ChurchHistory2App.css';
 
@@ -42,15 +43,50 @@ const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
 const EMPTY_LAYER = { people: [], points: [], periods: [] };
 
-// Prototype switch for milestone 3's comparison: ?points=strings draws
-// landmarks as harp strings instead of pins and flags. Remove once chosen.
-// ?mobile=horizontal does the same for phones: the desktop timeline, with the
-// detail as a modal, instead of the vertical phone timeline.
-const PROTOTYPE_PARAMS = new URLSearchParams(window.location.search);
-const lifelinesConfig = {
-  ...churchHistory2Config,
-  ...(PROTOTYPE_PARAMS.get('mobile') === 'horizontal' && { mobileLayout: 'horizontal' }),
-};
+const lifelinesConfig = churchHistory2Config;
+
+// The reader's layout: the vertical timeline (lives running down the page)
+// or the horizontal one. Phones start vertical and everything wider starts
+// horizontal (owner's decision, M3 round 2); a reader's own choice is
+// remembered on this device.
+const LAYOUT_KEY = 'lifelines-layout';
+function useLayoutChoice() {
+  const isMobile = useMobileDetect();
+  const [choice, setChoice] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(LAYOUT_KEY);
+      return saved === 'vertical' || saved === 'horizontal' ? saved : null;
+    } catch {
+      return null;
+    }
+  });
+  const set = useCallback((value) => {
+    setChoice(value);
+    try { window.localStorage.setItem(LAYOUT_KEY, value); } catch { /* private mode: not remembered */ }
+  }, []);
+  return { value: choice ?? (isMobile ? 'vertical' : 'horizontal'), set };
+}
+
+function LayoutToggle({ value, onChange }) {
+  return (
+    <div className="ch2-layout-toggle" role="group" aria-label="Layout">
+      <span className="ch2-layout-toggle-heading" aria-hidden="true">Layout</span>
+      {[['vertical', 'Vert', 'Lives run down the page'], ['horizontal', 'Horiz', 'Lives run across the page']].map(([id, label, title]) => (
+        <button
+          key={id}
+          type="button"
+          className={`btn btn-sm ch2-layout-btn${value === id ? ' active' : ''}`}
+          aria-pressed={value === id}
+          aria-label={id === 'vertical' ? 'Vertical' : 'Horizontal'}
+          title={title}
+          onClick={() => onChange(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Search results named as the legend names them, with its shapes: Person,
@@ -237,6 +273,7 @@ function Timeline2({
   );
 
   const depth = useDepthFocus(index);
+  const layout = useLayoutChoice();
 
   // The one scene that asked for "everything at once" now means "bring the
   // background forward" — there are no period brackets left for it to reveal.
@@ -255,7 +292,11 @@ function Timeline2({
         isFocusPreview={depth.isPreview}
         onPersonHover={depth.onPersonHover}
         onPersonSelect={depth.onPersonSelect}
-        onDepthModeChange={depth.setDepthMode}
+        // No depth control: the rulers stay faint, and hovering or choosing
+        // a figure lifts theirs (owner's decision, M3 round 2). Its place in
+        // the controls goes to the layout toggle.
+        layout={layout.value}
+        layoutToggle={<LayoutToggle value={layout.value} onChange={layout.set} />}
         // The tour panel already owns the right-hand rail, and its scenes open
         // a centred dialog on purpose. Dock the detail only outside the tour.
         detailVariant={tour.tourActive ? 'modal' : 'panel'}

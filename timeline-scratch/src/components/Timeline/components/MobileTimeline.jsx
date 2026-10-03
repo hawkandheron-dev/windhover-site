@@ -33,7 +33,7 @@ function lightenColor(hex, floor = 160) {
   return `rgb(${lr}, ${lg}, ${lb})`;
 }
 
-export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged }, ref) {
+export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle }, ref) {
   const scrollRef = useRef(null);
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR);
   // The years currently on screen, for the 'years' zoom readout. Read from the
@@ -335,6 +335,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
           <button className="mobile-toolbar-btn" onClick={handleZoomIn}><Icon name="plus" size={14} /></button>
           <button className="mobile-toolbar-btn" onClick={handleZoomReset}><Icon name="quatrefoil" size={14} /></button>
         </div>
+        {layoutToggle}
       </div>
 
       {/* Filter drawer */}

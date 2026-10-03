@@ -35,7 +35,7 @@ replaces or why the reader needs it.
 ## 2. Naming and copy
 
 - The product is **Lifelines**. Strapline: **A church history timeline by
-  lifespans**. Publisher mark: **Windhover**, with its strapline **Get a
+  lifespans** (upright, not italic). Publisher mark: **Windhover**, with its strapline **Get a
   bird's eye view**. Lifelines leads (top of the legend); Windhover signs off
   (foot of the legend).
 - Never show "CH Timeline", "CH Timeline 2.0", "Church History Timeline" or
@@ -100,12 +100,15 @@ Every UI change is still checked in the `default-dark` screenshots.
 |---|---|---|
 | Header | Top, 56px (`--ch2-header-height`), above everything; on phones its own row | Search, Tour, Feedback. No site navigation and no sign-in for readers (the owner adds `?admin` to a clean URL). Its controls stay reachable at all times, including while the panel is open. On phones it must not cover the timeline's toolbar. |
 | Timeline | Fills the rest | Figures and councils above the axis; texts and reigns below. The back layer shares the foreground's horizontal pan exactly; it must stay time-true. |
-| Detail panel | Docked right on desktop; a modal below 768px | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
-| Opening view | 1–500 AD, centred, framed on the measured width | The welcome dialog offers the tour on a first visit (remembered under its own key). |
+| Layout | Vertical (lives run down the page) or horizontal | Phones start **vertical**, wider screens **horizontal**; the reader switches with the Layout toggle and the choice is remembered on that device (`lifelines-layout`). Both are kept working. |
+| Detail panel | Docked right in the horizontal layout on desktop; a modal on phones | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
+| Opening view | 1–500 AD, centred, framed on the measured width (1–160 AD for the horizontal layout on a phone, `config.phone`) | The welcome dialog offers the tour on a first visit (remembered under its own key). |
 | Address | Lifelines is the site's front page, `/` | It is the only indexed page. The owner's admin entry is `/?admin`. Lifelines has no link to any other part of the site. |
 | Legend | Floating, top right, just below the header | Slim (`legendLayout: 'slim'`): Lifelines' name, the four show/hide switches (councils and texts with their shapes, reigns with the crown, figures with a neutral bar), Windhover at the foot. No colour key, no section headings. It folds to a "Key" button while the detail panel is open or the timeline is under 1100px wide; a reader's own open/close holds until that changes. |
-| Controls | Bottom left | Zoom, pan, depth (Off / Soft / Front). |
+| Controls | Bottom left (horizontal); the toolbar (vertical) | Zoom, pan, the year readout and the Layout toggle (Vert / Horiz). No depth control: the rulers stay faint, and lift with a hovered or chosen figure, or while Alt is held. On a phone the arrows go (fingers pan) and the buttons are 44px. |
 
+- The page is sized with `100dvh`, not `100vh`, so iOS Safari's address bar
+  doesn't hide the bottom of the timeline.
 - **One breakpoint for mobile: 768px** (`useMobileDetect`). Lifelines CSS that
   switches layout for small screens uses `max-width: 768px`, not 600/640/900,
   so the CSS and the JS never disagree about which layout is live.

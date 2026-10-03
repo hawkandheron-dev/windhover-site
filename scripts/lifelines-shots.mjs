@@ -58,6 +58,9 @@ const DEFAULT_STATES = [
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
   { name: 'keyboard-focus', viewports: ['desktop'], act: tabThrough },
+  // The other layout from the toggle: vertical on wide screens, horizontal on a phone.
+  { name: 'vertical',      viewports: ['tablet', 'desktop'], layout: 'vertical' },
+  { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
 ];
 
 // --compare points: the harp-strings prototype against today's pins and
@@ -79,7 +82,7 @@ const COMPARE_POINTS = POINT_STYLES.flatMap(([style, query]) => [
 ]);
 
 // --compare mobile: today's vertical phone timeline against the desktop's
-// horizontal one on a phone (?mobile=horizontal, detail as a modal).
+// horizontal one on a phone (chosen with the layout toggle; detail as a modal).
 const zoomInEither = async (page) => {
   const named = page.getByRole('button', { name: 'Zoom in' });
   if (await named.count()) return zoom('Zoom in', 2)(page);
@@ -90,11 +93,11 @@ const zoomInEither = async (page) => {
   }
   await page.waitForTimeout(300);
 };
-const PHONE_LAYOUTS = [['vertical', ''], ['horizontal', '?mobile=horizontal']];
-const COMPARE_MOBILE = PHONE_LAYOUTS.flatMap(([layout, query]) => [
-  { name: `mobile-${layout}-opening`,   viewports: ['phone', 'phone-large'], query },
-  { name: `mobile-${layout}-zoomed-in`, viewports: ['phone', 'phone-large'], query, act: zoomInEither },
-  { name: `mobile-${layout}-detail`,    viewports: ['phone', 'phone-large'], query, act: openPanel },
+const PHONE_LAYOUTS = ['vertical', 'horizontal'];
+const COMPARE_MOBILE = PHONE_LAYOUTS.flatMap(layout => [
+  { name: `mobile-${layout}-opening`,   viewports: ['phone', 'phone-large'], layout },
+  { name: `mobile-${layout}-zoomed-in`, viewports: ['phone', 'phone-large'], layout, act: zoomInEither },
+  { name: `mobile-${layout}-detail`,    viewports: ['phone', 'phone-large'], layout, act: openPanel },
 ]);
 
 const COMPARE = opt('compare');
@@ -182,6 +185,10 @@ async function shoot(browser, base, tables, state, vpName) {
   await installClerkMock(page);
   await installSupabaseTableMock(page, tables);
 
+  // A state may preset the reader's remembered layout (the layout toggle).
+  if (state.layout) {
+    await page.addInitScript(l => { try { localStorage.setItem('lifelines-layout', l); } catch { /* none */ } }, state.layout);
+  }
   await page.goto(base + PAGE + (state.query || ''));
   await page.locator('.mobile-timeline, canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
     errors.push('timeline did not render within 15s');
@@ -222,7 +229,7 @@ async function main() {
   const results = [];
   try {
     for (const state of STATES) {
-      if (ONLY && !state.name.includes(ONLY)) continue;
+      if (ONLY && !ONLY.split(',').some(o => state.name.includes(o))) continue;
       for (const vp of state.viewports) {
         const r = await shoot(browser, base, tables, state, vp);
         results.push(r);

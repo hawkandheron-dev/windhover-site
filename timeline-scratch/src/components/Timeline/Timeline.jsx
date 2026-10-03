@@ -43,17 +43,20 @@ const DEPTH_MODES = [
   { id: 'forward',     label: 'Front',  title: 'Bring the whole background into focus — or hold Alt' },
 ];
 
-export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange }, ref) {
+export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle }, ref) {
   const isMobile = useMobileDetect();
 
-  // Render mobile timeline on small viewports, unless the page asks for the
-  // horizontal timeline on phones too (config.mobileLayout === 'horizontal',
-  // a Lifelines prototype), with the detail as a modal rather than a panel.
-  const horizontalOnPhone = isMobile && config?.mobileLayout === 'horizontal';
-  if (isMobile && !horizontalOnPhone) {
+  // Which timeline to draw. By default the vertical one on small screens and
+  // the horizontal one otherwise; a page may choose (layout: 'vertical' |
+  // 'horizontal', Lifelines' layout toggle). The horizontal timeline on a
+  // phone opens its detail as a modal rather than a side panel.
+  const vertical = layout ? layout === 'vertical' : isMobile;
+  const horizontalOnPhone = isMobile && !vertical;
+  if (vertical) {
     return (
       <MobileTimeline
         ref={ref}
+        layoutToggle={layoutToggle}
         data={data}
         config={config}
         onItemClick={onItemClick}
@@ -74,6 +77,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       // config.phone overrides keys on a phone (the opening span, say).
       config={horizontalOnPhone && config.phone ? { ...config, ...config.phone } : config}
       phoneLayout={horizontalOnPhone}
+      layoutToggle={layoutToggle}
       onViewportChange={onViewportChange}
       onItemClick={onItemClick}
       suppressModal={suppressModal}
@@ -105,7 +109,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
 // trackpad). Checked per event: an iPad gains hover when a trackpad connects.
 const noHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false }, ref) {
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -1186,6 +1190,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
             </span>
           )}
         </div>
+
+        {/* A page's own control, e.g. Lifelines' layout toggle. */}
+        {layoutToggle}
 
         {/* Depth control — only where there is a background layer to lift */}
         {filteredBackData && onDepthModeChange && (
