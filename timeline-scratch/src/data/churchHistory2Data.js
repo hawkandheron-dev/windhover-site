@@ -111,16 +111,20 @@ export const churchHistory2Config = {
    * sharpens. That same scale is the vertical foreshortening; there is no
    * separate pan multiplier, which would unregister the two axes.
    */
+  // "Crisp and quiet" (owner's call, M3 round 3): the blur read as a fault
+  // rather than as depth, so the band is pale instead of soft. A figure in
+  // focus draws their rulers at full strength over it.
   depth: {
-    blur: 2.6,
-    opacity: 0.46,
-    saturate: 0.55,
-    scale: 0.965,
-    // Partial lift on hover, full lift on click or Alt-hold.
-    hoverBlur: 1.1,
-    hoverOpacity: 0.8,
+    blur: 0,
+    opacity: 0.42,
+    saturate: 0.35,
+    scale: 1,
+    hoverBlur: 0,
+    hoverOpacity: 0.7,
     transitionMs: 220,
   },
+  /** Colour of the rulers' strip (?rulers=strip prototype). */
+  rulerColor: BACK_STYLES.emperors.color,
 
   /**
    * The legend (DESIGN.md §6): Lifelines' name at the top, the four switches,

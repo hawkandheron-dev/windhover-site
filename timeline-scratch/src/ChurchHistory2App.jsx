@@ -43,7 +43,11 @@ const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
 const EMPTY_LAYER = { people: [], points: [], periods: [] };
 
-const lifelinesConfig = churchHistory2Config;
+// ?rulers=strip: the prototype that moves the rulers into a strip pinned to
+// the foot of the timeline (M3 round 3), to compare with the quiet band.
+const lifelinesConfig = new URLSearchParams(window.location.search).get('rulers') === 'strip'
+  ? { ...churchHistory2Config, rulerStyle: 'strip' }
+  : churchHistory2Config;
 
 // The reader's layout: the vertical timeline (lives running down the page)
 // or the horizontal one. Phones start vertical and everything wider starts

@@ -16,6 +16,8 @@ import { TimelineLegend } from './components/TimelineLegend.jsx';
 import { MobileTimeline } from './components/MobileTimeline.jsx';
 import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
+import { RulerStrip } from './components/RulerStrip.jsx';
+import { rulerStripHeight } from './utils/rulerStrip.js';
 import { getYear, formatYear, formatYearSpan } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import bgManuscript from '../../assets/bg-manuscript.jpg';
@@ -225,6 +227,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     () => (backData ? applyFilters(backData, filters) : null),
     [backData, filters]
   );
+  // Lifelines' prototype: rulers in a strip at the foot of the screen rather
+  // than a band below the axis (config.rulerStyle === 'strip').
+  const rulerStripOn = defaultConfig.rulerStyle === 'strip' && Boolean(filteredBackData?.people?.length);
 
   const itemIndex = useMemo(() => {
     const map = new Map();
@@ -999,7 +1004,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const timelineBody = (
     <div
       ref={containerRef}
-      className={`timeline-container${phoneLayout ? ' timeline-container--phone' : ''}`}
+      className={`timeline-container${phoneLayout ? ' timeline-container--phone' : ''}${rulerStripOn ? ' timeline-container--ruler-strip' : ''}`}
+      style={rulerStripOn ? { '--ruler-strip-height': `${rulerStripHeight(filteredBackData.people, yearsPerPixel)}px` } : undefined}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -1058,7 +1064,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
       {/* CH 2.0: the watercolour background and its focus overlay, behind the
           main figures but above the parallax field. */}
-      {filteredBackData && (
+      {filteredBackData && !rulerStripOn && (
         <DepthLayers
           width={dimensions.width}
           height={dimensions.height}
@@ -1093,7 +1099,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         currentHighlightId={currentHighlightId}
         animatingIds={animatingIds}
         animationWave={animationWave}
-        stringsDimmed={Boolean(focusIds && focusIds.size > 0)}
+        stringFocusIds={focusIds}
       />
 
       <TimelineOverlay
@@ -1118,7 +1124,26 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         palette={defaultConfig.palette}
         showPointLabels={showPointLabels}
         focusIds={focusIds}
+        backObstacles={!rulerStripOn && filteredBackData && depthMode !== 'hidden'
+          ? { layout: backLayout, yOffset: layout.axisY - backLayout.axisY }
+          : null}
       />
+
+      {/* The rulers' strip (config.rulerStyle === 'strip'), in place of the
+          background band below the axis. */}
+      {rulerStripOn && (
+        <RulerStrip
+          people={filteredBackData.people}
+          viewportStartYear={viewportStartYear}
+          yearsPerPixel={yearsPerPixel}
+          width={dimensions.width}
+          color={defaultConfig.rulerColor}
+          focusIds={focusIds}
+          onItemHover={handleItemHover}
+          onItemClick={handleItemClickInternal}
+          wasDraggingRef={wasDraggingRef}
+        />
+      )}
 
       {/* Cursor year display - follows cursor */}
       {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (

@@ -1,0 +1,37 @@
+/** Row packing for the rulers' strip (components/RulerStrip.jsx). */
+import { getYear } from './dateUtils.js';
+import { measureLabel } from './labelFit.js';
+
+export const RULER_ROW_HEIGHT = 18;
+const MAX_ROWS = 5;
+export const RULER_STRIP_PAD = 6;
+
+const reignOf = (p) => ({
+  start: p.reignStartYear ?? getYear(p.startDate),
+  end: p.reignEndYear ?? getYear(p.endDate),
+});
+
+/** Greedy rows by reign start; a reign takes room for its name too. */
+export function packRulerRows(people, yearsPerPixel) {
+  const sorted = [...people].sort((a, b) => reignOf(a).start - reignOf(b).start || a.name.localeCompare(b.name));
+  const rowEnds = [];
+  return sorted.map(person => {
+    const { start, end } = reignOf(person);
+    const nameYears = (measureLabel(person.name, '600 11px') + 24) * yearsPerPixel;
+    const reach = Math.max(end, start + nameYears);
+    let row = rowEnds.findIndex(e => e + 4 * yearsPerPixel <= start);
+    if (row === -1 && rowEnds.length < MAX_ROWS) row = rowEnds.length;
+    // Every row full here: share the row that frees up first; the name may
+    // then be cut by the next reign, as a label is anywhere else.
+    if (row === -1) row = rowEnds.indexOf(Math.min(...rowEnds));
+    rowEnds[row] = Math.max(rowEnds[row] ?? -Infinity, reach);
+    return { person, row, start, end };
+  });
+}
+
+export function rulerStripHeight(people, yearsPerPixel) {
+  if (!people?.length) return 0;
+  const rows = Math.max(...packRulerRows(people, yearsPerPixel).map(r => r.row)) + 1;
+  return rows * RULER_ROW_HEIGHT + RULER_STRIP_PAD * 2;
+}
+

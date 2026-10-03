@@ -106,9 +106,19 @@ const COMPARE_MOBILE = PHONE_LAYOUTS.flatMap(layout => [
   { name: `mobile-${layout}-detail`,    viewports: ['phone', 'phone-large'], layout, act: openPanel },
 ]);
 
+// --compare rulers: the quiet band below the axis against the strip pinned
+// to the foot of the screen (?rulers=strip), M3 round 3.
+const COMPARE_RULERS = [['quiet', ''], ['strip', '?rulers=strip']].flatMap(([style, query]) => [
+  { name: `rulers-${style}-opening`, viewports: ['desktop', 'laptop'], query },
+  { name: `rulers-${style}-zoomed-in`, viewports: ['desktop'], query, act: zoom('Zoom in', 2) },
+  { name: `rulers-${style}-focused`, viewports: ['desktop'], query, act: openPanel },
+  { name: `rulers-${style}-phone`, viewports: ['phone'], query, layout: 'horizontal' },
+]);
+
 const COMPARE = opt('compare');
 const STATES = COMPARE === 'points' ? COMPARE_POINTS
   : COMPARE === 'mobile' ? COMPARE_MOBILE
+  : COMPARE === 'rulers' ? COMPARE_RULERS
   : DEFAULT_STATES;
 
 // ── tiny static server over the repo root (apps/ plus node_modules fonts) ──

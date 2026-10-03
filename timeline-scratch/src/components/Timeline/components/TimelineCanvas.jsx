@@ -54,9 +54,9 @@ export function TimelineCanvas({
    *  rulers (DepthLayers' MonarchLabels); drawn twice, the blurred copy sat
    *  offset under the crisp one and read as a rendering fault. */
   suppressMonarchNames = false,
-  /** Harp strings at rest are faint everywhere while a figure is in focus;
-   *  the focused ones are redrawn over everything by the overlay. */
-  stringsDimmed = false,
+  /** Landmarks belonging to the figure in focus: their strings are drawn
+   *  darker and the rest fainter, still behind the bars. */
+  stringFocusIds = null,
 }) {
   const canvasRef = useRef(null);
   const hitMapRef = useRef(new Map()); // For click detection
@@ -170,7 +170,7 @@ export function TimelineCanvas({
 
     // Draw search highlights on top
     renderSearchHighlights(ctx, layout);
-  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringsDimmed, palette, yOffset, onlyIds, layerMode]);
+  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringFocusIds, palette, yOffset, onlyIds, layerMode]);
 
   /** The focus layer draws a subset; every other layer draws everything. */
   function visible(items) {
@@ -432,12 +432,14 @@ export function TimelineCanvas({
 
   // Harp strings: one full-height hairline per landmark, in its colour.
   function renderStrings(ctx, points) {
+    const focusActive = stringFocusIds && stringFocusIds.size > 0;
     ctx.save();
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = stringsDimmed ? 0.12 : 0.3;
     for (const point of points) {
       const x = Math.round(yearToPixel(getYearRange(point.date).start, viewportStartYear, yearsPerPixel)) + 0.5;
       if (x < -2 || x > width + 2) continue;
+      const inFocus = focusActive && stringFocusIds.has(point.id);
+      ctx.globalAlpha = focusActive ? (inFocus ? 0.85 : 0.12) : 0.3;
+      ctx.lineWidth = inFocus ? 2 : 1;
       ctx.strokeStyle = point.color || '#888';
       ctx.beginPath();
       ctx.moveTo(x, 0);

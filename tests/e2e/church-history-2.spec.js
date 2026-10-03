@@ -236,7 +236,10 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.timeline-search-option')).toHaveCount(0);
   });
 
-  test('the background layer is blurred and non-interactive at rest', async ({ page }) => {
+  // Round 3 (owner's call): the rulers are "crisp and quiet". The blur read
+  // as a fault rather than as depth, so the band is pale and sharp instead,
+  // still inert. The blurred test it replaces asserted the old look.
+  test('the rulers are crisp, pale and non-interactive at rest', async ({ page }) => {
     await loadPage(page);
 
     const wash = page.locator('.ch2-layer-wash');
@@ -246,11 +249,11 @@ test.describe('CH Timeline 2.0', () => {
       const cs = getComputedStyle(el);
       return { filter: cs.filter, opacity: Number(cs.opacity), pointerEvents: cs.pointerEvents };
     });
-    expect(style.filter).toContain('blur');
-    expect(style.opacity).toBeLessThan(1);
+    expect(style.filter).not.toMatch(/blur\((?!0px)/);
+    expect(style.opacity).toBeLessThan(0.6);
     expect(style.pointerEvents).toBe('none');
 
-    // Nothing is focused yet, so the crisp overlay is not mounted.
+    // Nothing is focused yet, so the full-strength overlay is not mounted.
     await expect(page.locator('.ch2-layer-focus')).toHaveCount(0);
   });
 
@@ -263,17 +266,30 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.depth-controls')).toHaveCount(0);
 
     const wash = page.locator('.ch2-layer-wash');
-    // The filter is transitioned, so poll rather than sampling mid-animation.
-    const blurPx = () => wash.evaluate(el => {
-      const match = /blur\(([\d.]+)px\)/.exec(getComputedStyle(el).filter);
-      return match ? Number(match[1]) : null;
-    });
-    expect(await blurPx()).toBeGreaterThan(1);
+    // Opacity is transitioned, so poll rather than sampling mid-animation.
+    const opacity = () => wash.evaluate(el => Number(getComputedStyle(el).opacity));
+    expect(await opacity()).toBeLessThan(0.6);
 
     await page.keyboard.down('Alt');
-    await expect.poll(blurPx, { timeout: 3000 }).toBe(0);
+    await expect.poll(opacity, { timeout: 3000 }).toBe(1);
     await page.keyboard.up('Alt');
-    await expect.poll(blurPx, { timeout: 3000 }).toBeGreaterThan(1);
+    await expect.poll(opacity, { timeout: 3000 }).toBeLessThan(0.6);
+  });
+
+  test('?rulers=strip moves the rulers into a strip at the foot, above the controls', async ({ page }) => {
+    await loadPage(page, { query: '?rulers=strip' });
+    const strip = page.locator('.ruler-strip');
+    await expect(strip).toBeVisible();
+    await expect(page.locator('.ch2-layer-wash')).toHaveCount(0);
+    await expect(strip.getByText('Constantius II')).toBeVisible();
+    const s = await strip.boundingBox();
+    const viewport = page.viewportSize();
+    expect(s.y + s.height).toBeGreaterThan(viewport.height - 2);
+    const controls = await page.locator('.timeline-controls').boundingBox();
+    expect(controls.y + controls.height).toBeLessThanOrEqual(s.y);
+    // A ruler in the strip opens like any figure.
+    await strip.getByText('Constantius II').click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Constantius II');
   });
 
   test('leaving the tour, the rest of the timeline sweeps in, then settles', async ({ page }) => {

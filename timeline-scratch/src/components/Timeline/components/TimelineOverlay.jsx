@@ -43,6 +43,9 @@ export function TimelineOverlay({
    *  in as the canvas's grow wave reaches them (Lifelines' tour exit). */
   revealIds,
   revealWave,
+  /** The rulers' band below the axis ({ layout, yOffset }): texts' dots
+   *  keep clear of its bars and names. */
+  backObstacles = null,
 }) {
   // A label's reveal: a fade that starts when the wave reaches its x.
   const revealStyle = (id, ids, x) => {
@@ -385,10 +388,20 @@ export function TimelineOverlay({
           ...labelled.filter(l => l.labelRect).map(l => l.labelRect),
           // The axis's year labels.
           { x0: -Infinity, x1: Infinity, y0: axisScreenY, y1: axisScreenY + (layout.sizes?.axisHeight ?? 30) },
+          // The rulers' bars and names, so texts' dots don't land on them.
+          ...(backObstacles?.layout?.stackedPeople || []).map(ruler => {
+            const { start, end } = getYearRange(ruler.startDate, ruler.endDate);
+            const rx0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
+            const rx1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), rx0 + 16 + measureLabel(ruler.name, '600 11px') + 40);
+            const ry0 = ruler.y - panOffsetY + backObstacles.yOffset;
+            return { x0: rx0, x1: rx1, y0: ry0, y1: ry0 + ruler.height - 2 };
+          }),
         ],
         axisY: axisScreenY,
         top: 0,
-        bottom: height,
+        // Below the axis a dot stays within the texts' label row; past it, it
+        // would float among the rulers or below them, far from its line.
+        bottom: axisScreenY + (layout.sizes?.axisHeight ?? 30) + 44,
       },
     );
 
@@ -417,15 +430,11 @@ export function TimelineOverlay({
 
       return (
         <div key={point.id} style={revealStyle(point.id, animatingPointIds, x) || undefined}>
-          {/* At rest the line is drawn on the canvas, behind every bar
-              (TimelineCanvas, pointStyle 'string'). Hovered or in focus, it
-              is drawn again here, over everything. */}
-          {(hovered || inFocus) && (
-            <div
-              className={`point-string${hovered ? ' is-hover' : ' is-focus'}`}
-              data-point-id={point.id}
-              style={{ left: `${x}px`, background: hovered ? undefined : point.color, opacity: hovered ? 1 : 0.85 }}
-            />
+          {/* The line is drawn on the canvas, behind every bar, including
+              when its figure is in focus (TimelineCanvas, pointStyle
+              'string'). Only the hovered one is drawn here, over everything. */}
+          {hovered && (
+            <div className="point-string is-hover" data-point-id={point.id} />
           )}
           {/* The line itself is a target too: a strip a few pixels wide, but
               only between bars. Over a bar, the bar keeps the pointer. */}

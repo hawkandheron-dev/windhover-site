@@ -465,3 +465,16 @@ body:has(.ch2-app) {
   from { opacity: 0; transform: translateY(40px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Rulers, quiet (M3 round 3): their names in grey, lighter than a figure's,
+   on a near-opaque chip so strings behind them don't show through. */
+.ch2-app .ch2-monarch-label {
+  color: var(--color-ink-faded);
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Rulers in a strip (?rulers=strip): the controls sit above it. */
+.ch2-app .timeline-container--ruler-strip .timeline-controls {
+  bottom: calc(var(--ruler-strip-height, 0px) + 12px);
+}
