@@ -6,7 +6,8 @@ A multi-part project that combines a personal profile site, interactive history 
 
 This repo is split into a few major areas that serve different purposes:
 
-- **Root static site (`/`)**: public-facing HTML pages (profile, about, design system, church history, pantheons) plus shared CSS/JS.
+- **Front page (`/`)**: Lifelines, the church history timeline. `_redirects` serves `/apps/church-history-2` at `/`; see "Site routing" below.
+- **Root static site**: older HTML pages (the former landing page at `home.html`, about, design system, church history, pantheons) plus shared CSS/JS. They still work by URL but are not linked from Lifelines or indexed by search engines.
 - **`timeline-scratch/`**: the main React + Vite application for timeline/map experiences, integrated with Clerk auth and Supabase data.
 - **`pantheon-db/`**: a Next.js + Prisma Pantheons app that can run against Supabase (shared remote data) and also supports a local SQLite workflow.
 - **`supabase/`**: Supabase config and SQL migrations for schema, policies, and seed data.
@@ -22,7 +23,7 @@ Use this when you want to edit the portfolio-style pages and vanilla JS experien
 
 Key files:
 
-- `index.html`, `about.html`, `design-system.html`, `pantheons.html`, `pantheons-supabase.html`, `church-history-supabase.html`
+- `home.html` (the former landing page, formerly `index.html`), `about.html`, `design-system.html`, `pantheons.html`, `pantheons-supabase.html`, `church-history-supabase.html`
 - Shared styling/scripts: `style.css`, `supabase.css`, `site.js`, `supabase-app.js`, `church-history-app.js`
 - Runtime config fallback: `supabase-config.js`
 
@@ -106,6 +107,14 @@ CREATE POLICY "Users delete own favorites"
   ON era_favorites FOR DELETE
   USING (clerk_user_id = auth.jwt() ->> 'sub');
 ```
+
+## Site routing
+
+- **`/` is Lifelines.** `_redirects` proxies `/` to `/apps/church-history-2` with a 200, so the address bar keeps `/` (and `?admin`). `serve.json` repeats the rule for the local test server, and `tests/unit/site-routing.test.js` keeps the two identical.
+- **Everything else is noindex.** `_headers` sends `X-Robots-Tag: noindex` on every path except `/`. A new app or page is kept out of search automatically; nothing to add.
+- **Asset paths are absolute** (`base: '/apps/'` in `timeline-scratch/vite.config.js`), which is what lets an app's HTML be served from another address.
+- **Unknown URLs** get `404.html`. Without it, Pages would show the front page for any address.
+- **Admin:** open `/?admin` for the Sign In button.
 
 ## Build and deployment notes
 

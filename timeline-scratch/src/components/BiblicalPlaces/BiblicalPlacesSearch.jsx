@@ -6,7 +6,7 @@ const LOGO_PATH = new URL('../../../../../resources/logos/Windhover_BLK.png', im
 /**
  * Search bar for places, people, and events.
  */
-export function BiblicalPlacesSearch({ data, onSelect, homeHref = '../../index.html' }) {
+export function BiblicalPlacesSearch({ data, onSelect, homeHref = '/home.html' }) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef(null);

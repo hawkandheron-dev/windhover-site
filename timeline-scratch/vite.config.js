@@ -10,7 +10,10 @@ export default defineConfig({
     // Lets a page hold its light palette under a dark OS; see the plugin.
     postcss: { plugins: [lightThemeOptOut()] },
   },
-  base: './', // Use relative paths for assets
+  // Absolute, not './': Lifelines is also served at the site root (see the
+  // root _redirects), where './assets/…' would resolve to /assets/ and 404.
+  // Every app is deployed under /apps/, so this changes no other URL.
+  base: '/apps/',
   esbuild: {
     drop: ['console', 'debugger'],
   },

@@ -114,14 +114,16 @@ const TABLES = {
   ],
 };
 
-async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '' } = {}) {
+async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at } = {}) {
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
   await installSupabaseTableMock(page, TABLES);
   await page.setViewportSize(viewport);
   // A query goes on the clean URL: the .html form redirects to it (here and on
   // Cloudflare Pages), and serve drops the query on the way.
-  const response = await page.goto(query ? `/apps/church-history-2${query}` : '/apps/church-history-2.html');
+  // `at` loads Lifelines from another address, e.g. the site root.
+  const url = at ?? (query ? `/apps/church-history-2${query}` : '/apps/church-history-2.html');
+  const response = await page.goto(url);
   expect(response?.status()).toBe(200);
 
   // Desktop draws to canvas; mobile is a DOM swimlane.
@@ -520,5 +522,36 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     const mid = await label.textContent();
     await zoomOut.click();
     await expect(label).not.toHaveText(mid);
+  });
+});
+
+test.describe('Lifelines as the front page (milestone 2)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  // Locally this goes through serve.json; in production through _redirects.
+  // tests/unit/site-routing.test.js keeps the two rules identical.
+  test('the site root is Lifelines, with its scripts and styles loading', async ({ page }) => {
+    const failed = [];
+    page.on('response', r => { if (r.url().includes('/apps/assets/') && r.status() >= 400) failed.push(r.url()); });
+    await loadPage(page, { at: '/', dismissWelcome: false });
+    await expect(page.locator('.welcome-title')).toHaveText('Welcome to Lifelines');
+    await expect(page).toHaveURL(/\/$/);
+    // Relative asset paths would have resolved to /assets/ here and 404'd.
+    expect(failed).toEqual([]);
+  });
+
+  test('/?admin keeps its query and shows the account slot', async ({ page }) => {
+    await loadPage(page, { at: '/?admin' });
+    await expect(page.getByRole('button', { name: 'Sign-in unavailable' })).toBeVisible();
+  });
+
+  test('an unknown address gets a 404 page that leads back to Lifelines', async ({ page }) => {
+    const response = await page.goto('/no-such-page');
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to Lifelines' })).toHaveAttribute('href', '/');
   });
 });

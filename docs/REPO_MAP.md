@@ -6,7 +6,7 @@ Personal profile/portfolio site with several sub-projects: a static HTML landing
 
 ## Zones
 
-- **`/` (root HTML)** — Static profile pages (`index.html`, `about.html`, `design-system.html`, `pantheons.html`, `pantheons-supabase.html`, `church-history-supabase.html`). Shared CSS (`style.css`, `supabase.css`, `editable-content.css`) and JS (`site.js`, `supabase-app.js`, `church-history-app.js`, `editable-content.js`). Changes here affect the public-facing static site.
+- **`/` (root HTML)** — The front page `/` is Lifelines (`_redirects`, mirrored by `serve.json`); `_headers` marks every other path noindex; `404.html` handles unknown URLs. Static pages (`home.html`, the former landing page, `about.html`, `design-system.html`, `pantheons.html`, `pantheons-supabase.html`, `church-history-supabase.html`). Shared CSS (`style.css`, `supabase.css`, `editable-content.css`) and JS (`site.js`, `supabase-app.js`, `church-history-app.js`, `editable-content.js`). Changes here affect the public-facing static site.
 - **`timeline-scratch/`** — React + Vite app. The main actively-developed timeline UI.
   - `src/components/Timeline/` — Canvas-based timeline renderer (zoom, pan, stacking).
   - `src/components/` — Feature UIs: `EditEntityForm/`, `Notes/`, `Suggestions/`, `VisionBoard/`, `IconStickerSheet/`.
@@ -87,7 +87,7 @@ Deploy: Cloudflare Pages (static root + `functions/`). The `timeline-scratch/dis
 3. **Update RLS policy** — Edit or add migration in `supabase/migrations/`. Follow existing `clerk_user_id` JWT pattern.
 4. **Add a Supabase service** — Create in `timeline-scratch/src/services/`, use `supabase` client from `src/lib/supabase.ts`.
 5. **Update pantheon-db schema** — Edit `pantheon-db/prisma/schema.prisma`, run `npx prisma migrate dev`.
-6. **Add a static page** — Create HTML file at root, link from `index.html`. Use `style.css` and `site.js`.
+6. **Add a static page** — Create HTML file at root, link from `home.html` if it should be findable there. Use `style.css` and `site.js`. It is noindexed automatically by `_headers`.
 7. **Add icons** — Place in `icons/<era>/`, update `icons/index.json`.
 8. **Add a Cloudflare Pages Function** — Create in `functions/api/`.
 

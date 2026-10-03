@@ -430,7 +430,7 @@ function BiblicalPlacesApp() {
             <BiblicalPlacesSearch
               data={data}
               onSelect={handleSearchSelect}
-              homeHref="../../index.html"
+              homeHref="/home.html"
             />
           </div>
         )}

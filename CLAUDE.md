@@ -7,7 +7,8 @@ How to work in this repository. For what's in it, read `README.md` and
 
 Releasing **Lifelines**, the church history timeline (code:
 `timeline-scratch/src/ChurchHistory2App.jsx`, data:
-`src/data/churchHistory2*.js`, route: `/apps/church-history-2.html`). Prefer
+`src/data/churchHistory2*.js`, route: `/apps/church-history-2.html`, served
+as the site's front page `/` via `_redirects`). Prefer
 work that moves it toward release, and flag anything that would delay it.
 
 ## Rules
