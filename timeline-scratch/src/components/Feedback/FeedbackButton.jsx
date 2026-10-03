@@ -300,14 +300,22 @@ function FeedbackModal({ onClose }) {
               {error && <span className="feedback-error" role="alert">{error}</span>}
             </div>
 
-            {siteKey && <TurnstileWidget siteKey={siteKey} onToken={setToken} onError={setError} />}
+            {/* Only when the gate is OFF. With it on, the access token this
+                request carries is a stronger claim than a captcha — it means a
+                code reached a subscribed inbox — so asking again would make a
+                returning reader solve a puzzle for every note. Mirrors the
+                same condition in functions/api/feedback.js; if the two ever
+                disagree the button sends a token the server will not accept. */}
+            {!gated && siteKey && (
+              <TurnstileWidget siteKey={siteKey} onToken={setToken} onError={setError} />
+            )}
 
             <div className="feedback-actions">
               <button type="button" className="btn" onClick={onClose} disabled={busy}>Cancel</button>
               <button
                 type="submit"
                 className="btn btn-action"
-                disabled={busy || !message.trim() || tooLong || !challengeReady}
+                disabled={busy || !message.trim() || tooLong || (!gated && !challengeReady)}
               >
                 {busy ? 'Sending…' : 'Send feedback'}
               </button>

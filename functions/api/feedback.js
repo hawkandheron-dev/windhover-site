@@ -17,12 +17,15 @@
  */
 
 import {
-  gateEnabled, verifyToken, verifyTurnstile,
+  gateEnabled, verifyToken, verifyTurnstile, db,
 } from '../_lib/gate.js';
 
 const APP_ID = 'ch-timeline-2';
 const MAX_MESSAGE = 4000;
 const MAX_TITLE = 120;
+// Per subscriber, per hour. A reader with something to say sends one note, or
+// a few; nobody writes ten an hour in good faith.
+const MAX_NOTES_PER_HOUR = 10;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -76,7 +79,12 @@ export async function onRequest({ request, env }) {
   if (message.length > MAX_MESSAGE) {
     return json(400, { error: `Please keep it under ${MAX_MESSAGE} characters.` });
   }
-  if (!token) return json(400, { error: 'Please complete the challenge.' });
+  // Only demanded when Turnstile is the control — see the gate check below.
+  // With the gate on the client renders no widget here and sends no token, so
+  // insisting on one would refuse every submission.
+  if (!gateEnabled(env) && !token) {
+    return json(400, { error: 'Please complete the challenge.' });
+  }
 
   // The subscriber gate, when it is switched on. Checked before Turnstile so
   // an unsubscribed caller is not made to solve a puzzle only to be refused.
@@ -92,14 +100,66 @@ export async function onRequest({ request, env }) {
     }
   }
 
-  const verdict = await verifyTurnstile(
-    token,
-    TURNSTILE_SECRET_KEY,
-    request.headers.get('CF-Connecting-IP')
-  );
-  if (!verdict.ok) {
-    console.warn('feedback: turnstile rejected', verdict.reason);
-    return json(403, { error: 'Could not verify that you are human. Please try again.' });
+  // A token is reusable for thirty days, so dropping Turnstile below would
+  // otherwise leave nothing bounding how fast one holder can post. Before this
+  // change each submission carried its own single-use challenge; that implicit
+  // limit has to be replaced explicitly, not simply removed. It matters for a
+  // copied or shared token as much as for a subscriber behaving badly — and
+  // 20261001140000_public_feedback.sql named exactly this as the reason RLS
+  // alone was never enough.
+  //
+  // Counted per subscriber rather than per IP: the token is the identity we
+  // actually have, and an IP is both shared and trivially changed.
+  if (subscriber) {
+    const since = new Date(Date.now() - 3600_000).toISOString();
+    const ref = subscriber.emailHash.slice(0, 16);
+    const recent = await db(env,
+      `App_Issues?source=eq.public&created_at=gte.${encodeURIComponent(since)}`
+      + `&page_context->>subscriber_ref=eq.${encodeURIComponent(ref)}&select=issue_id`);
+
+    if (recent.ok) {
+      const rows = await recent.json().catch(() => []);
+      if (rows.length >= MAX_NOTES_PER_HOUR) {
+        console.warn('feedback: per-subscriber rate limit hit', ref);
+        return json(429, {
+          error: 'That is a lot of feedback in one hour. Please try again later.',
+        });
+      }
+    } else {
+      // Fails open, loudly, as the same check in request-code does. A reader
+      // with something to say should not be refused because a count query
+      // blipped, and an attacker has no way to make it blip on demand.
+      console.error('feedback: rate-limit check failed', recent.status);
+    }
+  }
+
+  // Turnstile is required here ONLY when the gate is off.
+  //
+  // With the gate on, this request already carries a signed access token that
+  // could only have been obtained by receiving a six-digit code at a
+  // subscribed address. That is a strictly stronger claim than a captcha's: a
+  // captcha says a human is present, the token says a verified subscriber is.
+  // Asking for both made a returning reader solve a puzzle on every note, for
+  // no gain, and the double prompt is what the gate's own design was meant to
+  // spare them.
+  //
+  // With the gate off there is no token, so Turnstile is the only thing
+  // between a script and this endpoint, and it stays mandatory. Failing that
+  // way round matters: the weaker configuration must not be the one that
+  // drops a control.
+  //
+  // request-code keeps its own Turnstile regardless. It is what makes Resend
+  // send mail, and nothing else guards it.
+  if (!gateEnabled(env)) {
+    const verdict = await verifyTurnstile(
+      token,
+      TURNSTILE_SECRET_KEY,
+      request.headers.get('CF-Connecting-IP')
+    );
+    if (!verdict.ok) {
+      console.warn('feedback: turnstile rejected', verdict.reason);
+      return json(403, { error: 'Could not verify that you are human. Please try again.' });
+    }
   }
 
   // Past the captcha. Insert with the service-role key, pinning every column

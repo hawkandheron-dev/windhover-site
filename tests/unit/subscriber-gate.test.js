@@ -30,7 +30,7 @@ const post = (url, body) => new Request(url, {
  * Fakes Turnstile, Resend and PostgREST. `subscribers` is the roll; `codes`
  * is mutable so consumption and attempt counting can be observed.
  */
-function mockWorld({ subscribers = [], codes = [], turnstileOk = true, resendOk = true } = {}) {
+function mockWorld({ subscribers = [], codes = [], notes = [], turnstileOk = true, resendOk = true } = {}) {
   const calls = [];
   global.fetch = vi.fn(async (url, init = {}) => {
     const u = String(url);
@@ -63,10 +63,16 @@ function mockWorld({ subscribers = [], codes = [], turnstileOk = true, resendOk 
       if (u.includes('consumed_at=is.null')) rows = rows.filter(c => !c.consumed_at);
       return new Response(JSON.stringify(rows), { status: 200 });
     }
-    if (u.includes('App_Issues')) return new Response('', { status: 201 });
+    if (u.includes('App_Issues')) {
+      // A GET is the per-subscriber rate-limit count; a POST is the insert.
+      if (init.method === 'POST') { notes.push(JSON.parse(init.body)); return new Response('', { status: 201 }); }
+      const ref = /subscriber_ref=eq\.([a-f0-9]+)/.exec(u)?.[1];
+      const rows = notes.filter(n => !ref || n?.page_context?.subscriber_ref === ref);
+      return new Response(JSON.stringify(rows.map((_, i) => ({ issue_id: i }))), { status: 200 });
+    }
     return new Response('{}', { status: 200 });
   });
-  return { calls, codes };
+  return { calls, codes, notes };
 }
 
 beforeEach(() => {
@@ -225,7 +231,9 @@ describe('the access token on /api/feedback', () => {
       request: post(URL_SUB, { message: 'A note', token: 't', accessToken: token }), env: ENV });
 
     expect(res.status).toBe(201);
-    const insert = w.calls.find(c => c.url.includes('App_Issues'));
+    // The POST specifically: a GET on App_Issues now precedes it, for the
+    // per-subscriber rate-limit count.
+    const insert = w.calls.find(c => c.url.includes('App_Issues') && c.init.method === 'POST');
     const body = JSON.parse(insert.init.body);
     expect(body.page_context.subscriber_ref).toBe(emailHash.slice(0, 16));
     // The address itself must appear nowhere in the row.
@@ -331,5 +339,134 @@ describe('request-code fails closed on missing configuration', () => {
 
     expect(res.status).toBe(403);
     expect(warned.join('\n')).toMatch(/invalid-input-secret/);
+  });
+});
+
+/**
+ * Which control applies where.
+ *
+ * Turnstile used to run on BOTH the email step and the submit step, so a
+ * returning subscriber solved a puzzle for every note. With the gate on, the
+ * submit request already carries a signed access token obtainable only by
+ * receiving a code at a subscribed address — a stronger claim than "a human
+ * is present" — so the captcha there was dropped.
+ *
+ * The direction of that condition is the whole safety of the change, which is
+ * why it is asserted both ways round here. Inverted, it would drop the ONLY
+ * control on the weaker configuration.
+ */
+describe('Turnstile applies to the submit step only when the gate is off', () => {
+  const tokenFor = async (email = 'member@example.com') =>
+    issueToken(SECRET, await hashEmail(SECRET, email));
+
+  it('accepts a submission with NO Turnstile token when the gate is on', async () => {
+    const w = mockWorld();
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'A note', accessToken: await tokenFor() }), env: ENV });
+
+    expect(res.status).toBe(201);
+    expect(w.calls.some(c => c.url.includes('App_Issues'))).toBe(true);
+  });
+
+  it('does not call siteverify at all when the gate is on', async () => {
+    // Not merely tolerated: the round trip should not happen. A captcha the
+    // client no longer renders must not still be verified server-side, or the
+    // two halves disagree and every submission fails.
+    const w = mockWorld();
+    await submitFeedback({
+      request: post(URL_SUB, { message: 'A note', accessToken: await tokenFor() }), env: ENV });
+
+    expect(w.calls.some(c => c.url.includes('siteverify'))).toBe(false);
+  });
+
+  it('ignores a junk Turnstile token when the gate is on', async () => {
+    // A stale token left over from the email step rides along harmlessly.
+    const w = mockWorld({ turnstileOk: false });
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'A note', token: 'spent', accessToken: await tokenFor() }),
+      env: ENV });
+
+    expect(res.status).toBe(201);
+    expect(w.calls.some(c => c.url.includes('App_Issues'))).toBe(true);
+  });
+
+  it('STILL requires Turnstile on submit when the gate is off', async () => {
+    // The guard against inverting the condition. With no gate there is no
+    // token, so Turnstile is the only thing left and must not be skipped.
+    const { RESEND_API_KEY, FEEDBACK_SIGNING_SECRET, ...ungated } = ENV;
+    const w = mockWorld({ turnstileOk: false });
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'hi', token: 'bad' }), env: ungated });
+
+    expect(res.status).toBe(403);
+    expect(w.calls.some(c => c.url.includes('App_Issues'))).toBe(false);
+  });
+
+  it('request-code keeps its Turnstile either way — it is what sends mail', async () => {
+    // Nothing else guards Resend's quota, so this captcha never comes off.
+    const w = mockWorld({ turnstileOk: false });
+    const res = await requestCode({
+      request: post(URL_REQ, { email: 'member@example.com', token: 'bad' }), env: ENV });
+
+    expect(res.status).toBe(403);
+    expect(w.calls.some(c => c.url.includes('api.resend.com'))).toBe(false);
+  });
+});
+
+/**
+ * The implicit limit that came off with the captcha.
+ *
+ * Every submission used to carry its own single-use Turnstile token, which
+ * bounded how fast anyone could post. An access token is reusable for thirty
+ * days, so removing the captcha without replacing that bound would let one
+ * holder — a subscriber behaving badly, or anyone with a copied token — flood
+ * App_Issues through the service-role insert. Raised as a P1 in review on
+ * #156, and correctly: the original RLS migration named exactly this as the
+ * reason policies alone were never sufficient.
+ */
+describe('per-subscriber submission cap', () => {
+  const tokenFor = async (email = 'member@example.com') =>
+    issueToken(SECRET, await hashEmail(SECRET, email));
+
+  it('accepts submissions below the cap', async () => {
+    const w = mockWorld();
+    for (let i = 0; i < 3; i++) {
+      const res = await submitFeedback({
+        request: post(URL_SUB, { message: `note ${i}`, accessToken: await tokenFor() }), env: ENV });
+      expect(res.status).toBe(201);
+    }
+    expect(w.notes).toHaveLength(3);
+  });
+
+  it('refuses the eleventh note in an hour, and does not insert it', async () => {
+    const w = mockWorld();
+    for (let i = 0; i < 10; i++) {
+      await submitFeedback({
+        request: post(URL_SUB, { message: `note ${i}`, accessToken: await tokenFor() }), env: ENV });
+    }
+    expect(w.notes).toHaveLength(10);
+
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'eleven', accessToken: await tokenFor() }), env: ENV });
+
+    expect(res.status).toBe(429);
+    // The refusal must actually prevent the write, not merely report one.
+    expect(w.notes).toHaveLength(10);
+  });
+
+  it('counts per subscriber, so one flooder does not block another', async () => {
+    const w = mockWorld();
+    for (let i = 0; i < 10; i++) {
+      await submitFeedback({
+        request: post(URL_SUB, { message: `n${i}`, accessToken: await tokenFor('a@example.com') }), env: ENV });
+    }
+    const blocked = await submitFeedback({
+      request: post(URL_SUB, { message: 'x', accessToken: await tokenFor('a@example.com') }), env: ENV });
+    expect(blocked.status).toBe(429);
+
+    const other = await submitFeedback({
+      request: post(URL_SUB, { message: 'hello', accessToken: await tokenFor('b@example.com') }), env: ENV });
+    expect(other.status).toBe(201);
+    expect(w.notes).toHaveLength(11);
   });
 });
