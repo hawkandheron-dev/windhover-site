@@ -59,6 +59,9 @@ export const churchHistory2Config = {
   /** Detail panel: description first, a smaller map after it, sentence-case
    *  headings (DESIGN.md §6). */
   panelLayout: 'compact',
+  /** Landmarks as harp strings: a line through the timeline at each year,
+   *  with a dot on a linked figure or in open space (owner's pick, M3). */
+  pointStyle: 'string',
   /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
    *  timeline). */
   touchGestures: true,

@@ -424,9 +424,11 @@ export function TimelineCanvas({
         ctx.restore();
       }
 
-      // Store in hit map for clicking (left-aligned from date position)
+      // Store in hit map for clicking (left-aligned from date position).
+      // Harp strings are their own targets in the overlay; a 120px box here
+      // would be an invisible landmark target over whatever lies beside it.
       const hitWidth = 120;
-      if (interactive) {
+      if (interactive && config?.pointStyle !== 'string') {
         hitMapRef.current.set(point.id, {
           type: 'point',
           item: point,

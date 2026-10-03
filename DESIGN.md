@@ -60,6 +60,7 @@ Colour on the canvas is data, so its meanings are fixed:
 | **Councils** `#3f7d46` + cross shape | A council | Colour is always paired with its shape — never colour alone. |
 | **Texts & creeds** `#9a7b1f` + book shape | A text | Same: always with the shape. |
 | **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch, background layer | The background layer holds reigns and nothing else. Adding anything to it is a design decision, recorded here first. |
+| **String gold** `--color-string-hover` `#c08f12` | "This landmark, under the pointer" | Only for a harp string being hovered (its line, label and dot together). Never at rest, never for anything else. |
 | **Action blue** `--color-action` | "Do this" | The only colour for a filled primary button. At most **one** filled primary per region (a dialog, the panel, the header). Never decorative, never a background wash. No other blues in UI chrome. |
 | **Error** `--color-error` | Something failed | The only red for error text and states. |
 
@@ -114,8 +115,20 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 ## 7. Density and labels
 
-- Past `pointLabelMaxYearsPerPixel` (1.0 year/px), landmarks drop their flags
-  and show only pins. The same applies to monarch labels.
+- **Landmarks are harp strings** (`pointStyle: 'string'`, owner's pick, M3):
+  a thin line through the whole timeline at the landmark's year, with a
+  label in one row beside the axis (councils above, texts below). A label
+  that would collide with the one before it is dropped.
+- Every string has a **dot**, its handle (`utils/stringDots.js`). A landmark
+  linked to a figure alive that year (`CH_EventConnections`) puts its dot on
+  that figure's bar, on the lower edge, clear of the name. Anything else goes
+  in open space, never on a bar, since a dot on a bar says "this person was
+  involved". It takes the free spot nearest the axis, clear of bars, labels
+  and other dots. A labelled landmark with no living linked figure needs no
+  dot.
+- Line, label and dot hover gold together, and each opens the landmark. The
+  line is a target only between bars: over a bar, the bar keeps the pointer.
+- Monarch labels drop past `pointLabelMaxYearsPerPixel` (1.0 year/px).
 - A name label may run into empty space but never into the next bar of its
   row. If it doesn't fit, the dates go first, then the name ends in "…"; with
   under 28px of room there is no label, and hovering names the bar

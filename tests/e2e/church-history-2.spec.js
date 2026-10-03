@@ -683,21 +683,52 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(search).toBeFocused();
   });
 
-  test('harp-strings prototype: ?points=strings draws lines, and a label opens its landmark', async ({ page }) => {
-    await loadPage(page, { query: '?points=strings' });
+  // Harp strings are Lifelines' landmarks (owner's pick, M3 round 2).
+  test('landmarks are harp strings, and a label click opens its landmark', async ({ page }) => {
+    // Also guards the mouseup fix: a click with no settled move before it
+    // read as a drag and was swallowed, so landmarks opened nothing.
+    await loadPage(page);
     await expect(page.locator('.point-callout')).toHaveCount(0);
     expect(await page.locator('.point-string').count()).toBeGreaterThan(0);
     await page.locator('.point-string-label', { hasText: 'Council of Nicaea' }).click();
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
   });
 
-  test('clicking a landmark card opens its panel, even straight after a move', async ({ page }) => {
-    // mouseup compared the click with a mousePos only as fresh as the last
-    // render, so a click with no settled move before it (a tap, or a quick
-    // click) read as a drag and was swallowed: cards opened nothing.
+  test('a string turns gold under the pointer, and clicking it opens the landmark', async ({ page }) => {
     await loadPage(page);
-    await page.locator('.point-callout', { hasText: 'Council of Nicaea' }).click();
+    const line = page.locator('.point-string[data-point-id="council-nicaea"]');
+    await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().hover();
+    await expect(line).toHaveClass(/is-hover/);
+    await expect(line).toHaveCSS('background-color', 'rgb(192, 143, 18)');
+    await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().click();
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
+  });
+
+  test("a linked landmark's dot sits on its figure's bar", async ({ page }) => {
+    await loadPage(page);
+    // The fixture links Nicaea to Athanasius (CH_EventConnections).
+    const dot = page.locator('.point-string-dot[data-point-id="council-nicaea"]');
+    await expect(dot).toHaveAttribute('data-person-id', 'athanasius');
+    const d = await dot.boundingBox();
+    const label = await page.locator('.timeline-overlay').getByText('Athanasius', { exact: true }).first().boundingBox();
+    // On the bar's lower edge: just under the name, not on the axis.
+    const dotY = d.y + d.height / 2;
+    expect(dotY).toBeGreaterThan(label.y);
+    expect(dotY).toBeLessThan(label.y + label.height + 12);
+  });
+
+  test('on real data, no unlinked dot covers a figure', async ({ page }) => {
+    await loadPage(page, { realData: true });
+    const overlaps = await page.evaluate(() => {
+      const names = [...document.querySelectorAll('.timeline-overlay .person-label')]
+        .map(el => el.getBoundingClientRect());
+      return [...document.querySelectorAll('.point-string-dot:not(.is-linked)')].filter(dot => {
+        const r = dot.getBoundingClientRect();
+        return names.some(n => r.left < n.right && r.right > n.left && r.top < n.bottom && r.bottom > n.top);
+      }).map(d => d.dataset.pointId);
+    });
+    expect(overlaps).toEqual([]);
+    expect(await page.locator('.point-string-dot.is-linked').count()).toBeGreaterThan(5);
   });
 
   test('a click on empty timeline opens that year; a click on the controls does not', async ({ page }) => {

@@ -5,7 +5,9 @@
 import { yearToPixel } from '../utils/coordinates.js';
 import { getYear, getYearRange, formatYear } from '../utils/dateUtils.js';
 import { Icon, ShapeIcon } from './Icon.jsx';
+import { useState } from 'react';
 import './TimelineOverlay.css';
+import { placeStringDots } from '../utils/stringDots.js';
 import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
 
 export function TimelineOverlay({
@@ -35,6 +37,8 @@ export function TimelineOverlay({
   // councils and texts darken and the rest recede.
   focusIds = null,
 }) {
+  // The harp string under the pointer (string, label or dot): it turns gold.
+  const [hoverStringId, setHoverStringId] = useState(null);
   // Get hovered period date range for highlighting
   const hoveredPeriodRange = hoveredPeriod ? getYearRange(hoveredPeriod.startDate, hoveredPeriod.endDate) : null;
 
@@ -317,61 +321,115 @@ export function TimelineOverlay({
   }
 
   /**
-   * Harp strings (config.pointStyle === 'string', a Lifelines prototype). Each
-   * landmark is a thin line through the whole timeline at its year, so it
-   * reads against every life it crosses, with a short label in a single row
-   * beside the axis: councils above, texts below. A label that would collide
-   * with the one before it is dropped and its landmark keeps a small dot,
-   * which still hovers and opens; that replaces the staircase of cards.
+   * Harp strings (config.pointStyle === 'string', Lifelines). Each landmark
+   * is a thin line through the whole timeline at its year, so it reads
+   * against every life it crosses, with a short label in a single row beside
+   * the axis: councils above, texts below. A label that would collide with
+   * the one before it is dropped. Each string also has a dot, its handle:
+   * on a linked figure's bar, or in open space (utils/stringDots.js). The
+   * line, label and dot all hover gold together and open the landmark.
    */
   function renderPointStrings() {
     const points = layout.stackedPoints || [];
     const focusActive = focusIds && focusIds.size > 0;
     const lastRight = { above: -Infinity, below: -Infinity };
-    // Unlabelled landmarks keep a dot on the axis line itself, clear of both
-    // label rows, so a dot never lands on a neighbour's label.
     const axisScreenY = (layout.axisY ?? 0) - panOffsetY;
     const visible = points
       .map(point => ({ point, x: yearToPixel(getYearRange(point.date).start, viewportStartYear, yearsPerPixel) }))
       .filter(({ x }) => x >= -20 && x <= width + 20)
       .sort((a, b) => a.x - b.x);
 
-    return visible.map(({ point, x }) => {
+    // Labels first: one row per side, a label dropped if it would collide.
+    const labelled = visible.map(({ point, x }) => {
       const side = point.aboveTimeline === false ? 'below' : 'above';
       const rowY = point.y - panOffsetY + point.height / 2;
       const labelWidth = 22 + measureLabel(point.name, '600 12px');
       const showLabel = x + 4 >= lastRight[side] + 8 && x + 4 + labelWidth <= width;
       if (showLabel) lastRight[side] = x + 4 + labelWidth;
+      return { point, x, side, rowY, showLabel, labelRect: showLabel ? { x0: x, x1: x + 4 + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
+    });
 
+    // Then the dots (utils/stringDots.js): on a linked figure's bar, or in
+    // open space. A labelled landmark with no living linked figure needs no
+    // dot; its label already marks the spot.
+    const bars = (layout.stackedPeople || []).map(person => {
+      const { start, end } = getYearRange(person.startDate, person.endDate);
+      const x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
+      const x1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), x0 + 60);
+      const y0 = person.y - panOffsetY;
+      return { id: person.id, x0, x1, y0, y1: y0 + person.height - 6 };
+    });
+    const dots = placeStringDots(
+      labelled.map(({ point, x, side, showLabel }) => {
+        const alive = (point.connectedPeople || []).some(id => bars.some(b => b.id === id && x >= b.x0 && x <= b.x1));
+        return { id: point.id, x, side, connectedPeople: point.connectedPeople, needsDot: !showLabel || alive };
+      }),
+      {
+        bars,
+        labels: [
+          ...labelled.filter(l => l.labelRect).map(l => l.labelRect),
+          // The axis's year labels.
+          { x0: -Infinity, x1: Infinity, y0: axisScreenY, y1: axisScreenY + (layout.sizes?.axisHeight ?? 30) },
+        ],
+        axisY: axisScreenY,
+        top: 0,
+        bottom: height,
+      },
+    );
+
+    // Vertical runs at x that no bar covers, for the strings' hit strips.
+    const openRuns = (x) => {
+      const covered = bars.filter(b => x >= b.x0 - 4 && x <= b.x1 + 4).map(b => [b.y0, b.y1]).sort((a, b) => a[0] - b[0]);
+      const runs = [];
+      let y = 0;
+      for (const [y0, y1] of covered) {
+        if (y0 > y) runs.push([y, y0]);
+        y = Math.max(y, y1);
+      }
+      if (y < height) runs.push([y, height]);
+      return runs.filter(([a, b]) => b - a >= 4);
+    };
+
+    return labelled.map(({ point, x, rowY, showLabel }) => {
       const inFocus = focusActive && focusIds.has(point.id);
-      const lineOpacity = focusActive ? (inFocus ? 0.85 : 0.12) : 0.3;
+      const hovered = hoverStringId === point.id;
+      const lineOpacity = hovered ? 1 : focusActive ? (inFocus ? 0.85 : 0.12) : 0.3;
       const open = (e) => { e.stopPropagation(); if (!wasDraggingRef?.current) onItemClick?.('point', point); };
+      const enter = () => { setHoverStringId(point.id); onItemHover?.('point', point); };
+      const leave = () => { setHoverStringId(id => (id === point.id ? null : id)); onItemHover?.(null, null); };
+      const handlers = { onMouseEnter: enter, onMouseLeave: leave, onClick: open };
+      const dot = dots.get(point.id);
 
       return (
         <div key={point.id}>
           <div
-            className="point-string"
-            style={{ left: `${x}px`, background: point.color, opacity: lineOpacity, width: inFocus ? '2px' : '1px' }}
+            className={`point-string${hovered ? ' is-hover' : ''}`}
+            data-point-id={point.id}
+            style={{ left: `${x}px`, background: hovered ? undefined : point.color, opacity: lineOpacity, width: hovered || inFocus ? '2px' : '1px' }}
           />
-          {showLabel ? (
+          {/* The line itself is a target too: a strip a few pixels wide, but
+              only between bars. Over a bar, the bar keeps the pointer. */}
+          {openRuns(x).map(([y0, y1]) => (
+            <div key={y0} className="point-string-hit" data-point-id={point.id} style={{ left: `${x}px`, top: `${y0}px`, height: `${y1 - y0}px` }} aria-hidden="true" {...handlers} />
+          ))}
+          {showLabel && (
             <div
-              className={`point-string-label${inFocus ? ' is-focus' : ''}`}
+              className={`point-string-label${inFocus ? ' is-focus' : ''}${hovered ? ' is-hover' : ''}`}
               style={{ left: `${x + 4}px`, top: `${rowY}px`, opacity: focusActive && !inFocus ? 0.5 : 1 }}
-              onMouseEnter={() => onItemHover?.('point', point)}
-              onMouseLeave={() => onItemHover?.(null, null)}
-              onClick={open}
+              {...handlers}
             >
               <ShapeIcon shape={point.shape || 'circle'} color={point.color} size={11} />
               <span>{point.name}</span>
             </div>
-          ) : (
+          )}
+          {dot && (
             <div
-              className="point-string-dot"
-              style={{ left: `${x}px`, top: `${axisScreenY}px`, background: point.color }}
+              className={`point-string-dot${hovered ? ' is-hover' : ''}${dot.personId ? ' is-linked' : ''}`}
+              style={{ left: `${dot.x}px`, top: `${dot.y}px`, background: point.color }}
+              data-point-id={point.id}
+              data-person-id={dot.personId}
               title={point.name}
-              onMouseEnter={() => onItemHover?.('point', point)}
-              onMouseLeave={() => onItemHover?.(null, null)}
-              onClick={open}
+              {...handlers}
             />
           )}
         </div>

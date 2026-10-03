@@ -49,7 +49,6 @@ const EMPTY_LAYER = { people: [], points: [], periods: [] };
 const PROTOTYPE_PARAMS = new URLSearchParams(window.location.search);
 const lifelinesConfig = {
   ...churchHistory2Config,
-  ...(PROTOTYPE_PARAMS.get('points') === 'strings' && { pointStyle: 'string' }),
   ...(PROTOTYPE_PARAMS.get('mobile') === 'horizontal' && { mobileLayout: 'horizontal' }),
 };
 

@@ -131,15 +131,30 @@
   max-width: 44ch;
 }
 
-/* Harp strings (config.pointStyle === 'string'). The line is decoration and
-   takes no pointer, so it never steals hover from the bars it crosses; the
-   label and the dot are the targets. */
+/* Harp strings (config.pointStyle === 'string'). The drawn line takes no
+   pointer; a few-pixel strip over it does, so the string can be hovered and
+   clicked. It sits under labels and dots. Hovering any part of a string
+   (line, label or dot) turns it gold (--color-string-hover). */
 .point-string {
   position: absolute;
   top: 0;
   bottom: 0;
   pointer-events: none;
   z-index: 0;
+  transition: opacity 0.12s, width 0.12s;
+}
+
+.point-string.is-hover {
+  background: var(--color-string-hover, #c9a227);
+}
+
+.point-string-hit {
+  position: absolute;
+  width: 9px;
+  margin-left: -4px;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 1;
 }
 
 .point-string-label {
@@ -164,6 +179,7 @@
 }
 
 .point-string-label:hover,
+.point-string-label.is-hover,
 .point-string-label.is-focus {
   background: #ffffff;
   box-shadow: 0 1px 4px var(--color-shadow);
@@ -180,4 +196,11 @@
   cursor: pointer;
   pointer-events: auto;
   z-index: 3;
+}
+
+.point-string-dot.is-hover {
+  background: var(--color-string-hover, #c9a227) !important;
+  width: 11px;
+  height: 11px;
+  margin-left: -5px;
 }
