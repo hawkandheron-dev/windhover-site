@@ -156,8 +156,12 @@ Every UI change is still checked in the `default-dark` screenshots.
   A test walks this route. Full arrow-key navigation of the canvas is out of
   scope for launch.
 - Touch targets are at least 44×44px on phone layouts.
+- Leaving the tour, the figures and landmarks it wasn't showing **sweep in**:
+  bars grow from their birth years in a left-to-right wave (0.8s across the
+  screen), names and strings fading in behind. Nothing else on the page moves.
 - Motion respects `prefers-reduced-motion: reduce`: the depth blur transition,
-  panel slide and viewport animations become instant.
+  panel slide, viewport animations, bar growing and the tour-exit sweep
+  become instant.
 - Text meets WCAG 2.2 AA contrast (4.5:1 body, 3:1 large text and UI
   boundaries) against white. `--color-ink-faded` on white is the floor.
 - Filter checkboxes and icon-only buttons have accessible names.

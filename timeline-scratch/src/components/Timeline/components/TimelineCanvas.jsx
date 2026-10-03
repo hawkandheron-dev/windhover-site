@@ -33,6 +33,10 @@ export function TimelineCanvas({
   highlightedItemIds = new Set(),
   currentHighlightId = null,
   animatingIds,
+  /** A wave instead of all at once: bars grow in from left to right across
+   *  the screen over this many ms (Lifelines' tour exit). Absent: all grow
+   *  together, as in the tour. */
+  animationWave,
   // ── CH Timeline 2.0 additions. Every one defaults to the behaviour the
   // other five timelines already have, so this file renders them unchanged.
   /** Canvas colour overrides; absent means the parchment palette. */
@@ -56,33 +60,45 @@ export function TimelineCanvas({
   const isBackLayer = layerMode === 'back';
   const showLabels = isBackLayer && Boolean(onlyIds);
 
-  // Grow animation state — progress 0→1 drives a clip on newly added bars
-  const [animProgress, setAnimProgress] = useState(1);
+  // Grow animation state. animElapsed (ms since the animation began) drives a
+  // clip on newly added bars; Infinity means nothing is growing.
+  const [animElapsed, setAnimElapsed] = useState(Infinity);
   const animFrameRef = useRef(null);
+  const growMs = animationWave ? 700 : 1200;
+  const totalMs = growMs + (animationWave || 0);
 
   useEffect(() => {
-    if (animatingIds && animatingIds.size > 0) {
+    // Reduced motion: bars appear at full length at once.
+    const reduce = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (animatingIds && animatingIds.size > 0 && !reduce) {
       const start = performance.now();
-      const duration = 1200; // ms
-
       const tick = (now) => {
-        const t = Math.min((now - start) / duration, 1);
-        // ease-out cubic
-        setAnimProgress(1 - Math.pow(1 - t, 3));
-        if (t < 1) {
+        const elapsed = now - start;
+        setAnimElapsed(elapsed >= totalMs ? Infinity : elapsed);
+        if (elapsed < totalMs) {
           animFrameRef.current = requestAnimationFrame(tick);
         }
       };
 
-      setAnimProgress(0);
+      setAnimElapsed(0);
       animFrameRef.current = requestAnimationFrame(tick);
       return () => {
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       };
     } else {
-      setAnimProgress(1);
+      setAnimElapsed(Infinity);
     }
-  }, [animatingIds]);
+  }, [animatingIds, totalMs]);
+
+  // How far a growing bar has got, 0→1 with an ease-out. In a wave, a bar
+  // starts once the wave reaches its left edge on screen.
+  const growProgress = (x) => {
+    if (animElapsed === Infinity) return 1;
+    const delay = animationWave ? animationWave * Math.min(Math.max(x / Math.max(width, 1), 0), 1) : 0;
+    const t = Math.min(Math.max((animElapsed - delay) / growMs, 0), 1);
+    return 1 - Math.pow(1 - t, 3);
+  };
 
   // Get hovered period date range for highlighting
   const hoveredPeriodRange = hoveredPeriod ? getYearRange(hoveredPeriod.startDate, hoveredPeriod.endDate) : null;
@@ -145,7 +161,7 @@ export function TimelineCanvas({
 
     // Draw search highlights on top
     renderSearchHighlights(ctx, layout);
-  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animProgress, palette, yOffset, onlyIds, layerMode]);
+  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, palette, yOffset, onlyIds, layerMode]);
 
   /** The focus layer draws a subset; every other layer draws everything. */
   function visible(items) {
@@ -182,6 +198,7 @@ export function TimelineCanvas({
       }
 
       // Check if this person is animating (grow from left to right)
+      const animProgress = growProgress(x);
       const isAnimating = animatingIds && animatingIds.has(person.id) && animProgress < 1;
 
       // Save context state for opacity

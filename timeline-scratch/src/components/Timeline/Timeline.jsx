@@ -43,7 +43,7 @@ const DEPTH_MODES = [
   { id: 'forward',     label: 'Front',  title: 'Bring the whole background into focus — or hold Alt' },
 ];
 
-export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle }, ref) {
+export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle, animationWave }, ref) {
   const isMobile = useMobileDetect();
 
   // Which timeline to draw. By default the vertical one on small screens and
@@ -78,6 +78,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       config={horizontalOnPhone && config.phone ? { ...config, ...config.phone } : config}
       phoneLayout={horizontalOnPhone}
       layoutToggle={layoutToggle}
+      animationWave={animationWave}
       onViewportChange={onViewportChange}
       onItemClick={onItemClick}
       suppressModal={suppressModal}
@@ -109,7 +110,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
 // trackpad). Checked per event: an iPad gains hover when a trackpad connects.
 const noHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle }, ref) {
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -1040,6 +1041,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         highlightedItemIds={highlightedItemIds}
         currentHighlightId={currentHighlightId}
         animatingIds={animatingIds}
+        animationWave={animationWave}
       />
 
       <TimelineOverlay
@@ -1058,6 +1060,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         onItemClick={handleItemClickInternal}
         wasDraggingRef={wasDraggingRef}
         animatingPointIds={animatingPointIds}
+        revealIds={animationWave ? animatingIds : undefined}
+        revealWave={animationWave}
         isTourMode={isTourMode}
         palette={defaultConfig.palette}
         showPointLabels={showPointLabels}

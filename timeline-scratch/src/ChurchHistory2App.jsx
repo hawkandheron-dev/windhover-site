@@ -274,6 +274,7 @@ function Timeline2({
 
   const depth = useDepthFocus(index);
   const layout = useLayoutChoice();
+  const exitWave = useTourExitWave(tourLayers, frontData);
 
   // The one scene that asked for "everything at once" now means "bring the
   // background forward" — there are no period brackets left for it to reveal.
@@ -300,8 +301,9 @@ function Timeline2({
         // The tour panel already owns the right-hand rail, and its scenes open
         // a centred dialog on purpose. Dock the detail only outside the tour.
         detailVariant={tour.tourActive ? 'modal' : 'panel'}
-        animatingIds={tour.tourActive ? tour.newlyAddedIds : undefined}
-        animatingPointIds={tour.tourActive ? tour.newlyAddedPointIds : undefined}
+        animatingIds={tour.tourActive ? tour.newlyAddedIds : exitWave.people}
+        animatingPointIds={tour.tourActive ? tour.newlyAddedPointIds : exitWave.points}
+        animationWave={!tour.tourActive && exitWave.people ? EXIT_WAVE_MS : undefined}
         hideLegend={tour.tourActive && !tour.currentScene?.isBuildOut}
         isTourMode={tour.tourActive}
         {...timelineProps}
@@ -313,8 +315,8 @@ function Timeline2({
           totalScenes={tour.totalScenes}
           onNext={tour.nextScene}
           onPrev={tour.prevScene}
-          onSkip={tour.skipTour}
-          onComplete={tour.completeTour}
+          onSkip={() => { exitWave.start(); tour.skipTour(); }}
+          onComplete={() => { exitWave.start(); tour.completeTour(); }}
           media={tour.sceneMedia}
           isAdmin={isAdmin}
           onMediaCropUpdate={onMediaCropUpdate}
@@ -322,6 +324,36 @@ function Timeline2({
       )}
     </>
   );
+}
+
+/**
+ * Leaving the tour, the figures and landmarks it wasn't showing sweep in:
+ * bars grow from their birth years in a left-to-right wave across the
+ * screen, their labels and strings fading in behind (owner's pick, M3 round
+ * 2). Before, the full timeline replaced the tour's handful in one jump.
+ * Reduced motion skips the growing (TimelineCanvas) and the fades (CSS).
+ */
+const EXIT_WAVE_MS = 800;
+function useTourExitWave(tourLayers, frontData) {
+  const [wave, setWave] = useState({ people: undefined, points: undefined });
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const start = useCallback(() => {
+    const shown = tourLayers?.front;
+    if (!shown || !frontData) return;
+    const shownPeople = new Set((shown.people || []).map(p => p.id));
+    const shownPoints = new Set((shown.points || []).map(p => p.id));
+    const people = new Set((frontData.people || []).filter(p => !shownPeople.has(p.id)).map(p => p.id));
+    const points = new Set((frontData.points || []).filter(p => !shownPoints.has(p.id)).map(p => p.id));
+    if (people.size === 0 && points.size === 0) return;
+    setWave({ people, points });
+    clearTimeout(timer.current);
+    // Wave plus the last bar's grow and fade, then back to a still timeline.
+    timer.current = setTimeout(() => setWave({ people: undefined, points: undefined }), EXIT_WAVE_MS + 1100);
+  }, [tourLayers, frontData]);
+
+  return { ...wave, start };
 }
 
 /**

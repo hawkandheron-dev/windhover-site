@@ -36,7 +36,17 @@ export function TimelineOverlay({
   // The focus set (CH Timeline 2.0): with harp strings, a focused figure's
   // councils and texts darken and the rest recede.
   focusIds = null,
+  /** With revealWave (ms), these people and animatingPointIds' landmarks fade
+   *  in as the canvas's grow wave reaches them (Lifelines' tour exit). */
+  revealIds,
+  revealWave,
 }) {
+  // A label's reveal: a fade that starts when the wave reaches its x.
+  const revealStyle = (id, ids, x) => {
+    if (!revealWave || !ids?.has(id)) return null;
+    const delay = Math.round(revealWave * Math.min(Math.max(x / Math.max(width, 1), 0), 1)) + 250;
+    return { animation: `timeline-reveal 450ms ease-out ${delay}ms both` };
+  };
   // The harp string under the pointer (string, label or dot): it turns gold.
   const [hoverStringId, setHoverStringId] = useState(null);
   // Get hovered period date range for highlighting
@@ -229,6 +239,7 @@ export function TimelineOverlay({
             opacity: getPersonOpacity(person),
             transition: 'opacity 0.15s ease',
             lineHeight: '1.3',
+            ...revealStyle(person.id, revealIds, startX),
             ...(maxWidth !== undefined && { maxWidth: `${maxWidth}px`, boxSizing: 'border-box' }),
           }}
         >
@@ -401,7 +412,7 @@ export function TimelineOverlay({
       const dot = dots.get(point.id);
 
       return (
-        <div key={point.id}>
+        <div key={point.id} style={revealStyle(point.id, animatingPointIds, x) || undefined}>
           <div
             className={`point-string${hovered ? ' is-hover' : ''}`}
             data-point-id={point.id}

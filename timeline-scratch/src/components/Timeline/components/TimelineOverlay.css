@@ -204,3 +204,10 @@
   height: 11px;
   margin-left: -5px;
 }
+
+/* The tour-exit wave (revealWave): labels and strings fade in behind the
+   bars growing in. Reduced motion collapses it (ChurchHistory2App.css). */
+@keyframes timeline-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

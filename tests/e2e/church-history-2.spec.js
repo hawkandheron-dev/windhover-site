@@ -273,6 +273,20 @@ test.describe('CH Timeline 2.0', () => {
     await expect.poll(blurPx, { timeout: 3000 }).toBeGreaterThan(1);
   });
 
+  test('leaving the tour, the rest of the timeline sweeps in, then settles', async ({ page }) => {
+    await loadPage(page, { dismissWelcome: false, realData: true });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await expect(page.locator('[title="Exit tour"]')).toBeVisible();
+    const during = await page.locator('.person-label').count();
+
+    await page.locator('[title="Exit tour"]').click();
+    // The newcomers arrive on a wave: their labels carry the reveal...
+    await expect.poll(() => page.locator('.person-label[style*="timeline-reveal"]').count()).toBeGreaterThan(0);
+    expect(await page.locator('.person-label').count()).toBeGreaterThan(during);
+    // ...and within a couple of seconds the timeline is still again.
+    await expect(page.locator('.person-label[style*="timeline-reveal"]')).toHaveCount(0, { timeout: 4000 });
+  });
+
   test('the layout toggle switches between the two timelines and is remembered', async ({ page }) => {
     await loadPage(page);
     const toggle = page.getByRole('group', { name: 'Layout' });

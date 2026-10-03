@@ -60,6 +60,9 @@ const DEFAULT_STATES = [
   { name: 'keyboard-focus', viewports: ['desktop'], act: tabThrough },
   // The other layout from the toggle: vertical on wide screens, horizontal on a phone.
   { name: 'vertical',      viewports: ['tablet', 'desktop'], layout: 'vertical' },
+  // Leaving the tour: the rest of the timeline sweeps in left to right.
+  { name: 'tour-exit-mid',  viewports: ['desktop'], welcome: true, act: tourExit(450) },
+  { name: 'tour-exit-end',  viewports: ['desktop'], welcome: true, act: tourExit(2200) },
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
 ];
 
@@ -152,6 +155,15 @@ async function openSearch(page) {
   await input.click();
   await input.fill(PANEL_QUERY.slice(0, 4));
   await page.waitForTimeout(250);
+}
+function tourExit(afterMs) {
+  return async (page) => {
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.waitForTimeout(1200);
+    for (let i = 0; i < 2; i++) { await page.locator('[title="Next (→)"]').click(); await page.waitForTimeout(900); }
+    await page.locator('[title="Exit tour"]').click();
+    await page.waitForTimeout(afterMs);
+  };
 }
 async function tabThrough(page) {
   for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
