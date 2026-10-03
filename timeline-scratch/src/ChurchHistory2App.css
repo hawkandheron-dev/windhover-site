@@ -23,6 +23,11 @@
   --color-shadow:          rgba(20, 20, 16, 0.08);
   --color-shadow-hover:    rgba(20, 20, 16, 0.14);
 
+  /* The shared action blue (#5b7ee8) gives white button text 3.75:1, under
+     the 4.5:1 that 13-16px text needs. This clears it at 5.4:1. */
+  --color-action:          #3f63d0;
+  --color-action-hover:    #3352b4;
+
   background: #ffffff;
 }
 
@@ -81,16 +86,22 @@
 }
 
 /* Dark mode: the brief is a white ground, so this page does not invert with
-   the system theme the way the parchment pages do. Hold the light palette and
-   only soften the pure white so it is not glaring. */
+   the system theme the way the parchment pages do. church-history-2.html sets
+   <html data-theme="light">, which switches off every shared component's dark
+   rules (postcss-light-theme-optout.js) and keeps native controls light. All
+   that is left to do here is soften the pure white so it is not glaring. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  .ch2-app {
+  :root[data-theme="light"] .ch2-app {
     --color-parchment:       #f7f7f5;
     --color-parchment-light: #ffffff;
   }
 
-  .ch2-app .timeline-container,
-  .ch2-app .app-header {
+  :root[data-theme="light"] .ch2-app .timeline-container,
+  :root[data-theme="light"] .ch2-app .app-header {
     background: #f7f7f5;
   }
 }
@@ -117,4 +128,42 @@
 .ch2-app .tour-image-adjust-btn,
 .ch2-app .tour-image-adjust-controls {
   display: none;
+}
+
+/* Reduced motion (DESIGN.md §8): the depth blur, panel slide, tour pop-ins and
+   hover transitions all become instant. Viewport glides are handled in
+   useZoomPan, which jumps instead of animating under the same preference.
+   !important is what lets this beat the depth layer's inline transition. */
+@media (prefers-reduced-motion: reduce) {
+  .ch2-app *,
+  .ch2-app *::before,
+  .ch2-app *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Phones: the header takes its own row instead of floating over the page.
+   Absolutely positioned (App.css), it covered the mobile timeline's toolbar
+   entirely — Filter, zoom and the years readout sat at 0–46px under a 91px
+   header — and the top of the first lifespans with it. 768px is the switch
+   useMobileDetect uses, so CSS and JS agree on which layout is live. */
+@media (max-width: 768px) {
+  .ch2-app {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ch2-app > .app-header {
+    position: relative;
+    flex: 0 0 auto;
+  }
+
+  .ch2-app > .tab-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
 }

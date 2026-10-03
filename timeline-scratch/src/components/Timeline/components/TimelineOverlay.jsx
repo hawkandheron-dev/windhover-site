@@ -3,7 +3,7 @@
  */
 
 import { yearToPixel } from '../utils/coordinates.js';
-import { getYearRange } from '../utils/dateUtils.js';
+import { getYear, getYearRange, formatYear } from '../utils/dateUtils.js';
 import { Icon, ShapeIcon } from './Icon.jsx';
 import './TimelineOverlay.css';
 
@@ -171,17 +171,11 @@ export function TimelineOverlay({
         return null;
       }
 
-      const startYear = start <= 0 ? Math.abs(start - 1) + 1 : start;
-      const endYear = end <= 0 ? Math.abs(end - 1) + 1 : end;
-      const bcLabel = config.eraLabels === 'BC/AD' ? 'BC' : 'BCE';
-      const startIsBC = start <= 0;
-      const endIsBC = end <= 0;
-      const hasBC = startIsBC || endIsBC;
-      const startSuffix = startIsBC ? ` ${bcLabel}` : hasBC ? ' AD' : '';
-      const endSuffix = endIsBC ? ` ${bcLabel}` : hasBC ? ' AD' : '';
-      const yearRange = startYear !== endYear
-        ? `${startYear}${startSuffix}–${endYear}${endSuffix}`
-        : `${startYear}${startSuffix}`;
+      // Bare years unless BC is involved, when both ends carry their era.
+      const showAD = start <= 0 || end <= 0;
+      const startText = formatYear(start, config.eraLabels, { showAD });
+      const endText = formatYear(end, config.eraLabels, { showAD });
+      const yearRange = startText !== endText ? `${startText}–${endText}` : startText;
 
       return (
         <div
@@ -307,24 +301,14 @@ export function TimelineOverlay({
       }
 
       // Format date display - support date ranges for documents
-      const [bcLabel, adLabel] = config.eraLabels === 'BC/AD' ? ['BC', 'AD'] : ['BCE', 'CE'];
-      const formatYear = (yr) => {
-        const displayYr = yr <= 0 ? Math.abs(yr - 1) + 1 : yr;
-        const era = yr <= 0 ? bcLabel : adLabel;
-        // Only show era label for BC years
-        return yr <= 0 ? `${displayYr} ${era}` : `${displayYr}`;
-      };
-
       let dateDisplay;
       if (point.endDate) {
-        // Date range (e.g., documents with early/late dates)
+        // Date range (e.g., documents with early/late dates); BC marked, AD bare.
         const endYear = getYearRange(point.endDate).start;
-        dateDisplay = `${formatYear(year)}-${formatYear(endYear)}`;
+        const bare = { showAD: false };
+        dateDisplay = `${formatYear(year, config.eraLabels, bare)}-${formatYear(endYear, config.eraLabels, bare)}`;
       } else {
-        // Single date
-        const displayYear = year <= 0 ? Math.abs(year - 1) + 1 : year;
-        const era = year <= 0 ? bcLabel : adLabel;
-        dateDisplay = `${displayYear} ${era}`;
+        dateDisplay = formatYear(year, config.eraLabels);
       }
 
       const isNewPoint = animatingPointIds?.has(point.id);
@@ -426,9 +410,7 @@ export function TimelineOverlay({
             {(() => {
               const parts = [];
               if (item.date) {
-                const year = parseInt(item.date.replace(/^-/, ''));
-                const bc = item.date.startsWith('-');
-                parts.push(bc ? `${year} BC` : `${year} AD`);
+                parts.push(formatYear(getYear(item.date), config.eraLabels));
               }
               if (item.location) parts.push(item.location);
               return parts.join(' · ');

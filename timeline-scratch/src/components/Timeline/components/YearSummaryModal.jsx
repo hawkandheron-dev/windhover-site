@@ -6,6 +6,7 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { YearDetailMap } from './YearDetailMap.jsx';
 import './TimelineModal.css';
+import { formatYear as formatEraYear } from '../utils/dateUtils.js';
 
 export function YearSummaryModal({ year, summary, config, onClose, itemIndex, onSelectItem }) {
   // Handle escape key
@@ -28,12 +29,7 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
   const { activePeriods, alivePeople, yearPoints, nearbyPoints = [] } = summary;
 
   // Format year for display
-  const formatYear = (yr) => {
-    if (yr <= 0) {
-      return `${Math.abs(yr - 1)} BC`;
-    }
-    return `${yr} AD`;
-  };
+  const formatYear = (yr) => formatEraYear(yr);
 
   const [hoveredPersonId, setHoveredPersonId] = useState(null);
   const hoverSourceRef = useRef(null); // 'map' | 'pill' | null
@@ -209,9 +205,7 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
                 } else {
                   relativeLabel = `${delta} year${delta !== 1 ? 's' : ''} after`;
                 }
-                const displayYear = point.pointYear <= 0
-                  ? `${Math.abs(point.pointYear - 1)} BC`
-                  : `${point.pointYear}`;
+                const displayYear = formatEraYear(point.pointYear, 'BC/AD', { showAD: false });
                 return (
                   <li key={point.id} className="summary-item summary-nearby-item">
                     <span className="summary-nearby-label">{relativeLabel}</span>

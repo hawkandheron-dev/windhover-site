@@ -198,6 +198,16 @@ export function useZoomPan({
       viewportAnimRef.current = null;
     }
 
+    // A reader who has asked the OS for less motion gets the destination
+    // without the 800ms glide.
+    const reduceMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      setViewport({ startYear: targetStartYear, yearsPerPixel: targetYPP });
+      setPanOffsetY(targetOffsetY);
+      return;
+    }
+
     // Capture current values at animation start
     const fromStart = viewportStartYear;
     const fromYPP = yearsPerPixel;

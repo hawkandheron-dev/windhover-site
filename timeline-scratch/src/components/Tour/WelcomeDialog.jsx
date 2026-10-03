@@ -1,10 +1,10 @@
 import './WelcomeDialog.css';
 
-export function WelcomeDialog({ onStartTour, onDismiss }) {
+export function WelcomeDialog({ onStartTour, onDismiss, title = 'Welcome to the Church History Timeline' }) {
   return (
     <div className="welcome-overlay" onClick={onDismiss}>
       <div className="welcome-dialog" onClick={e => e.stopPropagation()}>
-        <h2 className="welcome-title">Welcome to the Church History Timeline</h2>
+        <h2 className="welcome-title">{title}</h2>
         <p className="welcome-text">
           This interactive timeline maps the overlapping lifespans of key figures
           in church history — revealing how the faith was passed from generation

@@ -5,7 +5,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { getYear, getYearRange } from '../utils/dateUtils.js';
+import { getYear, getYearRange, formatYear, formatYearSpan } from '../utils/dateUtils.js';
 import { getYearLabelInterval } from '../utils/coordinates.js';
 import { Icon, ShapeIcon } from './Icon.jsx';
 import { TimelineModal } from './TimelineModal.jsx';
@@ -36,6 +36,10 @@ function lightenColor(hex, floor = 160) {
 export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged }, ref) {
   const scrollRef = useRef(null);
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR);
+  // The years currently on screen, for the 'years' zoom readout. Read from the
+  // scroll position on scroll (one update per frame) and after zooming.
+  const [visibleYears, setVisibleYears] = useState(null);
+  const readoutFrame = useRef(0);
   const [selectedItem, setSelectedItem] = useState(null);
   const [yearSummaryOpen, setYearSummaryOpen] = useState(false);
   const [pinnedYear, setPinnedYear] = useState(null);
@@ -121,11 +125,9 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     const yearsPerPixel = 1 / pixelsPerYear;
     const interval = getYearLabelInterval(yearsPerPixel, 80);
     const markers = [];
-    const [bcLabel, adLabel] = defaultConfig.eraLabels === 'BC/AD' ? ['BC', 'AD'] : ['BCE', 'CE'];
     const firstYear = Math.ceil(dataBounds.minYear / interval) * interval;
     for (let year = firstYear; year <= dataBounds.maxYear; year += interval) {
-      const displayYear = year <= 0 ? Math.abs(year - 1) + 1 : year;
-      markers.push({ year, y: yearToY(year), label: `${displayYear} ${year <= 0 ? bcLabel : adLabel}` });
+      markers.push({ year, y: yearToY(year), label: formatYear(year, defaultConfig.eraLabels) });
     }
     return markers;
   }, [dataBounds, pixelsPerYear, yearToY, defaultConfig.eraLabels]);
@@ -280,10 +282,31 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
   const handleZoomOut = useCallback(() => setPixelsPerYear(p => Math.max(MIN_PIXELS_PER_YEAR, p / 1.5)), []);
   const handleZoomReset = useCallback(() => setPixelsPerYear(DEFAULT_PIXELS_PER_YEAR), []);
 
-  const formatYear = useCallback((year) => {
-    const [bc, ad] = defaultConfig.eraLabels === 'BC/AD' ? ['BC', 'AD'] : ['BCE', 'CE'];
-    return year <= 0 ? `${Math.abs(year - 1) + 1} ${bc}` : `${year} ${ad}`;
-  }, [defaultConfig.eraLabels]);
+  const showYearReadout = defaultConfig.zoomReadout === 'years';
+  const updateVisibleYears = useCallback(() => {
+    if (!showYearReadout || readoutFrame.current) return;
+    readoutFrame.current = requestAnimationFrame(() => {
+      readoutFrame.current = 0;
+      const el = scrollRef.current;
+      if (!el) return;
+      const top = dataBounds.minYear + el.scrollTop / pixelsPerYear;
+      setVisibleYears({ start: top, end: top + el.clientHeight / pixelsPerYear });
+    });
+  }, [showYearReadout, dataBounds.minYear, pixelsPerYear]);
+  useEffect(() => {
+    updateVisibleYears();
+    return () => {
+      // Clear the marker as well as the frame, or the next call would think a
+      // frame was still pending and the readout would never update again.
+      cancelAnimationFrame(readoutFrame.current);
+      readoutFrame.current = 0;
+    };
+  }, [updateVisibleYears]);
+
+  const formatEraYear = useCallback(
+    (year) => formatYear(year, defaultConfig.eraLabels),
+    [defaultConfig.eraLabels]
+  );
 
   const getPersonColor = useCallback((person) => {
     if (person.color) return person.color;
@@ -304,7 +327,11 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
         </button>
         <div className="mobile-zoom-controls">
           <button className="mobile-toolbar-btn" onClick={handleZoomOut}><Icon name="minus" size={14} /></button>
-          <span className="mobile-zoom-label">{pixelsPerYear.toFixed(1)}px/yr</span>
+          <span className="mobile-zoom-label">
+            {showYearReadout
+              ? (visibleYears ? formatYearSpan(Math.round(visibleYears.start / 5) * 5, Math.round(visibleYears.end / 5) * 5, defaultConfig.eraLabels) : '')
+              : `${pixelsPerYear.toFixed(1)}px/yr`}
+          </span>
           <button className="mobile-toolbar-btn" onClick={handleZoomIn}><Icon name="plus" size={14} /></button>
           <button className="mobile-toolbar-btn" onClick={handleZoomReset}><Icon name="quatrefoil" size={14} /></button>
         </div>
@@ -336,6 +363,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
       <div
         ref={scrollRef}
         className="mobile-timeline-scroll"
+        onScroll={updateVisibleYears}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -398,7 +426,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
                     })()}
                   </span>
                   <span className="mobile-person-dates">
-                    {formatYear(start)} – {formatYear(end)}
+                    {formatEraYear(start)} – {formatEraYear(end)}
                   </span>
                 </button>
               );
@@ -422,7 +450,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
                   </span>
                   <span className="mobile-point-text">
                     <span className="mobile-point-name">{point.name}</span>
-                    <span className="mobile-point-year">{formatYear(year)}</span>
+                    <span className="mobile-point-year">{formatEraYear(year)}</span>
                   </span>
                 </span>
               </button>
@@ -470,7 +498,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
                 >
                   {period.name}
                   <span className="mobile-period-banner-dates">
-                    {formatYear(start)} – {formatYear(end)}
+                    {formatEraYear(start)} – {formatEraYear(end)}
                   </span>
                 </button>
               </div>

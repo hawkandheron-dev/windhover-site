@@ -1,10 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import lightThemeOptOut from './postcss-light-theme-optout.js'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  css: {
+    // Lets a page hold its light palette under a dark OS; see the plugin.
+    postcss: { plugins: [lightThemeOptOut()] },
+  },
   base: './', // Use relative paths for assets
   esbuild: {
     drop: ['console', 'debugger'],

@@ -11,6 +11,9 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
+    // A sandbox with a preinstalled browser (Claude's cloud sessions) points
+    // this at it instead of running `playwright install`. Unset in CI.
+    launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

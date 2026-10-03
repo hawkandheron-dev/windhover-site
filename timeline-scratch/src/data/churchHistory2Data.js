@@ -37,6 +37,13 @@ export const churchHistory2Config = {
     startDate: '0001-01-01',
     endDate: '0500-12-31',
   },
+  // Open on the early church: the window above, centred on its middle, framed
+  // against the canvas's real width rather than the first-render placeholder.
+  // Without these the shared defaults centre on AD 1000.
+  initialCenterYear: 250,
+  fitInitialViewport: true,
+  // The zoom readout names the years on screen ("300–700 AD"), not a ratio.
+  zoomReadout: 'years',
   eraLabels: 'BC/AD',
   maxTimeSpan: 2000,
   laneOrder: ['people', 'points', 'periods'],

@@ -52,6 +52,50 @@ export function getYear(dateString) {
 }
 
 /**
+ * Format a signed year for display. The one place a year becomes text.
+ *
+ * Years are historical, not astronomical: -63 is 63 BC, as the CH_ tables store
+ * it (birth_year -63 for Augustus) and as getYear reads a Postgres "0063 BC".
+ * There is no year zero in that reckoning; 0 only occurs as a position on the
+ * axis, between 1 BC and AD 1, and is labelled 1 BC.
+ *
+ * Five call sites used to do this inline, with `Math.abs(year - 1) + 1` — an
+ * astronomical correction applied to historical years, and off by one even for
+ * that — so the detail panel gave Augustus a birth in 65 BC.
+ *
+ * @param {number} year
+ * @param {string} [eraLabels] "BC/AD" or "BCE/CE"
+ * @param {object} [opts]
+ * @param {boolean} [opts.showAD=true] false prints AD years bare ("325"), for
+ *   labels where BC is the exception worth marking
+ * @returns {string} e.g. "63 BC", "325 AD", "325"
+ */
+export function formatYear(year, eraLabels = 'BC/AD', { showAD = true } = {}) {
+  if (year === null || year === undefined || Number.isNaN(year)) return '';
+  const [bcLabel, adLabel] = eraLabels === 'BCE/CE' ? ['BCE', 'CE'] : ['BC', 'AD'];
+  const y = Math.round(year);
+  if (y <= 0) return `${Math.max(1, -y)} ${bcLabel}`;
+  return showAD ? `${y} ${adLabel}` : `${y}`;
+}
+
+/**
+ * A span of years as a reader would write it: "300–700 AD", "50 BC – 200 AD".
+ * The era is printed once when both ends share it.
+ *
+ * @param {number} start
+ * @param {number} end
+ * @param {string} [eraLabels]
+ * @returns {string}
+ */
+export function formatYearSpan(start, end, eraLabels = 'BC/AD') {
+  const a = Math.round(start);
+  const b = Math.round(end);
+  if (a <= 0 && b <= 0) return `${formatYear(a, eraLabels).split(' ')[0]}–${formatYear(b, eraLabels)}`;
+  if (a > 0 && b > 0) return `${a}–${formatYear(b, eraLabels)}`;
+  return `${formatYear(a, eraLabels)} – ${formatYear(b, eraLabels)}`;
+}
+
+/**
  * Format date for display
  * @param {string} dateString - ISO 8601 date string
  * @param {string} dateCertainty - "complete date", "year only", or "circa"
@@ -72,18 +116,14 @@ export function formatDate(dateString, dateCertainty = 'year only', eraLabels = 
   const month = match[2] ? parseInt(match[2], 10) : null;
   const day = match[3] ? parseInt(match[3], 10) : null;
 
-  const [bcLabel, adLabel] = eraLabels === 'BC/AD' ? ['BC', 'AD'] : ['BCE', 'CE'];
-
-  // Convert year for display (negative years -> BCE)
-  const displayYear = year <= 0 ? Math.abs(year - 1) + 1 : year;
-  const eraLabel = year <= 0 ? bcLabel : adLabel;
+  const yearText = formatYear(year, eraLabels);
 
   // Add circa prefix if needed
   const circaPrefix = dateCertainty === 'circa' ? 'c. ' : '';
 
   // Year only
   if (dateCertainty === 'year only' || dateCertainty === 'circa' || !month) {
-    return `${circaPrefix}${displayYear} ${eraLabel}`;
+    return `${circaPrefix}${yearText}`;
   }
 
   // Month names
@@ -96,11 +136,11 @@ export function formatDate(dateString, dateCertainty = 'year only', eraLabels = 
 
   // Month and year
   if (!day) {
-    return `${monthName} ${displayYear} ${eraLabel}`;
+    return `${monthName} ${yearText}`;
   }
 
   // Full date
-  return `${monthName} ${day}, ${displayYear} ${eraLabel}`;
+  return `${monthName} ${day}, ${yearText}`;
 }
 
 /**

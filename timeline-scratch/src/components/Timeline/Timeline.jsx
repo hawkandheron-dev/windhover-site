@@ -16,10 +16,22 @@ import { TimelineLegend } from './components/TimelineLegend.jsx';
 import { MobileTimeline } from './components/MobileTimeline.jsx';
 import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
-import { getYear, getYearRange } from './utils/dateUtils.js';
+import { getYear, formatYear, formatYearSpan } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import bgManuscript from '../../assets/bg-manuscript.jpg';
 import './Timeline.css';
+
+/**
+ * "300–700 AD": the years across the canvas, rounded to a step that suits the
+ * span, so the readout says where the reader is rather than an abstract ratio.
+ */
+function visibleSpanLabel(startYear, yearsPerPixel, width, eraLabels) {
+  const span = width * yearsPerPixel;
+  const step = span > 1500 ? 100 : span > 400 ? 50 : span > 100 ? 10 : span > 30 ? 5 : 1;
+  // Year 0 is only an axis position; a window opening there starts at AD 1.
+  const round = y => Math.round(y / step) * step || 1;
+  return formatYearSpan(round(startYear), round(startYear + span), eraLabels);
+}
 
 /** Stable empty dataset, so the background layout hook keeps a steady identity. */
 const EMPTY_LAYER_DATA = { people: [], points: [], periods: [] };
@@ -274,6 +286,22 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       ...(defaultConfig.backLayoutSizes || {}),
     }
   );
+
+  // Frame the opening window against the measured width, once.
+  //
+  // useZoomPan keeps the scale it is first handed, and on first render that
+  // scale comes from the placeholder 800px — so a 1440px canvas opened showing
+  // 1.8x the configured span, centred wherever that landed (Lifelines' 1–500
+  // window opened on AD 750–1650). Reset already used the real width, which is
+  // why the bug only showed on load. Opt-in, so the pages that have been tuned
+  // around the old opening keep it.
+  const initialFrameDone = useRef(false);
+  useEffect(() => {
+    if (!defaultConfig.fitInitialViewport || !measured || initialFrameDone.current) return;
+    initialFrameDone.current = true;
+    setYearsPerPixel(initialYearsPerPixel);
+    setViewportStartYear(centeredViewportStart);
+  }, [defaultConfig.fitInitialViewport, measured, initialYearsPerPixel, centeredViewportStart, setYearsPerPixel, setViewportStartYear]);
 
   // Center the axis vertically on initial load, then hold it steady.
   //
@@ -894,7 +922,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
             whiteSpace: 'nowrap'
           }}
         >
-          {cursorYear <= 0 ? `${Math.abs(cursorYear - 1)} BC` : `${cursorYear} AD`}
+          {formatYear(cursorYear, defaultConfig.eraLabels)}
         </div>
       )}
 
@@ -989,9 +1017,15 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
             <Icon name="minus" size={14} />
             <span>Zoom out</span>
           </button>
-          <span className="zoom-info">
-            {yearsPerPixel > 0 ? (1 / yearsPerPixel).toFixed(1) : '1.0'}x
-          </span>
+          {defaultConfig.zoomReadout === 'years' ? (
+            <span className="zoom-info" title="Years in view">
+              {visibleSpanLabel(viewportStartYear, yearsPerPixel, dimensions.width, defaultConfig.eraLabels)}
+            </span>
+          ) : (
+            <span className="zoom-info">
+              {yearsPerPixel > 0 ? (1 / yearsPerPixel).toFixed(1) : '1.0'}x
+            </span>
+          )}
         </div>
 
         {/* Depth control — only where there is a background layer to lift */}

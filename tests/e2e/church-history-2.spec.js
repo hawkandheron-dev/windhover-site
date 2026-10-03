@@ -114,12 +114,14 @@ const TABLES = {
   ],
 };
 
-async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true } = {}) {
+async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '' } = {}) {
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
   await installSupabaseTableMock(page, TABLES);
   await page.setViewportSize(viewport);
-  const response = await page.goto('/apps/church-history-2.html');
+  // A query goes on the clean URL: the .html form redirects to it (here and on
+  // Cloudflare Pages), and serve drops the query on the way.
+  const response = await page.goto(query ? `/apps/church-history-2${query}` : '/apps/church-history-2.html');
   expect(response?.status()).toBe(200);
 
   // Desktop draws to canvas; mobile is a DOM swimlane.
@@ -445,5 +447,78 @@ test.describe('CH Timeline 2.0', () => {
     // No depth stack on mobile — the background layer is a desktop affordance.
     await expect(page.locator('.ch2-layer-wash')).toHaveCount(0);
     await expect(page.locator('.ch2-parallax')).toHaveCount(0);
+  });
+});
+
+test.describe('Lifelines release fixes (milestone 1)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  test('opens on the early church and says which years are in view', async ({ page }) => {
+    await loadPage(page);
+    // The configured 1–500 window, framed against the real canvas width. It
+    // used to open on AD 750–1650 with a "1.6x" readout, because the frame
+    // was computed from the first render's 800px placeholder.
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+  });
+
+  test('shows readers no navigation and no sign-in', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator('.site-nav-toggle')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /sign/i })).toHaveCount(0);
+    // The logo is no longer a link back to a homepage Lifelines has replaced.
+    await expect(page.locator('a.header-bird-link')).toHaveCount(0);
+  });
+
+  test('?admin brings the account controls back', async ({ page }) => {
+    await loadPage(page, { query: '?admin' });
+    // No Clerk key in tests, so the admin slot shows its unconfigured state.
+    await expect(page.getByRole('button', { name: 'Sign-in unavailable' })).toBeVisible();
+  });
+
+  test('welcomes readers to Lifelines by name', async ({ page }) => {
+    await loadPage(page, { dismissWelcome: false });
+    await expect(page.locator('.welcome-title')).toHaveText('Welcome to Lifelines');
+  });
+
+  test('holds its light palette when the OS is in dark mode', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await loadPage(page);
+    // Shared .btn rules turn buttons near-black under a dark OS; Lifelines
+    // opts out with <html data-theme="light">. Read the computed colour of a
+    // header button and of the legend text rather than trusting the class.
+    const tour = page.getByRole('button', { name: /Tour/ });
+    const bg = await tour.evaluate(el => getComputedStyle(el).backgroundColor);
+    const [r, g, b] = bg.match(/\d+/g).map(Number);
+    expect(Math.min(r, g, b)).toBeGreaterThan(200);
+    const legend = await page.locator('.legend-label').first().evaluate(el => getComputedStyle(el).color);
+    const [lr, lg, lb] = legend.match(/\d+/g).map(Number);
+    expect(Math.max(lr, lg, lb)).toBeLessThan(140);
+  });
+
+  test('on a phone, the header sits above the timeline toolbar, not over it', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    // The header used to float over the page and hide Filter, zoom and the
+    // years readout entirely.
+    const header = await page.locator('.app-header').boundingBox();
+    const toolbar = await page.locator('.mobile-timeline-toolbar').boundingBox();
+    expect(toolbar.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
+    await expect(page.locator('.mobile-zoom-label')).toHaveText(/AD/);
+  });
+
+  test('on a phone, the years readout follows zooming', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    const label = page.locator('.mobile-zoom-label');
+    await expect(label).toHaveText(/AD/);
+    const before = await label.textContent();
+    // Zoom out twice: more years on screen, so the range must widen each time.
+    const zoomOut = page.locator('.mobile-zoom-controls .mobile-toolbar-btn').first();
+    await zoomOut.click();
+    await expect(label).not.toHaveText(before);
+    const mid = await label.textContent();
+    await zoomOut.click();
+    await expect(label).not.toHaveText(mid);
   });
 });

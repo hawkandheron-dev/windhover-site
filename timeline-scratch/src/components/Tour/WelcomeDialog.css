@@ -86,7 +86,7 @@
 }
 
 .welcome-btn-primary:hover {
-  background: #4a6cd6;
+  background: var(--color-action-hover);
 }
 
 .welcome-btn-secondary {

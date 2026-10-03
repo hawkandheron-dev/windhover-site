@@ -21,7 +21,6 @@ import { SuggestNewModal } from './components/Suggestions/SuggestNewModal.jsx';
 import { IssueCreatorButton } from './components/IssueCreator/IssueCreatorButton.jsx';
 import { Icon } from './components/Timeline/components/Icon.jsx';
 import { FeedbackButton } from './components/Feedback/FeedbackButton.jsx';
-import { SiteNavPanel } from './components/SiteNavPanel.jsx';
 import { useTour } from './components/Tour/useTour.js';
 import { WelcomeDialog } from './components/Tour/WelcomeDialog.jsx';
 import { TourPanel } from './components/Tour/TourPanel.jsx';
@@ -30,23 +29,18 @@ import './ChurchHistory2App.css';
 
 const BIRD_LOGO = new URL('../../../resources/logos/Windhover_BLK.png', import.meta.url).href;
 
+// Lifelines remembers its own tour: sharing 1.0's key meant a reader who had
+// seen that tour never got the welcome here.
+const LIFELINES_TOUR_KEY = 'lifelines-tour-completed';
+
 const hasClerk = !!(window.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
-const EMPTY_LAYER = { people: [], points: [], periods: [] };
+// Readers don't need accounts, so Lifelines shows no sign-in. The owner opens
+// it with ?admin to get the Sign In button; once signed in, the admin tools
+// show without the flag, since the session already says who this is.
+const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
-function SiteNavToggle({ onOpen }) {
-  return (
-    <button
-      className="btn btn-icon site-nav-toggle"
-      onClick={onOpen}
-      aria-label="Open navigation"
-      title="Navigation"
-      type="button"
-    >
-      <Icon name="menu" size={18} />
-    </button>
-  );
-}
+const EMPTY_LAYER = { people: [], points: [], periods: [] };
 
 /** Split a merged dataset back into its two layers by the adapter's tag. */
 function splitByLayer(merged) {
@@ -158,9 +152,6 @@ function ClerkAuthHeader({
             appId="ch-timeline-2"
             getPageContext={getPageContext}
           />
-          <a className="btn" href="./contributor-portal.html">
-            Contributor Portal
-          </a>
           {isAdmin && (
             <button type="button" className="btn btn-warning" onClick={onReviewSuggestions}>
               Review Suggestions
@@ -168,14 +159,16 @@ function ClerkAuthHeader({
           )}
         </>
       )}
-      <SignedOut>
-        <SignInButton mode="modal">
-          <button className="btn" title="Sign in to save notes, add entries, or make suggestions">Sign In</button>
-        </SignInButton>
-        <SignUpButton mode="modal">
-          <button className="btn" title="Sign in to save notes, add entries, or make suggestions">Sign Up</button>
-        </SignUpButton>
-      </SignedOut>
+      {ADMIN_MODE && (
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="btn" title="Sign in to save notes, add entries, or make suggestions">Sign In</button>
+          </SignInButton>
+          <SignUpButton mode="modal">
+            <button className="btn" title="Sign in to save notes, add entries, or make suggestions">Sign Up</button>
+          </SignUpButton>
+        </SignedOut>
+      )}
       <SignedIn>
         <UserButton />
       </SignedIn>
@@ -279,11 +272,10 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
   const [isAdmin, setIsAdmin] = useState(false);
   const [isContributor, setIsContributor] = useState(false);
   const [view, setView] = useState('timeline'); // 'timeline' | 'suggestions'
-  const [navOpen, setNavOpen] = useState(false);
   const timelineRef = useRef(null);
 
   const searchData = useMergedLayers(frontData, backData);
-  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes });
+  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes, storageKey: LIFELINES_TOUR_KEY });
 
   // Auto-register user on sign-in, then check their role.
   const clerkUserLoaded = clerkUser && clerkUser.id;
@@ -375,7 +367,6 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
       <>
         <header className="app-header">
           <div className="header-content">
-            <SiteNavToggle onOpen={() => setNavOpen(true)} />
             <div className="header-left">
               <h1 className="site-title"><strong>Lifelines</strong> <span>A church history timeline by lifespans</span></h1>
             </div>
@@ -401,7 +392,6 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
             onBack={() => setView('timeline')}
           />
         </div>
-        <SiteNavPanel open={navOpen} onClose={() => setNavOpen(false)} activeKey="church-history-2" />
       </>
     );
   }
@@ -410,7 +400,6 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
     <>
       <header className="app-header">
         <div className="header-content">
-          <SiteNavToggle onOpen={() => setNavOpen(true)} />
           <div className="header-left">
             {frontData && (
               <TimelineSearch
@@ -419,9 +408,11 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
                 onHighlight={handleSearchHighlight}
                 onClearHighlight={handleSearchClearHighlight}
                 homeLink={
-                  <a href="../../index.html" className="header-bird-link" title="Back to Windhover">
+                  // Not a link: Lifelines is the site's front page, so there
+                  // is nowhere "home" to go back to.
+                  <span className="header-bird-link">
                     <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
-                  </a>
+                  </span>
                 }
               />
             )}
@@ -446,7 +437,6 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
           </div>
         </div>
       </header>
-      <SiteNavPanel open={navOpen} onClose={() => setNavOpen(false)} activeKey="church-history-2" />
 
       <div className="tab-content">
         {loading && (
@@ -455,7 +445,7 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
           </div>
         )}
         {error && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#d32f2f' }}>
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-error)' }}>
             Error: {error}
           </div>
         )}
@@ -479,6 +469,7 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
         <WelcomeDialog
           onStartTour={tour.startTour}
           onDismiss={tour.dismissWelcome}
+          title="Welcome to Lifelines"
         />
       )}
 
@@ -519,10 +510,9 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
  */
 function UnauthenticatedApp({ frontData, backData, index, loading, error, tourScenes }) {
   const timelineRef = useRef(null);
-  const [navOpen, setNavOpen] = useState(false);
 
   const searchData = useMergedLayers(frontData, backData);
-  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes });
+  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes, storageKey: LIFELINES_TOUR_KEY });
 
   const handleSearchSelect = useCallback((type, item) => {
     timelineRef.current?.selectItem(type, item);
@@ -540,7 +530,6 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
     <>
       <header className="app-header">
         <div className="header-content">
-          <SiteNavToggle onOpen={() => setNavOpen(true)} />
           <div className="header-left">
             {frontData && (
               <TimelineSearch
@@ -549,9 +538,11 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
                 onHighlight={handleSearchHighlight}
                 onClearHighlight={handleSearchClearHighlight}
                 homeLink={
-                  <a href="../../index.html" className="header-bird-link" title="Back to Windhover">
+                  // Not a link: Lifelines is the site's front page, so there
+                  // is nowhere "home" to go back to.
+                  <span className="header-bird-link">
                     <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
-                  </a>
+                  </span>
                 }
               />
             )}
@@ -562,19 +553,20 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
               {' '}Tour
             </button>
             <FeedbackButton />
-            <div className="auth-actions">
-              <button
-                className="btn"
-                disabled
-                title="Auth not configured — set CLERK_PUBLISHABLE_KEY in Cloudflare Pages env vars"
-              >
-                Sign-in unavailable
-              </button>
-            </div>
+            {ADMIN_MODE && (
+              <div className="auth-actions">
+                <button
+                  className="btn"
+                  disabled
+                  title="Auth not configured — set CLERK_PUBLISHABLE_KEY in Cloudflare Pages env vars"
+                >
+                  Sign-in unavailable
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
-      <SiteNavPanel open={navOpen} onClose={() => setNavOpen(false)} activeKey="church-history-2" />
       <div className="tab-content">
         {loading && (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
@@ -582,7 +574,7 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
           </div>
         )}
         {error && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#d32f2f' }}>
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-error)' }}>
             Error: {error}
           </div>
         )}
@@ -603,6 +595,7 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
         <WelcomeDialog
           onStartTour={tour.startTour}
           onDismiss={tour.dismissWelcome}
+          title="Welcome to Lifelines"
         />
       )}
     </>
