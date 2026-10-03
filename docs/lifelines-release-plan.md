@@ -1,5 +1,56 @@
 # Lifelines release plan
 
+> **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. **Next: M3** (now includes the legend rework) and M4. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
+
+## M2 implementation: site root goes straight to Lifelines
+
+**Context.** Readers should land on Lifelines at the site root. Every other page should keep working at its own URL but not be advertised or indexed. Today `/` is the "Windhover History" landing page, and nothing redirects anywhere.
+
+**What Cloudflare's docs confirm** (checked with the Cloudflare docs connector):
+- `_redirects` supports a `200` proxy rule. The browser keeps showing `/` while it receives another page's content, and `?admin` stays in the address bar where the page reads it.
+- `_redirects` does not apply to routes handled by Pages Functions. Ours are `/api/*` only, so `/` is unaffected.
+- `_headers` can remove a header added by a broader rule (`! Header-Name`).
+- With a `404.html` present, Pages serves it for unknown paths. Without one, and with an `index.html`, Pages treats the site as a single-page app and shows the homepage for every unknown URL. That is today's behaviour.
+
+**Steps** (branch `claude/clever-curie-0627ec`, restarted from merged `main`)
+1. **Absolute asset paths.** Change `timeline-scratch/vite.config.js` from `base: './'` to `base: '/apps/'`. Built pages then load `/apps/assets/…`, which works whether the HTML is served at `/apps/church-history-2` or at `/`. All apps already live under `/apps/`, so nothing else moves. I'll confirm with a build that every `apps/*.html` references `/apps/assets/`.
+2. **Serve Lifelines at `/`.** Add a root `_redirects` with `/  /apps/church-history-2  200`. The target is the clean URL because Pages redirects `.html` to it, and proxying to a redirect is fragile.
+3. **Move the old homepage.** `git mv index.html home.html`, so no static file competes with the rule for `/`. Repoint the "Home" links:
+   - **Static pages:** `about.html`, `design-system.html`, `pantheons.html`, `church-history-supabase.html` point to `home.html`.
+   - **The other apps:** the hard-coded links in `SiteNavPanel.jsx` (its `NAV_ITEMS` "Home"), `ChurchHistorySupabaseApp.jsx`, `ContributorPortalApp.jsx`, `HistoricalErasApp.jsx`, `BiblicalPlacesApp.jsx`, `BiblicalPlacesSearch.jsx` (default) and `JourneyOverlayControl.jsx` point to `/home.html`.
+   - **Lifelines** has no home link since M1.
+4. **Keep everything else out of search.** In `_headers`, add `X-Robots-Tag: noindex` to `/*`, then remove it for `/` with `! X-Robots-Tag`. Only the front page is indexable. The direct `/apps/church-history-2` URL is noindexed too, so Lifelines has one indexed address. Existing cache and security rules stay.
+5. **`robots.txt`** allows everything, so crawlers can see the noindex headers; a disallow would hide them. The sitemap and canonical URL wait for the domain decision (M9).
+6. **`404.html`** at the root: a small static page in Lifelines' look (white ground, Cormorant and Alegreya Sans, ink tokens) saying the page wasn't found, with one link to Lifelines at `/`. This also stops unknown URLs silently showing the old homepage.
+7. **Local parity for tests.** Add `serve.json` with the same rewrite (`/` → `/apps/church-history-2`), so the local test server behaves like Pages. A unit test (`tests/unit/site-routing.test.js`) checks that:
+   - `_redirects` and `serve.json` agree;
+   - `/` is the only path stripped of noindex in `_headers`;
+   - `404.html` exists;
+   - no root `index.html` remains.
+8. **Update tests that encoded the old homepage at `/`** (CLAUDE.md rule 5: changed because the decision changed):
+   - `tests/e2e/smoke.spec.js` auth-bootstrap specs: `goto('/')` → `goto('/home.html')`.
+   - The landing-nav integrity spec reads `home.html`.
+   - New spec: `/` renders Lifelines (welcome dialog says "Welcome to Lifelines"), and `/?admin` shows the account slot.
+   - `tests/README.md` updated to match.
+9. **Docs.** Record the routing in `README.md` and `docs/REPO_MAP.md`: front page, hidden pages, and how to add an app without it being indexed. Add a DESIGN.md §6 line: Lifelines is served at `/`, and admin uses `/?admin`.
+
+**Verification**
+- Locally:
+  - `npm run build`; grep confirms `/apps/assets/` in every `apps/*.html`.
+  - Unit tests and e2e (with `CHROMIUM_PATH`), including the new routing specs. The smoke auth specs still fail only from the sandbox's blocked CDN.
+  - `npm run shots` to check that Lifelines still renders identically at `/apps/church-history-2.html`.
+- **Preview deploy:** the sandbox can't reach `*.pages.dev` (checked just now), so Matthew opens the PR's Cloudflare preview URL and checks:
+  1. `/` shows Lifelines.
+  2. `/?admin` shows "Sign In".
+  3. `/home.html` shows the old homepage.
+  4. `/apps/heresies` still works.
+  5. `/nope` shows the new 404 page.
+
+  Response headers (noindex on everything except `/`) can be checked the same way, or by me once the network is widened.
+- Rollback if anything misbehaves in production: delete `_redirects` and redeploy, or promote the previous Pages deployment.
+
+---
+
 ## Context
 
 Lifelines (`timeline-scratch/src/ChurchHistory2App.jsx`, `/apps/church-history-2.html`) is close to release. The owner listed eight chunks of pre-launch work (UI/UX, code, copy, site simplification, data, licensing, possible additions, loose ends). This plan puts them in order, says who owns each (**C** = Claude, **M** = Matthew, **C+M** = together), and records the decisions already made. Every UI change follows CLAUDE.md: work from DESIGN.md, render with `npm run shots`, run `ux-review`, then tests.
@@ -60,7 +111,6 @@ Everything here is behind config keys, so the other five apps stay unchanged.
 - Move `index.html` to `home.html` with noindex.
 - Add `robots.txt`, which disallows the other apps, and noindex on their HTML entries.
 - Add a simple `404.html` in Lifelines' style.
-- On the preview deploy, confirm `/?admin` keeps its query through Pages' redirects (the local test server drops it from `.html?admin`, so admin links should use clean URLs).
 - Update `tests/e2e/smoke.spec.js` (it reads the root landing-nav at lines 31-87) to test the new behaviour. This changes a test because a decision changed, which CLAUDE.md rule 5 allows if the commit says so.
 
 ## Milestone 3: UI/UX review round (C+M)
@@ -73,12 +123,22 @@ Everything here is behind config keys, so the other five apps stay unchanged.
    - The phone header takes about a quarter of the screen.
    - Error and loading states.
    - Panel hierarchy.
-3. **Harp strings (7A).** Prototype behind `config.pointStyle: 'string'`:
+3. **Legend rework** (Matthew's direction, 2026-10-03):
+   - **Remove the colour key.** Drop the century ramp strip and the colour swatches. The bars' colours stay on the timeline; they just aren't explained in a key.
+   - **Swap the brand order.** Top of the panel: **Lifelines / A church history timeline by lifespans**. Bottom: **Windhover / Get a bird's eye view** (new strapline for the publisher mark).
+   - **Open questions for the review round:**
+     - Do the remaining filter rows (Church figures, Councils, Texts & creeds, Emperors & monarchs) stay as checkboxes without swatches, or move elsewhere? Councils and texts keep their shape icons, since DESIGN.md §3 pairs colour with shape.
+     - Does the slimmer panel still need to float over the canvas? This ties to the known violation that the legend covers figures.
+   - **Implementation:**
+     - Lifelines-only via config: `churchHistory2Data.js` `legend` drops the `century-ramp` row and the colour boxes. The brand block order is a new opt-in prop on `TimelineLegend.jsx`, so the other apps' legends are unchanged.
+     - Update DESIGN.md §3 (the century ramp is no longer shown in a key), §6 (legend contents) and §2 (adds the Windhover strapline).
+     - Update the e2e spec "legend shows a century ramp…" with the reason (CLAUDE.md rule 5).
+4. **Harp strings (7A).** Prototype behind `config.pointStyle: 'string'`:
    - **What changes:** each landmark becomes a thin full-height line at its year, with a small label near the axis. The stacking rows go, which frees vertical space.
    - **How it's built:** it plugs into `TimelineOverlay.renderPointCallouts` (or `TimelineCanvas.renderPoints`) and the layout sizes. It reuses `yearToPixel` and the canvas hit map, with a narrow hit box so strings don't take hover from the bars they cross.
    - **Bonus:** the focus set can brighten a focused person's strings, which fixes the dead highlighting.
    - **Decision:** I'll show you side-by-side screenshots of flags and strings at three zoom levels, and you pick.
-4. Fix what you mark, iterating on the screenshots. Fixes go through `frontend-craft`.
+5. Fix what you mark, iterating on the screenshots. Fixes go through `frontend-craft`.
 
 ## Milestone 4: Code review and cleanup (C)
 
