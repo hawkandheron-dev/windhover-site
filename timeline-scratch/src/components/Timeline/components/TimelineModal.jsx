@@ -28,7 +28,7 @@ import {
 import { PeopleSelector } from '../../Notes/PeopleSelector.jsx';
 import { NotesSection } from '../../Notes/NotesSection.jsx';
 import { EditEntityForm } from '../../EditEntityForm/EditEntityForm.jsx';
-import { HistoricalMap } from './HistoricalMap.jsx';
+import { HistoricalMap } from './LazyMaps.jsx';
 import './TimelineModal.css';
 
 function linkifyDescription(description, itemIndex, currentItemId) {

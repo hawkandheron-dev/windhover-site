@@ -665,10 +665,11 @@ function ChurchHistory2App() {
       try {
         if (!frontData) setLoading(true);
         setError(null);
-        // Fetch main data first (initializes the Supabase client singleton),
-        // then tour scenes reuse the same client.
-        const result = await fetchChurchHistory2Data();
-        const scenes = await fetchTourScenes().catch(() => null);
+        // Both at once: the tour scenes used to wait for all ten tables.
+        const [result, scenes] = await Promise.all([
+          fetchChurchHistory2Data(),
+          fetchTourScenes().catch(() => null),
+        ]);
         if (cancelled) return;
         setFrontData(result.data);
         setBackData(result.backData);
