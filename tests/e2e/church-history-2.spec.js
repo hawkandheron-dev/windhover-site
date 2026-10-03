@@ -49,6 +49,8 @@ const TABLES = {
     // Front layer: a plain figure and a defender.
     person('athanasius', 'Athanasius', 296, 373, 'defender'),
     person('gregory-nyssa', 'Gregory of Nyssa', 335, 395, null),
+    // A second figure at Nicaea, so its string carries two dots.
+    person('eusebius', 'Eusebius of Caesarea', 260, 339, null),
     // Foreground figure in a much later era, to prove the date-derived remap.
     person('aquinas', 'Thomas Aquinas', 1225, 1274, null),
     // Back layer: a heresiarch, a contested figure and an emperor.
@@ -107,6 +109,7 @@ const TABLES = {
   ],
   CH_EventConnections: [
     { id: 1, event_id: 'council-nicaea', person_id: 'athanasius' },
+    { id: 2, event_id: 'council-nicaea', person_id: 'eusebius' },
   ],
   CH_Sources: [],
   CH_Source_Figures: [],
@@ -741,9 +744,38 @@ test.describe('Review round fixes (milestone 3)', () => {
     // read as a drag and was swallowed, so landmarks opened nothing.
     await loadPage(page);
     await expect(page.locator('.point-callout')).toHaveCount(0);
-    expect(await page.locator('.point-string').count()).toBeGreaterThan(0);
-    await page.locator('.point-string-label', { hasText: 'Council of Nicaea' }).click();
+    // Strings rest on the canvas (round 3); their hit strips are the sign.
+    expect(await page.locator('.point-string-hit').count()).toBeGreaterThan(0);
+    await page.locator('.point-string-label', { hasText: 'Nicaea' }).click();
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
+  });
+
+  test('labels rest short and show the full name on hover; marks follow the kind', async ({ page }) => {
+    await loadPage(page);
+    const label = page.locator('.point-string-label', { hasText: 'Nicaea' });
+    await expect(label).toHaveText('Nicaea');
+    await label.hover();
+    await expect(label).toHaveText('Council of Nicaea');
+    // A council's mark is a diamond, in the label and on its dots.
+    await expect(label.locator('.string-mark--diamond')).toHaveCount(1);
+    await expect(page.locator('.point-string-dot--diamond[data-point-id="council-nicaea"]').first()).toBeAttached();
+    // The Key shows the same marks.
+    await expect(page.locator('.legend-slim-rows .string-mark--diamond')).toHaveCount(1);
+    await expect(page.locator('.legend-slim-rows .string-mark--square')).toHaveCount(1);
+  });
+
+  test('strings rest behind the figures; the hovered one comes to the front', async ({ page }) => {
+    await loadPage(page);
+    // At rest, no string is drawn over the page: they are on the canvas,
+    // under the bars.
+    await expect(page.locator('.point-string')).toHaveCount(0);
+    await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().hover();
+    const line = page.locator('.point-string[data-point-id="council-nicaea"]');
+    await expect(line).toHaveCount(1);
+    // Over the names: it stacks above the figure labels.
+    const z = await line.evaluate(el => Number(getComputedStyle(el).zIndex));
+    const labelZ = await page.locator('.person-label').first().evaluate(el => Number(getComputedStyle(el).zIndex));
+    expect(z).toBeGreaterThan(labelZ);
   });
 
   test('a string turns gold under the pointer, and clicking it opens the landmark', async ({ page }) => {
@@ -756,11 +788,13 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
   });
 
-  test("a linked landmark's dot sits on its figure's bar", async ({ page }) => {
+  test("a linked landmark has a dot on each of its figures' bars", async ({ page }) => {
     await loadPage(page);
-    // The fixture links Nicaea to Athanasius (CH_EventConnections).
-    const dot = page.locator('.point-string-dot[data-point-id="council-nicaea"]');
-    await expect(dot).toHaveAttribute('data-person-id', 'athanasius');
+    // The fixture links Nicaea to Athanasius and Eusebius (CH_EventConnections).
+    const dots = page.locator('.point-string-dot[data-point-id="council-nicaea"]');
+    await expect(dots).toHaveCount(2);
+    expect((await dots.evaluateAll(els => els.map(e => e.dataset.personId))).sort()).toEqual(['athanasius', 'eusebius']);
+    const dot = page.locator('.point-string-dot[data-point-id="council-nicaea"][data-person-id="athanasius"]');
     const d = await dot.boundingBox();
     const label = await page.locator('.timeline-overlay').getByText('Athanasius', { exact: true }).first().boundingBox();
     // On the bar's lower edge: just under the name, not on the axis.

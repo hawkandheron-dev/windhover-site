@@ -11,27 +11,29 @@ describe('placeStringDots', () => {
     const athanasius = bar('athanasius', 100, 400, 300);
     const out = placeStringDots([{ id: 'nicaea', x: 250, side: 'above', connectedPeople: ['athanasius'] }], env([athanasius]));
     // On the bar's lower edge, clear of the name written on it.
-    expect(out.get('nicaea')).toEqual({ x: 250, y: 328, personId: 'athanasius' });
+    expect(out.get('nicaea')).toEqual([{ x: 250, y: 328, personId: 'athanasius' }]);
   });
 
-  it('prefers the linked bar nearest the axis', () => {
+  it('puts a dot on every linked figure alive then, nearest the axis first', () => {
     const far = bar('a', 0, 400, 100);
     const near = bar('b', 0, 400, 400);
-    const out = placeStringDots([{ id: 'p', x: 200, side: 'above', connectedPeople: ['a', 'b'] }], env([far, near]));
-    expect(out.get('p').personId).toBe('b');
+    const gone = bar('c', 0, 100, 300);
+    const out = placeStringDots([{ id: 'p', x: 200, side: 'above', connectedPeople: ['a', 'b', 'c'] }], env([far, near, gone]));
+    expect(out.get('p').map(d => d.personId)).toEqual(['b', 'a']);
   });
 
   it('ignores a linked figure who was not alive at that year', () => {
     const dead = bar('a', 0, 100, 400);
     const out = placeStringDots([{ id: 'p', x: 300, side: 'above', connectedPeople: ['a'] }], env([dead]));
-    expect(out.get('p').personId).toBeUndefined();
+    expect(out.get('p')).toHaveLength(1);
+    expect(out.get('p')[0].personId).toBeUndefined();
   });
 
   it('never puts an unlinked dot on a bar', () => {
     // A wall of bars from the axis up, with one gap.
     const bars = [bar('a', 0, 999, 470), bar('b', 0, 999, 440), bar('c', 0, 999, 380)];
     const out = placeStringDots([{ id: 'p', x: 50, side: 'above' }], env(bars));
-    const dot = out.get('p');
+    const [dot] = out.get('p');
     expect(bars.some(b => inside(b, dot))).toBe(false);
     expect(dot.y).toBeLessThan(440);
     expect(dot.y).toBeGreaterThan(408);
@@ -40,12 +42,12 @@ describe('placeStringDots', () => {
   it('keeps clear of labels', () => {
     const label = { x0: 0, x1: 300, y0: 470, y1: 492 };
     const out = placeStringDots([{ id: 'p', x: 100, side: 'above' }], env([], { labels: [label] }));
-    expect(out.get('p').y).toBeLessThanOrEqual(470 - 6);
+    expect(out.get('p')[0].y).toBeLessThanOrEqual(470 - 6);
   });
 
   it('spreads neighbouring dots apart', () => {
     const items = [0, 4, 8, 12].map(i => ({ id: `p${i}`, x: 100 + i, side: 'above' }));
-    const out = [...placeStringDots(items, env([])).values()];
+    const out = [...placeStringDots(items, env([])).values()].flat();
     for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
       expect(Math.hypot(out[i].x - out[j].x, out[i].y - out[j].y)).toBeGreaterThanOrEqual(14);
     }
@@ -53,13 +55,13 @@ describe('placeStringDots', () => {
 
   it('places texts below the axis', () => {
     const out = placeStringDots([{ id: 't', x: 100, side: 'below' }], env([]));
-    expect(out.get('t').y).toBeGreaterThan(500);
+    expect(out.get('t')[0].y).toBeGreaterThan(500);
   });
 
   it('falls back to the axis with nowhere free', () => {
     const wall = { id: 'w', x0: 0, x1: 999, y0: 0, y1: 499 };
     const out = placeStringDots([{ id: 'p', x: 10, side: 'above' }], env([wall]));
-    expect(out.get('p').y).toBe(500);
+    expect(out.get('p')[0].y).toBe(500);
   });
 
   it('skips items that do not want a dot, and is deterministic', () => {

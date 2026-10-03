@@ -3,6 +3,7 @@
  */
 
 import { Icon, ShapeIcon } from './Icon.jsx';
+import { StringMark } from './StringMark.jsx';
 import './TimelineLegend.css';
 
 const LOGO_PATH = new URL('../../../../../../resources/logos/Windhover_BLK.png', import.meta.url).href;
@@ -246,7 +247,9 @@ function SlimLegend({ legend, filters, onToggle, onMouseEnter, onMouseLeave, sit
                   onChange={() => onToggle(item.filterKey)}
                 />
                 <span className="legend-slim-mark" aria-hidden="true">
-                  {item.type === 'point' && <ShapeIcon shape={item.shape} color={item.color} size={16} />}
+                  {item.type === 'point' && (item.mark
+                    ? <StringMark mark={item.mark} color={item.color} size={10} />
+                    : <ShapeIcon shape={item.shape} color={item.color} size={16} />)}
                   {item.isMonarch && <Icon name="crown" size={14} color={item.color} />}
                   {item.type === 'people' && !item.isMonarch && <span className="legend-slim-bar" />}
                 </span>

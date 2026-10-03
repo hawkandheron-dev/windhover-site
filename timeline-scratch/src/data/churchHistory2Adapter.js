@@ -298,6 +298,9 @@ export function transformToTimelineFormat(db) {
       shape: style.shape,
       color: style.color,
       preview: ev.name,
+      // A short resting label for harp strings, when the table carries one
+      // (shortLabel.js derives it otherwise).
+      shortName: ev.short_name || null,
       aboveTimeline: ev.event_type !== 'document',
       itemType: style.itemType,
       filterKey: style.filterKey,

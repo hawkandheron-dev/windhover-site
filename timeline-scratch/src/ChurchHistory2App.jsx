@@ -115,9 +115,10 @@ function describeSearchKind(entry) {
       ? { label: 'Ruler', icon: 'crown', color: BACK_STYLES.emperors.color }
       : { label: 'Person' };
   }
-  if (item.filterKey === 'councils') return { label: 'Council', shape: item.shape, color: item.color };
-  if (item.filterKey === 'documents') return { label: 'Text', shape: item.shape, color: item.color };
-  return { label: 'Event', shape: item.shape, color: item.color };
+  // The same marks as the harp strings' dots (StringMark).
+  if (item.filterKey === 'councils') return { label: 'Council', mark: 'diamond', color: item.color };
+  if (item.filterKey === 'documents') return { label: 'Text', mark: 'square', color: item.color };
+  return { label: 'Event', mark: 'dot', color: item.color };
 }
 
 /** Split a merged dataset back into its two layers by the adapter's tag. */

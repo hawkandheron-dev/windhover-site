@@ -4,11 +4,11 @@
  * A dot is the string's handle: the thing to hover or tap, and the mark that
  * says "here". Two rules (owner's decision, M3):
  *
- * 1. A landmark linked to a figure (CH_EventConnections → point.connectedPeople)
- *    who was alive that year puts its dot on that figure's bar, at the year:
- *    the Council of Nicaea sits on Athanasius. It sits on the bar's lower
- *    edge, like a bead, so it doesn't cover the name written on the bar. If
- *    several linked figures are alive, the bar nearest the axis wins.
+ * 1. A landmark linked to figures (CH_EventConnections → point.connectedPeople)
+ *    puts a dot on every one of them alive that year, at the year: the
+ *    Council of Nicaea sits on Athanasius, and on each other figure linked
+ *    to it. Each dot sits on the bar's lower edge, like a bead, so it doesn't
+ *    cover the name written on the bar.
  * 2. Anything else goes in open space, never on a bar, because a dot on a
  *    bar reads as "this person was involved". At its x, the dot takes the
  *    free spot nearest the axis on its own side that clears every bar, every
@@ -27,7 +27,7 @@
  * @param {number} env.bottom  lowest y a dot may take
  * @param {number} [env.gap=14]   minimum distance between two dots
  * @param {number} [env.radius=6] half a dot, plus a little air
- * @returns {Map<id, {x, y, personId?: string}>}
+ * @returns {Map<id, Array<{x, y, personId?: string}>>}
  */
 export function placeStringDots(items, { bars, labels = [], axisY, top, bottom, gap = 14, radius = 6 }) {
   const placed = new Map();
@@ -42,20 +42,15 @@ export function placeStringDots(items, { bars, labels = [], axisY, top, bottom, 
     if (item.needsDot === false) continue;
     const { x } = item;
 
-    // Rule 1: on a linked figure's bar.
+    // Rule 1: on every linked figure's bar, nearest the axis first.
     const linked = new Set(item.connectedPeople || []);
-    let best = null;
-    if (linked.size) {
-      for (const bar of bars) {
-        if (!linked.has(bar.id) || x < bar.x0 || x > bar.x1) continue;
-        const nearness = Math.abs((bar.y0 + bar.y1) / 2 - axisY);
-        if (!best || nearness < best.nearness) best = { bar, nearness };
-      }
-    }
-    if (best) {
-      const y = best.bar.y1;
-      placed.set(item.id, { x, y, personId: best.bar.id });
-      dots.push({ x, y });
+    const onBars = bars
+      .filter(bar => linked.has(bar.id) && x >= bar.x0 && x <= bar.x1)
+      .sort((a, b) => Math.abs(a.y1 - axisY) - Math.abs(b.y1 - axisY))
+      .map(bar => ({ x, y: bar.y1, personId: bar.id }));
+    if (onBars.length) {
+      placed.set(item.id, onBars);
+      dots.push(...onBars);
       continue;
     }
 
@@ -71,7 +66,7 @@ export function placeStringDots(items, { bars, labels = [], axisY, top, bottom, 
       break;
     }
     if (y == null) y = axisY;
-    placed.set(item.id, { x, y });
+    placed.set(item.id, [{ x, y }]);
     dots.push({ x, y });
   }
   return placed;

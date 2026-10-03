@@ -8,6 +8,8 @@ import { Icon, ShapeIcon } from './Icon.jsx';
 import { useState } from 'react';
 import './TimelineOverlay.css';
 import { placeStringDots } from '../utils/stringDots.js';
+import { shortLabel } from '../utils/shortLabel.js';
+import { StringMark, markForPoint } from './StringMark.jsx';
 import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
 
 export function TimelineOverlay({
@@ -354,10 +356,11 @@ export function TimelineOverlay({
     const labelled = visible.map(({ point, x }) => {
       const side = point.aboveTimeline === false ? 'below' : 'above';
       const rowY = point.y - panOffsetY + point.height / 2;
-      const labelWidth = 22 + measureLabel(point.name, '600 12px');
+      const short = shortLabel(point, config.shortLabels);
+      const labelWidth = 22 + measureLabel(short, '600 12px');
       const showLabel = x + 4 >= lastRight[side] + 8 && x + 4 + labelWidth <= width;
       if (showLabel) lastRight[side] = x + 4 + labelWidth;
-      return { point, x, side, rowY, showLabel, labelRect: showLabel ? { x0: x, x1: x + 4 + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
+      return { point, x, side, rowY, showLabel, short, labelRect: showLabel ? { x0: x, x1: x + 4 + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
     });
 
     // Then the dots (utils/stringDots.js): on a linked figure's bar, or in
@@ -401,23 +404,28 @@ export function TimelineOverlay({
       return runs.filter(([a, b]) => b - a >= 4);
     };
 
-    return labelled.map(({ point, x, rowY, showLabel }) => {
+    return labelled.map(({ point, x, rowY, showLabel, short }) => {
       const inFocus = focusActive && focusIds.has(point.id);
       const hovered = hoverStringId === point.id;
-      const lineOpacity = hovered ? 1 : focusActive ? (inFocus ? 0.85 : 0.12) : 0.3;
+      const mark = markForPoint(point);
       const open = (e) => { e.stopPropagation(); if (!wasDraggingRef?.current) onItemClick?.('point', point); };
       const enter = () => { setHoverStringId(point.id); onItemHover?.('point', point); };
       const leave = () => { setHoverStringId(id => (id === point.id ? null : id)); onItemHover?.(null, null); };
       const handlers = { onMouseEnter: enter, onMouseLeave: leave, onClick: open };
-      const dot = dots.get(point.id);
+      const pointDots = dots.get(point.id) || [];
 
       return (
         <div key={point.id} style={revealStyle(point.id, animatingPointIds, x) || undefined}>
-          <div
-            className={`point-string${hovered ? ' is-hover' : ''}`}
-            data-point-id={point.id}
-            style={{ left: `${x}px`, background: hovered ? undefined : point.color, opacity: lineOpacity, width: hovered || inFocus ? '2px' : '1px' }}
-          />
+          {/* At rest the line is drawn on the canvas, behind every bar
+              (TimelineCanvas, pointStyle 'string'). Hovered or in focus, it
+              is drawn again here, over everything. */}
+          {(hovered || inFocus) && (
+            <div
+              className={`point-string${hovered ? ' is-hover' : ' is-focus'}`}
+              data-point-id={point.id}
+              style={{ left: `${x}px`, background: hovered ? undefined : point.color, opacity: hovered ? 1 : 0.85 }}
+            />
+          )}
           {/* The line itself is a target too: a strip a few pixels wide, but
               only between bars. Over a bar, the bar keeps the pointer. */}
           {openRuns(x).map(([y0, y1]) => (
@@ -429,20 +437,21 @@ export function TimelineOverlay({
               style={{ left: `${x + 4}px`, top: `${rowY}px`, opacity: focusActive && !inFocus ? 0.5 : 1 }}
               {...handlers}
             >
-              <ShapeIcon shape={point.shape || 'circle'} color={point.color} size={11} />
-              <span>{point.name}</span>
+              <StringMark mark={mark} color={point.color} size={8} />
+              {/* The thing itself at rest; the full name on hover. */}
+              <span>{hovered ? point.name : short}</span>
             </div>
           )}
-          {dot && (
+          {pointDots.map(dot => (
             <div
-              className={`point-string-dot${hovered ? ' is-hover' : ''}${dot.personId ? ' is-linked' : ''}`}
+              key={dot.personId || 'open'}
+              className={`point-string-dot point-string-dot--${mark}${hovered ? ' is-hover' : ''}${dot.personId ? ' is-linked' : ''}`}
               style={{ left: `${dot.x}px`, top: `${dot.y}px`, background: point.color }}
               data-point-id={point.id}
               data-person-id={dot.personId}
-              title={point.name}
               {...handlers}
             />
-          )}
+          ))}
         </div>
       );
     });

@@ -62,6 +62,11 @@ export const churchHistory2Config = {
   /** Landmarks as harp strings: a line through the timeline at each year,
    *  with a dot on a linked figure or in open space (owner's pick, M3). */
   pointStyle: 'string',
+  /** Short labels the rules in utils/shortLabel.js get wrong, by event id. */
+  shortLabels: {
+    'doc-institutes': 'Institutes',
+    'doc-twelve-anathemas': 'Twelve Anathemas',
+  },
   /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
    *  timeline). */
   touchGestures: true,
@@ -131,8 +136,8 @@ export const churchHistory2Config = {
 
     // No row for plain events: they are all deactivated, and a checkbox that
     // filters nothing is clutter. Restore this line if they come back.
-    { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross',     filterKey: 'councils' },
-    { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',      filterKey: 'documents' },
+    { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross', mark: 'diamond', filterKey: 'councils' },
+    { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',  mark: 'square',  filterKey: 'documents' },
 
     { type: 'people', id: 'back-emperors', name: BACK_STYLES.emperors.label, color: BACK_STYLES.emperors.color, filterKey: 'emperors', isMonarch: true },
   ],

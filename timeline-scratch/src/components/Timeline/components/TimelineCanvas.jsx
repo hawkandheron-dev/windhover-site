@@ -54,6 +54,9 @@ export function TimelineCanvas({
    *  rulers (DepthLayers' MonarchLabels); drawn twice, the blurred copy sat
    *  offset under the crisp one and read as a rendering fault. */
   suppressMonarchNames = false,
+  /** Harp strings at rest are faint everywhere while a figure is in focus;
+   *  the focused ones are redrawn over everything by the overlay. */
+  stringsDimmed = false,
 }) {
   const canvasRef = useRef(null);
   const hitMapRef = useRef(new Map()); // For click detection
@@ -152,6 +155,12 @@ export function TimelineCanvas({
       );
     }
 
+    // Harp strings at rest go first, so every bar and name sits on top of
+    // them (owner's call, M3 round 3). The overlay draws the hovered one.
+    if (!isBackLayer && config?.pointStyle === 'string') {
+      renderStrings(ctx, layout.stackedPoints || []);
+    }
+
     // Render all other items (they already have y positions calculated)
     renderPeople(ctx, visible(layout.stackedPeople));
     renderPoints(ctx, visible(layout.stackedPoints));
@@ -161,7 +170,7 @@ export function TimelineCanvas({
 
     // Draw search highlights on top
     renderSearchHighlights(ctx, layout);
-  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, palette, yOffset, onlyIds, layerMode]);
+  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringsDimmed, palette, yOffset, onlyIds, layerMode]);
 
   /** The focus layer draws a subset; every other layer draws everything. */
   function visible(items) {
@@ -419,6 +428,23 @@ export function TimelineCanvas({
         });
       }
     });
+  }
+
+  // Harp strings: one full-height hairline per landmark, in its colour.
+  function renderStrings(ctx, points) {
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = stringsDimmed ? 0.12 : 0.3;
+    for (const point of points) {
+      const x = Math.round(yearToPixel(getYearRange(point.date).start, viewportStartYear, yearsPerPixel)) + 0.5;
+      if (x < -2 || x > width + 2) continue;
+      ctx.strokeStyle = point.color || '#888';
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // Render points

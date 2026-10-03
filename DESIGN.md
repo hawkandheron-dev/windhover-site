@@ -120,18 +120,27 @@ Every UI change is still checked in the `default-dark` screenshots.
 ## 7. Density and labels
 
 - **Landmarks are harp strings** (`pointStyle: 'string'`, owner's pick, M3):
-  a thin line through the whole timeline at the landmark's year, with a
-  label in one row beside the axis (councils above, texts below). A label
-  that would collide with the one before it is dropped.
+  a thin line through the whole timeline at the landmark's year, drawn
+  **behind** every bar and name, with a label in one row beside the axis
+  (councils above, texts below). A label that would collide with the one
+  before it is dropped.
+- Each kind has one **mark**, the same size everywhere (dots, labels, Key,
+  search): a **diamond** for a council, a **square** for a text, a **dot**
+  for anything else (`StringMark.jsx`).
+- Labels rest **short**, the thing itself ("Nicaea", "Didache",
+  "Confessions"), and show the full name on hover (`utils/shortLabel.js`;
+  exceptions in `config.shortLabels`, all current names pinned by a unit
+  test).
 - Every string has a **dot**, its handle (`utils/stringDots.js`). A landmark
-  linked to a figure alive that year (`CH_EventConnections`) puts its dot on
-  that figure's bar, on the lower edge, clear of the name. Anything else goes
+  linked to figures alive that year (`CH_EventConnections`) puts a dot on
+  **each** of their bars, on the lower edge, clear of the name. Anything else goes
   in open space, never on a bar, since a dot on a bar says "this person was
   involved". It takes the free spot nearest the axis, clear of bars, labels
   and other dots. A labelled landmark with no living linked figure needs no
   dot.
-- Line, label and dot hover gold together, and each opens the landmark. The
-  line is a target only between bars: over a bar, the bar keeps the pointer.
+- Line, label and dot hover gold together, and each opens the landmark; the
+  hovered string is redrawn **in front** of everything. The line is a target
+  only between bars: over a bar, the bar keeps the pointer.
 - Monarch labels drop past `pointLabelMaxYearsPerPixel` (1.0 year/px).
 - A name label may run into empty space but never into the next bar of its
   row. If it doesn't fit, the dates go first, then the name ends in "…"; with

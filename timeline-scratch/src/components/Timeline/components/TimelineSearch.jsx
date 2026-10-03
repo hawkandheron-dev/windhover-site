@@ -7,6 +7,7 @@
  *     with a match count badge and prev/next navigation.
  */
 
+import { StringMark } from './StringMark.jsx';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getYear } from '../utils/dateUtils.js';
 import { Icon, ShapeIcon } from './Icon.jsx';
@@ -280,6 +281,7 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
                   <span className="timeline-search-option-kind">
                     {kind.icon === 'crown'
                       ? <Icon name="crown" size={12} color={kind.color} />
+                      : kind.mark ? <StringMark mark={kind.mark} color={kind.color} size={8} />
                       : kind.shape && <ShapeIcon shape={kind.shape} color={kind.color} size={12} />}
                     {kind.label}
                   </span>

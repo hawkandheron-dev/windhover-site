@@ -1,0 +1,17 @@
+/* String marks (StringMark.jsx): dot, square, diamond, one size. A diamond
+   is a square turned 45°, drawn a little smaller so its points match the
+   others' width. */
+.string-mark {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--mark-size, 9px);
+  height: var(--mark-size, 9px);
+  background: var(--mark-color, currentColor);
+}
+
+.string-mark--dot { border-radius: 50%; }
+.string-mark--square { border-radius: 1px; }
+.string-mark--diamond {
+  transform: scale(0.8) rotate(45deg);
+  border-radius: 1px;
+}

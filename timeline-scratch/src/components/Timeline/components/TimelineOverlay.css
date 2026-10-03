@@ -139,9 +139,11 @@
   position: absolute;
   top: 0;
   bottom: 0;
+  width: 2px;
+  margin-left: -1px;
   pointer-events: none;
-  z-index: 0;
-  transition: opacity 0.12s, width 0.12s;
+  /* Over bars and names: only the hovered or focused string is drawn here. */
+  z-index: 12;
 }
 
 .point-string.is-hover {
@@ -178,6 +180,10 @@
   z-index: 3;
 }
 
+.point-string-label.is-hover {
+  z-index: 13;
+}
+
 .point-string-label:hover,
 .point-string-label.is-hover,
 .point-string-label.is-focus {
@@ -189,8 +195,8 @@
   position: absolute;
   width: 9px;
   height: 9px;
-  margin-left: -4px;
-  transform: translateY(-50%);
+  margin: -4.5px 0 0 -4.5px;
+  box-sizing: content-box;
   border: 2px solid #ffffff;
   border-radius: 50%;
   cursor: pointer;
@@ -198,11 +204,18 @@
   z-index: 3;
 }
 
+.point-string-dot--square {
+  border-radius: 2px;
+}
+
+.point-string-dot--diamond {
+  border-radius: 2px;
+  transform: rotate(45deg) scale(0.85);
+}
+
 .point-string-dot.is-hover {
   background: var(--color-string-hover, #c9a227) !important;
-  width: 11px;
-  height: 11px;
-  margin-left: -5px;
+  z-index: 13;
 }
 
 /* The tour-exit wave (revealWave): labels and strings fade in behind the

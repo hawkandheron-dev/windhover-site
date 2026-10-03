@@ -1042,6 +1042,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         currentHighlightId={currentHighlightId}
         animatingIds={animatingIds}
         animationWave={animationWave}
+        stringsDimmed={Boolean(focusIds && focusIds.size > 0)}
       />
 
       <TimelineOverlay
