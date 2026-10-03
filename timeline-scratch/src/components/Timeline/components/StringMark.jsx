@@ -7,13 +7,6 @@ import './StringMark.css';
  * string's dot, in its label, in the Key and in search, so a reader learns
  * it once.
  */
-export function markForPoint(point) {
-  const kind = point?.itemType || point?.filterKey;
-  if (kind === 'councils') return 'diamond';
-  if (kind === 'documents') return 'square';
-  return 'dot';
-}
-
 export function StringMark({ mark = 'dot', color, size = 9, className = '' }) {
   return (
     <span

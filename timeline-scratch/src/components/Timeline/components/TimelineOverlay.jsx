@@ -9,7 +9,8 @@ import { useState } from 'react';
 import './TimelineOverlay.css';
 import { placeStringDots } from '../utils/stringDots.js';
 import { shortLabel } from '../utils/shortLabel.js';
-import { StringMark, markForPoint } from './StringMark.jsx';
+import { StringMark } from './StringMark.jsx';
+import { markForPoint } from '../utils/stringMark.js';
 import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
 
 export function TimelineOverlay({
