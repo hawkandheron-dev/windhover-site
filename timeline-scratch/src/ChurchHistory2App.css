@@ -244,3 +244,64 @@
 .ch2-app .modal-title:focus:not(:focus-visible) {
   outline: none;
 }
+
+/* Touch gestures (touchGestures): the timeline handles drag and pinch itself,
+   so the browser must not scroll or zoom the page underneath. */
+.ch2-app .timeline-container {
+  touch-action: none;
+}
+
+/* Horizontal timeline on a phone (mobileLayout: 'horizontal'). The header is
+   its own row here, so the key sits at the timeline's top edge. Fingers pan,
+   so the compass keeps only its reset; the zoom buttons drop their words and
+   grow to touch size (DESIGN.md §8: 44px). */
+@media (max-width: 768px) {
+  .ch2-app .timeline-legend--slim {
+    top: 12px;
+    right: 12px;
+  }
+
+  .ch2-app .timeline-container--phone .timeline-controls {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+    /* Under the detail modal's scrim (z-index 1000), not over it. */
+    z-index: 30;
+  }
+
+  .ch2-app .timeline-container--phone .compass-up,
+  .ch2-app .timeline-container--phone .compass-down,
+  .ch2-app .timeline-container--phone .compass-left,
+  .ch2-app .timeline-container--phone .compass-right {
+    display: none;
+  }
+
+  .ch2-app .timeline-container--phone .compass-btn,
+  .ch2-app .timeline-container--phone .zoom-controls .btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .ch2-app .timeline-container--phone .zoom-controls .btn > span:not(.icon) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .ch2-app .timeline-container--phone .zoom-info {
+    white-space: nowrap;
+  }
+
+  .ch2-app .timeline-container--phone .depth-btn {
+    min-height: 40px;
+    padding: 0 8px;
+  }
+}

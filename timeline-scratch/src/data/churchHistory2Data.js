@@ -42,6 +42,12 @@ export const churchHistory2Config = {
   // Without these the shared defaults centre on AD 1000.
   initialCenterYear: 250,
   fitInitialViewport: true,
+  /** Overrides on a phone (mobileLayout: 'horizontal'). 500 years in 390px
+   *  leaves every name a stub, so a phone opens on the apostolic age. */
+  phone: {
+    initialViewport: { startDate: '0001-01-01', endDate: '0160-12-31' },
+    initialCenterYear: 80,
+  },
   // The zoom readout names the years on screen ("300–700 AD"), not a ratio.
   zoomReadout: 'years',
   eraLabels: 'BC/AD',
@@ -53,6 +59,9 @@ export const churchHistory2Config = {
   /** Detail panel: description first, a smaller map after it, sentence-case
    *  headings (DESIGN.md §6). */
   panelLayout: 'compact',
+  /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
+   *  timeline). */
+  touchGestures: true,
   /** Opening the panel moves focus to its title; closing returns it
    *  (DESIGN.md §8). */
   manageFocus: true,

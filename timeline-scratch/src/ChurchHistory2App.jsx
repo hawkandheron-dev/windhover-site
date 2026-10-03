@@ -44,10 +44,14 @@ const EMPTY_LAYER = { people: [], points: [], periods: [] };
 
 // Prototype switch for milestone 3's comparison: ?points=strings draws
 // landmarks as harp strings instead of pins and flags. Remove once chosen.
-const POINT_STYLE_PARAM = new URLSearchParams(window.location.search).get('points');
-const lifelinesConfig = POINT_STYLE_PARAM === 'strings'
-  ? { ...churchHistory2Config, pointStyle: 'string' }
-  : churchHistory2Config;
+// ?mobile=horizontal does the same for phones: the desktop timeline, with the
+// detail as a modal, instead of the vertical phone timeline.
+const PROTOTYPE_PARAMS = new URLSearchParams(window.location.search);
+const lifelinesConfig = {
+  ...churchHistory2Config,
+  ...(PROTOTYPE_PARAMS.get('points') === 'strings' && { pointStyle: 'string' }),
+  ...(PROTOTYPE_PARAMS.get('mobile') === 'horizontal' && { mobileLayout: 'horizontal' }),
+};
 
 /**
  * Search results named as the legend names them, with its shapes: Person,

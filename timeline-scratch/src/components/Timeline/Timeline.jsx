@@ -46,8 +46,11 @@ const DEPTH_MODES = [
 export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange }, ref) {
   const isMobile = useMobileDetect();
 
-  // Render mobile timeline on small viewports
-  if (isMobile) {
+  // Render mobile timeline on small viewports, unless the page asks for the
+  // horizontal timeline on phones too (config.mobileLayout === 'horizontal',
+  // a Lifelines prototype), with the detail as a modal rather than a panel.
+  const horizontalOnPhone = isMobile && config?.mobileLayout === 'horizontal';
+  if (isMobile && !horizontalOnPhone) {
     return (
       <MobileTimeline
         ref={ref}
@@ -68,7 +71,9 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
     <DesktopTimeline
       ref={ref}
       data={data}
-      config={config}
+      // config.phone overrides keys on a phone (the opening span, say).
+      config={horizontalOnPhone && config.phone ? { ...config, ...config.phone } : config}
+      phoneLayout={horizontalOnPhone}
       onViewportChange={onViewportChange}
       onItemClick={onItemClick}
       suppressModal={suppressModal}
@@ -88,7 +93,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       focusIds={focusIds}
       depthMode={depthMode}
       isFocusPreview={isFocusPreview}
-      detailVariant={detailVariant}
+      detailVariant={horizontalOnPhone ? 'modal' : detailVariant}
       onPersonHover={onPersonHover}
       onPersonSelect={onPersonSelect}
       onDepthModeChange={onDepthModeChange}
@@ -96,7 +101,11 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
   );
 });
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange }, ref) {
+// True on a screen with no hover-capable pointer (a phone, an iPad without a
+// trackpad). Checked per event: an iPad gains hover when a trackpad connects.
+const noHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
+
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -374,6 +383,95 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const isModalOpen = (selectedItem !== null && detailVariant !== 'panel') || yearSummaryOpen;
 
   // Handle wheel/trackpad: pinch → zoom, two-finger scroll → pan
+  // Touch: drag to pan, pinch to zoom about the fingers (config.touchGestures,
+  // Lifelines). The timeline otherwise only knew the mouse, so on an iPad,
+  // which gets this desktop timeline, a finger drag did nothing at all. Taps
+  // are left to the browser's synthesised click, which the item and
+  // empty-timeline click handling already serve. Needs touch-action: none on
+  // the container (ChurchHistory2App.css), so the page doesn't scroll instead.
+  const touchRef = useRef({});
+  useEffect(() => {
+    touchRef.current = {
+      width: dimensions.width,
+      maxOffsetY: Math.max(0, layout.totalHeight - dimensions.height),
+      handlePanX, handlePanY, handleZoom,
+    };
+  });
+  useEffect(() => {
+    if (!defaultConfig.touchGestures) return;
+    const el = containerRef.current;
+    if (!el) return;
+    let last = null;
+    let moved = 0;
+    const point = (t) => {
+      const r = el.getBoundingClientRect();
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    };
+    const snapshot = (touches) => {
+      if (touches.length === 1) {
+        last = { mode: 'pan', ...point(touches[0]) };
+      } else if (touches.length >= 2) {
+        const a = point(touches[0]);
+        const b = point(touches[1]);
+        last = { mode: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      } else {
+        last = null;
+      }
+    };
+    const onStart = (e) => {
+      // Controls, the legend, dialogs and links keep their own touch.
+      if (e.target.closest?.('.timeline-controls, .timeline-legend, .timeline-modal, button, a, input, label')) {
+        last = null;
+        return;
+      }
+      moved = 0;
+      snapshot(e.touches);
+    };
+    const onMove = (e) => {
+      if (!last) return;
+      const { width, maxOffsetY, handlePanX: panX, handlePanY: panY, handleZoom: zoom } = touchRef.current;
+      if (e.touches.length >= 2) {
+        const a = point(e.touches[0]);
+        const b = point(e.touches[1]);
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        if (last.mode !== 'pinch' || last.dist === 0) { snapshot(e.touches); return; }
+        // Zoom scales years-per-pixel by 1.1^delta; a spread of ratio r
+        // should divide it by r.
+        zoom(-Math.log(dist / last.dist) / Math.log(1.1), mid.x, width);
+        panX(mid.x - last.x, width);
+        panY(mid.y - last.y, maxOffsetY);
+        moved += Math.abs(mid.x - last.x) + Math.abs(mid.y - last.y) + Math.abs(dist - last.dist);
+        last = { mode: 'pinch', dist, ...mid };
+      } else if (e.touches.length === 1) {
+        const p = point(e.touches[0]);
+        if (last.mode !== 'pan') { snapshot(e.touches); return; }
+        panX(p.x - last.x, width);
+        panY(p.y - last.y, maxOffsetY);
+        moved += Math.abs(p.x - last.x) + Math.abs(p.y - last.y);
+        last = { mode: 'pan', ...p };
+      }
+    };
+    const onEnd = (e) => {
+      // A gesture that moved is not a tap: suppress the click it may synthesise.
+      if (moved > 8) {
+        wasDraggingRef.current = true;
+        setTimeout(() => { wasDraggingRef.current = false; }, 400);
+      }
+      snapshot(e.touches);
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [defaultConfig.touchGestures]);
+
   const handleWheel = useCallback((e) => {
     if (isModalOpen) {
       return; // Let the modal handle its own scrolling
@@ -441,13 +539,15 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     const y = e.clientY - rect.top;
 
     setMousePos({ x, y });
-    setPointerInside(true);
+    // A touch screen has no hover: the mouse events a tap synthesises would
+    // leave the cursor line, year chip and hover card stuck where the finger was.
+    if (!(defaultConfig.touchGestures && noHover())) setPointerInside(true);
 
     if (isPanning) {
       const maxOffsetY = Math.max(0, layout.totalHeight - dimensions.height);
       updatePan(x, y, dimensions.width, maxOffsetY);
     }
-  }, [isModalOpen, isPanning, updatePan, dimensions, layout.totalHeight]);
+  }, [isModalOpen, isPanning, updatePan, dimensions, layout.totalHeight, defaultConfig.touchGestures]);
 
   // Calculate cursor year from mouse X position (needs to be before handleMouseUp)
   const cursorYear = useMemo(() => {
@@ -518,14 +618,14 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
   // Handle item hover
   const handleItemHover = useCallback((type, item) => {
-    if (type && item) {
+    if (type && item && !(defaultConfig.touchGestures && noHover())) {
       setHoveredItem({ type, item, mouseX: mousePos.x, mouseY: mousePos.y });
     } else {
       setHoveredItem(null);
     }
     // Depth preview: hovering a figure lifts their background, and only theirs.
     onPersonHover?.(type === 'person' ? item?.id ?? null : null);
-  }, [mousePos, onPersonHover]);
+  }, [mousePos, onPersonHover, defaultConfig.touchGestures]);
 
   // The legend gives way when space is short (config.legendCollapsible): it
   // folds to a "Key" button while the detail panel is open or the timeline is
@@ -843,7 +943,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const timelineBody = (
     <div
       ref={containerRef}
-      className="timeline-container"
+      className={`timeline-container${phoneLayout ? ' timeline-container--phone' : ''}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

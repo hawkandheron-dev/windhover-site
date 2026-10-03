@@ -42,6 +42,7 @@ const ONLY = opt('only');
 // 1440x900 is the comfortable case.
 const VIEWPORTS = {
   phone:   { width: 390,  height: 844,  mobile: true },
+  'phone-large': { width: 430, height: 932, mobile: true },
   tablet:  { width: 820,  height: 1180, mobile: false },
   laptop:  { width: 1280, height: 720,  mobile: false },
   desktop: { width: 1440, height: 900,  mobile: false },
@@ -77,8 +78,29 @@ const COMPARE_POINTS = POINT_STYLES.flatMap(([style, query]) => [
   { name: `points-${style}-focused`,    viewports: ['desktop'], query, act: openPanel },
 ]);
 
+// --compare mobile: today's vertical phone timeline against the desktop's
+// horizontal one on a phone (?mobile=horizontal, detail as a modal).
+const zoomInEither = async (page) => {
+  const named = page.getByRole('button', { name: 'Zoom in' });
+  if (await named.count()) return zoom('Zoom in', 2)(page);
+  // The vertical phone toolbar's zoom buttons are icon-only: −, readout, +.
+  for (let i = 0; i < 2; i++) {
+    await page.locator('.mobile-zoom-controls button').nth(1).click();
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(300);
+};
+const PHONE_LAYOUTS = [['vertical', ''], ['horizontal', '?mobile=horizontal']];
+const COMPARE_MOBILE = PHONE_LAYOUTS.flatMap(([layout, query]) => [
+  { name: `mobile-${layout}-opening`,   viewports: ['phone', 'phone-large'], query },
+  { name: `mobile-${layout}-zoomed-in`, viewports: ['phone', 'phone-large'], query, act: zoomInEither },
+  { name: `mobile-${layout}-detail`,    viewports: ['phone', 'phone-large'], query, act: openPanel },
+]);
+
 const COMPARE = opt('compare');
-const STATES = COMPARE === 'points' ? COMPARE_POINTS : DEFAULT_STATES;
+const STATES = COMPARE === 'points' ? COMPARE_POINTS
+  : COMPARE === 'mobile' ? COMPARE_MOBILE
+  : DEFAULT_STATES;
 
 // ── tiny static server over the repo root (apps/ plus node_modules fonts) ──
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
@@ -161,7 +183,7 @@ async function shoot(browser, base, tables, state, vpName) {
   await installSupabaseTableMock(page, tables);
 
   await page.goto(base + PAGE + (state.query || ''));
-  await page.locator(vp.mobile ? '.mobile-timeline' : 'canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
+  await page.locator('.mobile-timeline, canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
     errors.push('timeline did not render within 15s');
   });
   await page.evaluate(() => document.fonts.ready);

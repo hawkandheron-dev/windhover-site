@@ -642,6 +642,9 @@ test.describe('Review round fixes (milestone 3)', () => {
     await page.locator('.timeline-search-dropdown [role="option"]').first().click();
     const panel = page.locator('.timeline-modal--panel');
     await expect(panel.locator('.historical-map-section h3')).toHaveText('Historical map');
+    // boundingBox() doesn't wait; under a busy parallel run the description
+    // could still be mounting when it was measured.
+    await expect(panel.locator('.modal-description')).toBeVisible();
     const descY = (await panel.locator('.modal-description').boundingBox()).y;
     const mapY = (await panel.locator('.historical-map-section').boundingBox()).y;
     expect(descY).toBeLessThan(mapY);
@@ -712,3 +715,90 @@ test.describe('Review round fixes (milestone 3)', () => {
   });
 });
 
+
+// Milestone 3, step 9: the desktop's horizontal timeline on a phone
+// (?mobile=horizontal, a prototype to compare with the vertical layout).
+// The timeline had no touch handling at all, so these drive real touch
+// events through the DevTools protocol (Chromium only, like the suite).
+test.describe('Horizontal phone prototype (milestone 3)', () => {
+  test.use({ hasTouch: true, isMobile: true });
+  const PHONE = { viewport: { width: 390, height: 844 }, query: '?mobile=horizontal', realData: true };
+
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  async function touch(page) {
+    const cdp = await page.context().newCDPSession(page);
+    const send = (type, points) => cdp.send('Input.dispatchTouchEvent', {
+      type, touchPoints: points.map(([x, y], id) => ({ x, y, id })),
+    });
+    return {
+      async drag(from, to, steps = 8) {
+        await send('touchStart', [from]);
+        for (let i = 1; i <= steps; i++) {
+          await send('touchMove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
+        }
+        await send('touchEnd', []);
+      },
+      async pinch(center, fromGap, toGap, steps = 8) {
+        const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
+        await send('touchStart', at(fromGap));
+        for (let i = 1; i <= steps; i++) await send('touchMove', at(fromGap + (toGap - fromGap) * i / steps));
+        await send('touchEnd', []);
+      },
+    };
+  }
+
+  // "30–130 AD" → [30, 130]; good enough for AD-only spans.
+  async function span(page) {
+    const text = await page.locator('.zoom-info').textContent();
+    const [a, b] = text.replace(/\s*AD$/, '').split('–').map(Number);
+    return [a, b];
+  }
+
+  test('a phone gets the horizontal timeline, opening on the apostolic age', async ({ page }) => {
+    await loadPage(page, PHONE);
+    await expect(page.locator('.mobile-timeline')).toHaveCount(0);
+    await expect(page.locator('.zoom-info')).toHaveText('1–160 AD');
+    // Touch-sized zoom buttons, still named for a screen reader.
+    const zoomIn = page.getByRole('button', { name: 'Zoom in' });
+    const box = await zoomIn.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  });
+
+  test('a finger drag pans the timeline', async ({ page }) => {
+    await loadPage(page, PHONE);
+    const [start] = await span(page);
+    const t = await touch(page);
+    await t.drag([300, 700], [100, 700]);
+    // Dragging leftwards brings later years into view.
+    await expect.poll(async () => (await span(page))[0]).toBeGreaterThan(start + 20);
+    // A drag is not a tap: no year summary or detail opens.
+    await expect(page.locator('.timeline-modal')).toHaveCount(0);
+    // And it leaves no hover trail behind (a phone has no hover).
+    await expect(page.locator('.cursor-year-line')).toHaveCount(0);
+  });
+
+  test('a tap on a figure opens its detail as a modal', async ({ page }) => {
+    await loadPage(page, PHONE);
+    // Tap the bar just right of Polycarp's label (the label sits on the bar).
+    const label = await page.locator('.timeline-overlay').getByText('Polycarp', { exact: true }).first().boundingBox();
+    await page.touchscreen.tap(label.x + label.width + 30, label.y + label.height / 2);
+    await expect(page.locator('.timeline-modal')).toBeVisible();
+    await expect(page.locator('.timeline-modal--panel')).toHaveCount(0);
+    await expect(page.locator('#timeline-detail-title')).toHaveText(/Polycarp/);
+  });
+
+  test('a pinch zooms about the fingers', async ({ page }) => {
+    await loadPage(page, PHONE);
+    const [a0, b0] = await span(page);
+    const t = await touch(page);
+    await t.pinch([195, 700], 80, 240);
+    // Spreading the fingers threefold shows about a third as many years.
+    await expect.poll(async () => { const [a, b] = await span(page); return b - a; })
+      .toBeLessThan((b0 - a0) / 2);
+  });
+});
