@@ -12,7 +12,7 @@ const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.js
  * Renders an Open Historical Map centered on a person's location,
  * filtered to their birth year, with a marker pin.
  */
-export function HistoricalMap({ location, birthYear }) {
+export function HistoricalMap({ location, birthYear, title = 'Historical Map' }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const [noCoords, setNoCoords] = useState(false);
@@ -77,7 +77,7 @@ export function HistoricalMap({ location, birthYear }) {
 
   return (
     <div className="historical-map-section">
-      <h3>Historical Map</h3>
+      <h3>{title}</h3>
       <div className="historical-map-container" ref={mapContainerRef} />
       {birthYear != null && (
         <p className="historical-map-date">

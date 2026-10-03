@@ -9,7 +9,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getYear } from '../utils/dateUtils.js';
-import { Icon } from './Icon.jsx';
+import { Icon, ShapeIcon } from './Icon.jsx';
 import './TimelineSearch.css';
 import { matchRank } from '../utils/searchRank.js';
 
@@ -53,7 +53,12 @@ function buildIndex(data) {
 
 const TYPE_LABELS = { person: 'Person', point: 'Event', period: 'Period' };
 
-export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink, ranked = false }) {
+/**
+ * `describeKind(entry)` lets a page name its results in its own terms, e.g.
+ * { label: 'Council', shape: 'cross', color }. Without it the generic
+ * coloured chips (PERSON / EVENT) remain.
+ */
+export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink, ranked = false, describeKind }) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -267,9 +272,21 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
               <span className="timeline-search-option-name">
                 {highlightMatch(entry.name, query)}
               </span>
-              <span className={`timeline-search-option-type type-${entry.type}`}>
-                {TYPE_LABELS[entry.type] || entry.type}
-              </span>
+              {describeKind ? (() => {
+                const kind = describeKind(entry);
+                return (
+                  <span className="timeline-search-option-kind">
+                    {kind.icon === 'crown'
+                      ? <Icon name="crown" size={12} color={kind.color} />
+                      : kind.shape && <ShapeIcon shape={kind.shape} color={kind.color} size={12} />}
+                    {kind.label}
+                  </span>
+                );
+              })() : (
+                <span className={`timeline-search-option-type type-${entry.type}`}>
+                  {TYPE_LABELS[entry.type] || entry.type}
+                </span>
+              )}
             </li>
           ))}
         </ul>

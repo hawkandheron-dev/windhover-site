@@ -160,6 +160,10 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   // the two they have. Works and Sources sit far apart in this render, so the
   // merged form hoists the sources list up into the works block.
   const mergeWorksAndSources = config?.mergeWorksAndSources === true;
+  // config.panelLayout === 'compact' (Lifelines): the description leads and a
+  // smaller map follows it, with headings in sentence case. On an event the
+  // map was the largest thing in the panel, ahead of what the event was.
+  const compactLayout = config?.panelLayout === 'compact';
   const hasSources = Boolean(item?.sources?.length);
   // ── Delete confirmation state ──────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -460,6 +464,15 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   if (!isOpen || !item) return null;
 
+  const mapBlock = (itemType === 'person' || itemType === 'point') && item.location ? (
+    <HistoricalMap
+      key={item.id}
+      location={item.location}
+      birthYear={getYear(item.startDate || item.date)}
+      title={compactLayout ? 'Historical map' : undefined}
+    />
+  ) : null;
+
   const canEdit = !!authContext?.getToken;
 
   // Format date based on item type
@@ -588,13 +601,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </p>
         )}
 
-        {(itemType === 'person' || itemType === 'point') && item.location && (
-          <HistoricalMap
-            key={item.id}
-            location={item.location}
-            birthYear={getYear(item.startDate || item.date)}
-          />
-        )}
+        {!compactLayout && mapBlock}
 
         {item.periodName && (
           <p className="modal-period">
@@ -661,6 +668,8 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
             )}
           </div>
         )}
+
+        {compactLayout && mapBlock}
 
         {/* Works / Texts — comma-separated hyperlinks (not a list).
             When merged, the sources list follows under the same heading, and
@@ -806,7 +815,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
         {(pointConnections.length > 0 || (canEdit && itemType === 'point')) && editSection !== 'pointConnections' && (
           <div className="modal-links">
             <h3>
-              Related People
+              {compactLayout ? 'Related people' : 'Related People'}
               {canEdit && itemType === 'point' && (
                 <button type="button" className="modal-edit-btn" onClick={startEditPointPeople}>
                   {pointConnections.length > 0 ? 'Edit' : '+ Add'}

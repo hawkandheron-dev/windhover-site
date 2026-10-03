@@ -624,5 +624,27 @@ test.describe('Review round fixes (milestone 3)', () => {
       expect(overlaps, `at ${viewport.width}px`).toEqual([]);
     }
   });
+
+  test('search names results as the legend does, without the red EVENT chip', async ({ page }) => {
+    await loadPage(page);
+    const search = page.locator('.timeline-search-input').first();
+    await search.fill('Nicaea');
+    const council = page.locator('.timeline-search-dropdown [role="option"]', { hasText: 'Council of Nicaea' });
+    await expect(council.locator('.timeline-search-option-kind')).toHaveText('Council');
+    await search.fill('Athanasius');
+    await expect(page.locator('.timeline-search-option-kind').first()).toHaveText('Person');
+    await expect(page.locator('.timeline-search-option-type')).toHaveCount(0);
+  });
+
+  test('the detail panel leads with the description and a sentence-case map heading', async ({ page }) => {
+    await loadPage(page);
+    await page.locator('.timeline-search-input').first().fill('Athanasius');
+    await page.locator('.timeline-search-dropdown [role="option"]').first().click();
+    const panel = page.locator('.timeline-modal--panel');
+    await expect(panel.locator('.historical-map-section h3')).toHaveText('Historical map');
+    const descY = (await panel.locator('.modal-description').boundingBox()).y;
+    const mapY = (await panel.locator('.historical-map-section').boundingBox()).y;
+    expect(descY).toBeLessThan(mapY);
+  });
 });
 

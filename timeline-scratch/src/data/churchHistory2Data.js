@@ -50,6 +50,9 @@ export const churchHistory2Config = {
 
   /** Detail panel: one "Works & Sources" section rather than two. */
   mergeWorksAndSources: true,
+  /** Detail panel: description first, a smaller map after it, sentence-case
+   *  headings (DESIGN.md §6). */
+  panelLayout: 'compact',
 
   /**
    * Above this zoom-out level a landmark drops its flag and shows only its

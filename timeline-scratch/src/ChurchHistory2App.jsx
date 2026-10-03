@@ -12,7 +12,7 @@ import { Timeline } from './components/Timeline/Timeline.jsx';
 import { TimelineSearch } from './components/Timeline/components/TimelineSearch.jsx';
 import { computeFocusSet } from './components/Timeline/utils/focusSet.js';
 import { fetchChurchHistory2Data, fetchTourScenes, updateLinkedMediaCrop } from './data/churchHistory2Adapter.js';
-import { churchHistory2Config } from './data/churchHistory2Data.js';
+import { churchHistory2Config, BACK_STYLES } from './data/churchHistory2Data.js';
 import { AddNoteModal } from './components/Notes/AddNoteModal.jsx';
 import { ViewMyNotesModal } from './components/Notes/ViewMyNotesModal.jsx';
 import { checkUserRole, ensureUserExists } from './services/adminService.js';
@@ -41,6 +41,22 @@ const hasClerk = !!(window.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_P
 const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
 const EMPTY_LAYER = { people: [], points: [], periods: [] };
+
+/**
+ * Search results named as the legend names them, with its shapes: Person,
+ * Ruler, Council, Text. The generic chips said EVENT in the error red.
+ */
+function describeSearchKind(entry) {
+  const item = entry.item || {};
+  if (entry.type === 'person') {
+    return item.isMonarch
+      ? { label: 'Ruler', icon: 'crown', color: BACK_STYLES.emperors.color }
+      : { label: 'Person' };
+  }
+  if (item.filterKey === 'councils') return { label: 'Council', shape: item.shape, color: item.color };
+  if (item.filterKey === 'documents') return { label: 'Text', shape: item.shape, color: item.color };
+  return { label: 'Event', shape: item.shape, color: item.color };
+}
 
 /** Split a merged dataset back into its two layers by the adapter's tag. */
 function splitByLayer(merged) {
@@ -404,6 +420,7 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
             {frontData && (
               <TimelineSearch
                 ranked
+                describeKind={describeSearchKind}
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}
@@ -535,6 +552,7 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
             {frontData && (
               <TimelineSearch
                 ranked
+                describeKind={describeSearchKind}
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}
