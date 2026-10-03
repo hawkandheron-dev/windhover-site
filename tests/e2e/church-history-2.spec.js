@@ -288,6 +288,38 @@ test.describe('CH Timeline 2.0', () => {
     expect(await page.locator('.person-label').count()).toBeGreaterThan(during);
     // ...and within a couple of seconds the timeline is still again.
     await expect(page.locator('.person-label[style*="timeline-reveal"]')).toHaveCount(0, { timeout: 4000 });
+    // The camera glided back to the opening view (round 3).
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+  });
+
+  test('a trackpad pinch over the timeline zooms the timeline', async ({ page }) => {
+    await loadPage(page);
+    const before = await page.locator('.zoom-info').textContent();
+    const prevented = await page.locator('.timeline-container').evaluate(el => {
+      const r = el.getBoundingClientRect();
+      const e = new WheelEvent('wheel', { deltaY: -400, ctrlKey: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(prevented).toBe(true);
+    await expect(page.locator('.zoom-info')).not.toHaveText(before);
+  });
+
+  test('when the page itself is zoomed, the timeline lets the wheel scroll the page', async ({ page }) => {
+    // Pinching over the header zooms the whole page; the timeline then held
+    // every wheel, so the reader couldn't scroll back out to the header.
+    await page.addInitScript(() => {
+      Object.defineProperty(VisualViewport.prototype, 'scale', { get: () => 2, configurable: true });
+    });
+    await loadPage(page);
+    const before = await page.locator('.zoom-info').textContent();
+    const prevented = await page.locator('.timeline-container').evaluate(el => {
+      const e = new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(prevented).toBe(false);
+    await expect(page.locator('.zoom-info')).toHaveText(before);
   });
 
   test('on a phone the tour is a bottom sheet, leaving the timeline the top', async ({ page }) => {

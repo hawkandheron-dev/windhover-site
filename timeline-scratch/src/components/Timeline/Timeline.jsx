@@ -481,6 +481,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     if (isModalOpen) {
       return; // Let the modal handle its own scrolling
     }
+    // The page itself is zoomed in (a pinch over the header, say): leave the
+    // wheel and pinch to the browser, or the reader can't scroll back out to
+    // the header, or pinch the page back out, while over the timeline.
+    if ((window.visualViewport?.scale ?? 1) > 1.01) return;
     e.preventDefault();
 
     const container = containerRef.current;
@@ -513,6 +517,39 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
   }, [handleWheel]);
+
+  // Safari reports a trackpad pinch as gesture events, not a ctrl+wheel, so
+  // over the timeline it zoomed the whole page instead of the timeline.
+  const gestureRef = useRef({});
+  useEffect(() => {
+    gestureRef.current = { handleZoom, width: dimensions.width, isModalOpen };
+  });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !('GestureEvent' in window)) return;
+    let lastScale = 1;
+    const start = (e) => {
+      if (gestureRef.current.isModalOpen || (window.visualViewport?.scale ?? 1) > 1.01) return;
+      e.preventDefault();
+      lastScale = e.scale || 1;
+    };
+    const change = (e) => {
+      if (gestureRef.current.isModalOpen || (window.visualViewport?.scale ?? 1) > 1.01) return;
+      e.preventDefault();
+      const { handleZoom: zoom, width } = gestureRef.current;
+      const rect = el.getBoundingClientRect();
+      const scale = e.scale || 1;
+      // A spread of ratio r divides years-per-pixel by r; zoom takes 1.1^delta.
+      zoom(-Math.log(scale / lastScale) / Math.log(1.1), e.clientX - rect.left, width);
+      lastScale = scale;
+    };
+    el.addEventListener('gesturestart', start, { passive: false });
+    el.addEventListener('gesturechange', change, { passive: false });
+    return () => {
+      el.removeEventListener('gesturestart', start);
+      el.removeEventListener('gesturechange', change);
+    };
+  }, []);
 
   // Handle mouse down for pan or blank click
   const handleMouseDown = useCallback((e) => {
@@ -768,6 +805,20 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     setViewportStartYear,
     setVerticalOffset,
     animateViewport,
+    // Back to the opening view: its span, centre and axis height, framed on
+    // the real width. Animated, it glides there (Lifelines' tour exit).
+    resetView: ({ animate = false, duration = 1000 } = {}) => {
+      const fraction = defaultConfig.initialAxisFraction ?? 0.5;
+      const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
+      const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
+      if (animate) {
+        animateViewport(centeredViewportStart, initialYearsPerPixel, offset, duration);
+      } else {
+        setYearsPerPixel(initialYearsPerPixel);
+        setViewportStartYear(centeredViewportStart);
+        setVerticalOffset(offset);
+      }
+    },
     closeModal: handleModalClose,
     openYearSummary: (year) => {
       setSelectedItem(null); // close any person modal first
@@ -776,7 +827,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     },
     closeYearSummary: () => setYearSummaryOpen(false),
     getViewportInfo: () => ({ width: dimensions.width, height: dimensions.height, yearsPerPixel, viewportStartYear, axisY: layout.axisY, totalHeight: layout.totalHeight }),
-  }), [handleSearchSelect, handleSearchHighlight, handleSearchClearHighlight, handleModalClose, jumpToYear, dimensions.width, dimensions.height, setYearsPerPixel, setViewportStartYear, setVerticalOffset, animateViewport, yearsPerPixel, viewportStartYear, layout.axisY, layout.totalHeight]);
+  }), [handleSearchSelect, handleSearchHighlight, handleSearchClearHighlight, handleModalClose, jumpToYear, dimensions.width, dimensions.height, setYearsPerPixel, setViewportStartYear, setVerticalOffset, animateViewport, yearsPerPixel, viewportStartYear, layout.axisY, layout.totalHeight, centeredViewportStart, initialYearsPerPixel, defaultConfig.initialAxisFraction]);
 
   // Compute set of highlighted item IDs for rendering
   const highlightedItemIds = useMemo(() => {

@@ -282,7 +282,7 @@ function Timeline2({
 
   const depth = useDepthFocus(index);
   const layout = useLayoutChoice();
-  const exitWave = useTourExitWave(tourLayers, frontData);
+  const exitWave = useTourExitWave(tourLayers, frontData, timelineRef);
 
   // The one scene that asked for "everything at once" now means "bring the
   // background forward" — there are no period brackets left for it to reveal.
@@ -335,19 +335,29 @@ function Timeline2({
 }
 
 /**
- * Leaving the tour, the figures and landmarks it wasn't showing sweep in:
+ * Leaving the tour, the view glides back to the opening frame while the
+ * figures and landmarks the tour wasn't showing sweep in:
  * bars grow from their birth years in a left-to-right wave across the
  * screen, their labels and strings fading in behind (owner's pick, M3 round
  * 2). Before, the full timeline replaced the tour's handful in one jump.
  * Reduced motion skips the growing (TimelineCanvas) and the fades (CSS).
  */
 const EXIT_WAVE_MS = 800;
-function useTourExitWave(tourLayers, frontData) {
+function useTourExitWave(tourLayers, frontData, timelineRef) {
   const [wave, setWave] = useState({ people: undefined, points: undefined });
   const timer = useRef(null);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const glideTimer = useRef(null);
+  useEffect(() => () => { clearTimeout(timer.current); clearTimeout(glideTimer.current); }, []);
 
   const start = useCallback(() => {
+    // The camera glides back to the opening view on every exit, Finish
+    // included (owner's call, round 3: the sweep alone went unnoticed, and
+    // after the build-out scene there is nothing left to sweep). It waits a
+    // moment for the full timeline to be laid out, so it aims at the real
+    // axis.
+    clearTimeout(glideTimer.current);
+    glideTimer.current = setTimeout(() => timelineRef?.current?.resetView?.({ animate: true, duration: 1000 }), 60);
+
     const shown = tourLayers?.front;
     if (!shown || !frontData) return;
     const shownPeople = new Set((shown.people || []).map(p => p.id));
@@ -359,7 +369,7 @@ function useTourExitWave(tourLayers, frontData) {
     clearTimeout(timer.current);
     // Wave plus the last bar's grow and fade, then back to a still timeline.
     timer.current = setTimeout(() => setWave({ people: undefined, points: undefined }), EXIT_WAVE_MS + 1100);
-  }, [tourLayers, frontData]);
+  }, [tourLayers, frontData, timelineRef]);
 
   return { ...wave, start };
 }
