@@ -44,6 +44,18 @@
   font-weight: 500;
 }
 
+.ch2-monarch-name {
+  /* The flex row itself can't show an ellipsis; its name span can. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.ch2-monarch-label > svg,
+.ch2-monarch-reign {
+  flex-shrink: 0;
+}
+
 .ch2-monarch-reign {
   color: var(--color-ink-faded, #6e6e66);
   font-weight: 500;

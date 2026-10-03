@@ -59,6 +59,12 @@ export const churchHistory2Config = {
   pointLabelMaxYearsPerPixel: 1.0,
 
   /**
+   * Name labels may run into empty space but never into the next bar of their
+   * row: dates drop first, then the name ends in an ellipsis (DESIGN.md §7).
+   */
+  labelFit: 'fit',
+
+  /**
    * Canvas colours for a white ground. Passed through Timeline → TimelineCanvas
    * → rendering.js; every draw function defaults to the parchment values when
    * this is absent, which is how the 1.0 pages stay pixel-identical.

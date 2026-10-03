@@ -116,8 +116,11 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 - Past `pointLabelMaxYearsPerPixel` (1.0 year/px), landmarks drop their flags
   and show only pins. The same applies to monarch labels.
-- A label that doesn't fit should end with an ellipsis or show the name
-  without dates. It should never be cut off mid-word by a neighbouring bar.
+- A name label may run into empty space but never into the next bar of its
+  row. If it doesn't fit, the dates go first, then the name ends in "…"; with
+  under 28px of room there is no label, and hovering names the bar
+  (`labelFit: 'fit'`, `utils/labelFit.js`). The same rule applies to the
+  rulers' labels below the axis. A test checks this against the real data.
 - Cards and labels must not overlap one another. Stacking is the layout's job
   (`utils/stacking`), not z-index.
 
@@ -155,8 +158,8 @@ contrast, reduced motion, legend checkbox names, the opening view, the zoom
 readout and the phone header covering the toolbar were fixed in milestone 1;
 the stray hover card and the legend covering figures in milestone 3.
 
-- **§7 Labels:** cut mid-word by neighbouring bars ("Thomas Bradwar",
-  "Sylvester II / Gerbert of A"); landmark cards overlap on phone
-  (`default--phone.png`).
+- **§7 Labels (phone):** landmark cards overlap each other and the figure
+  bars on phone (`default--phone.png`). Desktop and tablet labels are fitted
+  since milestone 3 (`labelFit: 'fit'`).
 - **§4 Phone toolbar:** the mobile timeline's toolbar is still parchment
   (beige ground, brown rules), not white (`default--phone.png`).

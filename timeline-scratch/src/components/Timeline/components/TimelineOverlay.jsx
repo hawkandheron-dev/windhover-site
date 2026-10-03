@@ -6,6 +6,7 @@ import { yearToPixel } from '../utils/coordinates.js';
 import { getYear, getYearRange, formatYear } from '../utils/dateUtils.js';
 import { Icon, ShapeIcon } from './Icon.jsx';
 import './TimelineOverlay.css';
+import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
 
 export function TimelineOverlay({
   width,
@@ -146,6 +147,11 @@ export function TimelineOverlay({
 
   function renderPeopleLabels() {
     const people = layout.stackedPeople || [];
+    // config.labelFit === 'fit' (Lifelines): a label may run on into empty
+    // space but never into the next bar of its row, where the neighbour's
+    // label would cover it ("lement of Rome", "Thomas Bradwar").
+    const fit = config.labelFit === 'fit';
+    const nextStartById = fit ? nextBarStartInRow(people, viewportStartYear, yearsPerPixel) : null;
 
     return people.map(person => {
       const { start, end } = getYearRange(person.startDate, person.endDate);
@@ -175,7 +181,23 @@ export function TimelineOverlay({
       const showAD = start <= 0 || end <= 0;
       const startText = formatYear(start, config.eraLabels, { showAD });
       const endText = formatYear(end, config.eraLabels, { showAD });
-      const yearRange = startText !== endText ? `${startText}–${endText}` : startText;
+      let yearRange = startText !== endText ? `${startText}–${endText}` : startText;
+
+      // Fitting: drop the dates first, then end the name in an ellipsis, and
+      // give up on a label with no real room; hovering still names the bar.
+      let maxWidth;
+      if (fit) {
+        const nextStart = nextStartById.get(person.id);
+        const room = (nextStart ?? Infinity) - labelX - LABEL_GAP;
+        const crown = person.isMonarch ? 16 : 0;
+        const nameWidth = crown + measureLabel(person.name, '600 14px') + LABEL_PADDING;
+        const fullWidth = nameWidth + 4 + measureLabel(yearRange, '500 11px');
+        if (fullWidth > room) yearRange = null;
+        if (nameWidth > room) {
+          if (room < MIN_LABEL_ROOM) return null;
+          maxWidth = room;
+        }
+      }
 
       return (
         <div
@@ -199,16 +221,21 @@ export function TimelineOverlay({
             gap: '4px',
             opacity: getPersonOpacity(person),
             transition: 'opacity 0.15s ease',
-            lineHeight: '1.3'
+            lineHeight: '1.3',
+            ...(maxWidth !== undefined && { maxWidth: `${maxWidth}px`, boxSizing: 'border-box' }),
           }}
         >
           {person.isMonarch && (
             <Icon name="crown" size={12} color="#ffd700" />
           )}
-          <span>{person.name}</span>
-          <span style={{ opacity: 0.7, fontSize: '11px', fontWeight: '500' }}>
-            {yearRange}
+          <span style={maxWidth !== undefined ? { overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 } : undefined}>
+            {person.name}
           </span>
+          {yearRange && (
+            <span style={{ opacity: 0.7, fontSize: '11px', fontWeight: '500' }}>
+              {yearRange}
+            </span>
+          )}
         </div>
       );
     });

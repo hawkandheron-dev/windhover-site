@@ -18,6 +18,11 @@ import { fileURLToPath } from 'node:url';
 import { installConfigMock, installClerkMock, installSupabaseTableMock } from './fixtures.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const SNAPSHOT = (() => {
+  const snap = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'tests/e2e/data/lifelines-snapshot.json'), 'utf8'));
+  delete snap._meta;
+  return snap;
+})();
 
 const person = (id, name, birth, death, role, extra = {}) => ({
   person_id: id,
@@ -114,10 +119,12 @@ const TABLES = {
   ],
 };
 
-async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at } = {}) {
+async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false } = {}) {
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
-  await installSupabaseTableMock(page, TABLES);
+  // realData: the snapshot of the live tables, for checks that only mean
+  // something at real density (the fixture has seven people).
+  await installSupabaseTableMock(page, realData ? SNAPSHOT : TABLES);
   await page.setViewportSize(viewport);
   // A query goes on the clean URL: the .html form redirects to it (here and on
   // Cloudflare Pages), and serve drops the query on the way.
@@ -593,6 +600,26 @@ test.describe('Review round fixes (milestone 3)', () => {
     await page.mouse.move(700, 20, { steps: 8 });
     await expect(page.locator('.cursor-year-display')).toHaveCount(0);
     await expect(page.locator('.hover-preview')).toHaveCount(0);
+  });
+
+  test('no figure label runs into the next one in its row (real data)', async ({ page }) => {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 820, height: 1180 }]) {
+      await loadPage(page, { viewport, realData: true });
+      const boxes = await page.locator('.person-label').evaluateAll(els => els.map(el => {
+        const r = el.getBoundingClientRect();
+        return { text: el.textContent, top: Math.round(r.top), left: r.left, right: r.right };
+      }));
+      expect(boxes.length).toBeGreaterThan(20);
+      const overlaps = [];
+      const rows = Map.groupBy(boxes, b => b.top);
+      for (const row of rows.values()) {
+        row.sort((a, b) => a.left - b.left);
+        for (let i = 1; i < row.length; i++) {
+          if (row[i].left < row[i - 1].right - 1) overlaps.push(`${row[i - 1].text} / ${row[i].text}`);
+        }
+      }
+      expect(overlaps, `at ${viewport.width}px`).toEqual([]);
+    }
   });
 });
 

@@ -154,6 +154,7 @@ export function DepthLayers({
           yOffset={yOffset}
           width={width}
           height={height}
+          fit={config?.labelFit === 'fit'}
         />
       </div>
       )}
