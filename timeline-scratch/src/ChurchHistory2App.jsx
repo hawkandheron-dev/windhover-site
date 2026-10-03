@@ -42,6 +42,13 @@ const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
 const EMPTY_LAYER = { people: [], points: [], periods: [] };
 
+// Prototype switch for milestone 3's comparison: ?points=strings draws
+// landmarks as harp strings instead of pins and flags. Remove once chosen.
+const POINT_STYLE_PARAM = new URLSearchParams(window.location.search).get('points');
+const lifelinesConfig = POINT_STYLE_PARAM === 'strings'
+  ? { ...churchHistory2Config, pointStyle: 'string' }
+  : churchHistory2Config;
+
 /**
  * Search results named as the legend names them, with its shapes: Person,
  * Ruler, Council, Text. The generic chips said EVENT in the error red.
@@ -238,7 +245,7 @@ function Timeline2({
         ref={timelineRef}
         data={tourLayers ? tourLayers.front : frontData}
         backData={tourLayers ? tourLayers.back : backData}
-        config={churchHistory2Config}
+        config={lifelinesConfig}
         showBackgroundImage={false}
         focusIds={depth.focusIds}
         depthMode={sceneWantsBackground ? 'forward' : depth.effectiveDepthMode}

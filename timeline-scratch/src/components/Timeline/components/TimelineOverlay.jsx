@@ -31,6 +31,9 @@ export function TimelineOverlay({
   // stack into a wall; the pin alone keeps the landmark visible at a width the
   // layout can collapse. Defaults true, so every other timeline is unchanged.
   showPointLabels = true,
+  // The focus set (CH Timeline 2.0): with harp strings, a focused figure's
+  // councils and texts darken and the rest recede.
+  focusIds = null,
 }) {
   // Get hovered period date range for highlighting
   const hoveredPeriodRange = hoveredPeriod ? getYearRange(hoveredPeriod.startDate, hoveredPeriod.endDate) : null;
@@ -138,7 +141,7 @@ export function TimelineOverlay({
       {renderPeriodLabels()}
 
       {/* Render point callouts */}
-      {renderPointCallouts()}
+      {config.pointStyle === 'string' ? renderPointStrings() : renderPointCallouts()}
 
       {/* Render hover preview */}
       {hoveredItem && renderHoverPreview()}
@@ -308,6 +311,69 @@ export function TimelineOverlay({
           }}
         >
           {period.name}
+        </div>
+      );
+    });
+  }
+
+  /**
+   * Harp strings (config.pointStyle === 'string', a Lifelines prototype). Each
+   * landmark is a thin line through the whole timeline at its year, so it
+   * reads against every life it crosses, with a short label in a single row
+   * beside the axis: councils above, texts below. A label that would collide
+   * with the one before it is dropped and its landmark keeps a small dot,
+   * which still hovers and opens; that replaces the staircase of cards.
+   */
+  function renderPointStrings() {
+    const points = layout.stackedPoints || [];
+    const focusActive = focusIds && focusIds.size > 0;
+    const lastRight = { above: -Infinity, below: -Infinity };
+    // Unlabelled landmarks keep a dot on the axis line itself, clear of both
+    // label rows, so a dot never lands on a neighbour's label.
+    const axisScreenY = (layout.axisY ?? 0) - panOffsetY;
+    const visible = points
+      .map(point => ({ point, x: yearToPixel(getYearRange(point.date).start, viewportStartYear, yearsPerPixel) }))
+      .filter(({ x }) => x >= -20 && x <= width + 20)
+      .sort((a, b) => a.x - b.x);
+
+    return visible.map(({ point, x }) => {
+      const side = point.aboveTimeline === false ? 'below' : 'above';
+      const rowY = point.y - panOffsetY + point.height / 2;
+      const labelWidth = 22 + measureLabel(point.name, '600 12px');
+      const showLabel = x + 4 >= lastRight[side] + 8 && x + 4 + labelWidth <= width;
+      if (showLabel) lastRight[side] = x + 4 + labelWidth;
+
+      const inFocus = focusActive && focusIds.has(point.id);
+      const lineOpacity = focusActive ? (inFocus ? 0.85 : 0.12) : 0.3;
+      const open = (e) => { e.stopPropagation(); if (!wasDraggingRef?.current) onItemClick?.('point', point); };
+
+      return (
+        <div key={point.id}>
+          <div
+            className="point-string"
+            style={{ left: `${x}px`, background: point.color, opacity: lineOpacity, width: inFocus ? '2px' : '1px' }}
+          />
+          {showLabel ? (
+            <div
+              className={`point-string-label${inFocus ? ' is-focus' : ''}`}
+              style={{ left: `${x + 4}px`, top: `${rowY}px`, opacity: focusActive && !inFocus ? 0.5 : 1 }}
+              onMouseEnter={() => onItemHover?.('point', point)}
+              onMouseLeave={() => onItemHover?.(null, null)}
+              onClick={open}
+            >
+              <ShapeIcon shape={point.shape || 'circle'} color={point.color} size={11} />
+              <span>{point.name}</span>
+            </div>
+          ) : (
+            <div
+              className="point-string-dot"
+              style={{ left: `${x}px`, top: `${axisScreenY}px`, background: point.color }}
+              title={point.name}
+              onMouseEnter={() => onItemHover?.('point', point)}
+              onMouseLeave={() => onItemHover?.(null, null)}
+              onClick={open}
+            />
+          )}
         </div>
       );
     });

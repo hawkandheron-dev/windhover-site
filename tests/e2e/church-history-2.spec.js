@@ -679,5 +679,36 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(panel).toHaveCount(0);
     await expect(search).toBeFocused();
   });
+
+  test('harp-strings prototype: ?points=strings draws lines, and a label opens its landmark', async ({ page }) => {
+    await loadPage(page, { query: '?points=strings' });
+    await expect(page.locator('.point-callout')).toHaveCount(0);
+    expect(await page.locator('.point-string').count()).toBeGreaterThan(0);
+    await page.locator('.point-string-label', { hasText: 'Council of Nicaea' }).click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
+  });
+
+  test('clicking a landmark card opens its panel, even straight after a move', async ({ page }) => {
+    // mouseup compared the click with a mousePos only as fresh as the last
+    // render, so a click with no settled move before it (a tap, or a quick
+    // click) read as a drag and was swallowed: cards opened nothing.
+    await loadPage(page);
+    await page.locator('.point-callout', { hasText: 'Council of Nicaea' }).click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
+  });
+
+  test('a click on empty timeline opens that year; a click on the controls does not', async ({ page }) => {
+    await loadPage(page);
+    // Controls and the legend are not empty timeline: no year summary.
+    await page.getByRole('button', { name: 'Zoom in' }).click();
+    await page.getByRole('checkbox', { name: 'Councils' }).click();
+    await page.getByRole('checkbox', { name: 'Councils' }).click();
+    await expect(page.getByRole('heading', { level: 2 }).filter({ hasText: /\d+ (AD|BC)/ })).toHaveCount(0);
+
+    // Empty canvas, low on the page and clear of the lanes, is.
+    const box = await page.locator('.timeline-container').boundingBox();
+    await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.85);
+    await expect(page.getByRole('heading', { level: 2 }).filter({ hasText: /\d+ (AD|BC)/ })).toBeVisible();
+  });
 });
 

@@ -130,3 +130,54 @@
 .point-callout--collapsed:hover .point-callout-body {
   max-width: 44ch;
 }
+
+/* Harp strings (config.pointStyle === 'string'). The line is decoration and
+   takes no pointer, so it never steals hover from the bars it crosses; the
+   label and the dot are the targets. */
+.point-string {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.point-string-label {
+  position: absolute;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-ink);
+  /* Opaque: below the axis these sit over the rulers' band, whose names
+     would otherwise show through. */
+  background: #ffffff;
+  border-radius: 3px;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+.point-string-label:hover,
+.point-string-label.is-focus {
+  background: #ffffff;
+  box-shadow: 0 1px 4px var(--color-shadow);
+}
+
+.point-string-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin-left: -4px;
+  transform: translateY(-50%);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 3;
+}

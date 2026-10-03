@@ -260,8 +260,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       periodRowHeight: 40,
       lanePadding: 8,
       axisHeight: 30,
-      // Bare pins collide at the pin's own width, not a label's.
-      pointMarkerWidth: showPointLabels ? null : 24,   // matches the collapsed chip
+      // Bare pins collide at the pin's own width, not a label's. Harp strings
+      // (config.pointStyle === 'string') need no stacking at all: one row on
+      // each side of the axis holds their labels.
+      pointMarkerWidth: defaultConfig.pointStyle === 'string' ? 0 : (showPointLabels ? null : 24),
       ...layoutSizes,
     }
   );
@@ -452,24 +454,50 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     return Math.round(viewportStartYear + mousePos.x * yearsPerPixel);
   }, [viewportStartYear, mousePos.x, yearsPerPixel]);
 
+  const pendingYearSummaryRef = useRef(null);
+
   // Handle mouse up
   const handleMouseUp = useCallback((e) => {
     const container = containerRef.current;
     if (!container) return;
     if (isModalOpen) return;
 
-    // Check if this was a click (minimal movement and short duration)
-    // Don't trigger if any modal is open or hovering over controls
+    // Where the pointer was released, from the event itself. mousePos is
+    // state, as fresh as the last render; mousedown already reads the event,
+    // so comparing the two called a stale mousePos a drag. A tap (no move
+    // before it, as on a touch screen) or a quick click after a move was
+    // then swallowed as a drag, and a landmark card's click opened nothing.
+    const rect = container.getBoundingClientRect();
+    const upX = e?.clientX != null ? e.clientX - rect.left : mousePos.x;
+    const upY = e?.clientY != null ? e.clientY - rect.top : mousePos.y;
+
+    // A click on empty timeline opens that year's summary. "Empty" is judged
+    // from the event, not from hover state, which has the same freshness
+    // problem: the click has to land on a canvas (not a button, the legend or
+    // a label), and the summary waits a frame so that a click which opened an
+    // item (the canvas's own click, or a label's) cancels it.
     const clickStart = container._clickStart;
-    if (clickStart && !hoveredItem && !isOverControls && !selectedItem && !yearSummaryOpen) {
-      const dx = Math.abs(mousePos.x - clickStart.x);
-      const dy = Math.abs(mousePos.y - clickStart.y);
+    const onCanvas = e?.target?.tagName === 'CANVAS';
+    // hoveredItem and isOverControls are deliberately not consulted: they are
+    // state, stale for a click that follows a move too quickly. The target
+    // rules out controls and labels, and an item hit on the canvas cancels
+    // the pending summary through handleItemClickInternal.
+    if (clickStart && onCanvas && !selectedItem && !yearSummaryOpen) {
+      const dx = Math.abs(upX - clickStart.x);
+      const dy = Math.abs(upY - clickStart.y);
       const duration = Date.now() - clickStart.time;
 
       // If minimal movement and short duration, treat as click
       if (dx < 5 && dy < 5 && duration < 300) {
-        setPinnedYear(cursorYear);
-        setYearSummaryOpen(true);
+        const year = Math.round(viewportStartYear + upX * yearsPerPixel);
+        pendingYearSummaryRef.current = year;
+        requestAnimationFrame(() => {
+          if (pendingYearSummaryRef.current === year) {
+            pendingYearSummaryRef.current = null;
+            setPinnedYear(year);
+            setYearSummaryOpen(true);
+          }
+        });
       }
     }
     container._clickStart = null;
@@ -479,14 +507,14 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
     // If any significant movement happened, suppress the next canvas click
     if (clickStart) {
-      const dx = Math.abs(mousePos.x - clickStart.x);
-      const dy = Math.abs(mousePos.y - clickStart.y);
+      const dx = Math.abs(upX - clickStart.x);
+      const dy = Math.abs(upY - clickStart.y);
       if (dx >= 5 || dy >= 5) {
         wasDraggingRef.current = true;
         requestAnimationFrame(() => { wasDraggingRef.current = false; });
       }
     }
-  }, [endPan, hoveredItem, isModalOpen, mousePos, cursorYear, isOverControls, selectedItem, yearSummaryOpen]);
+  }, [endPan, isModalOpen, mousePos, viewportStartYear, yearsPerPixel, selectedItem, yearSummaryOpen]);
 
   // Handle item hover
   const handleItemHover = useCallback((type, item) => {
@@ -523,6 +551,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
   // Handle item click
   const handleItemClickInternal = useCallback((type, item) => {
+    // This click opened an item, so it was not a click on empty timeline.
+    pendingYearSummaryRef.current = null;
     setHoveredItem(null);
     if (!suppressModal) {
       setSelectedItem({ type, item });
@@ -927,6 +957,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         isTourMode={isTourMode}
         palette={defaultConfig.palette}
         showPointLabels={showPointLabels}
+        focusIds={focusIds}
       />
 
       {/* Cursor year display - follows cursor */}

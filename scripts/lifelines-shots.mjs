@@ -50,7 +50,7 @@ const VIEWPORTS = {
 // A figure with connections, works and a long description: the panel at its fullest.
 const PANEL_QUERY = 'Athanasius';
 
-const STATES = [
+const DEFAULT_STATES = [
   { name: 'first-visit',   viewports: ['phone', 'laptop', 'desktop'], welcome: true },
   { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop'] },
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
@@ -58,6 +58,27 @@ const STATES = [
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
   { name: 'keyboard-focus', viewports: ['desktop'], act: tabThrough },
 ];
+
+// --compare points: the harp-strings prototype against today's pins and
+// flags, at three zoom levels and with a figure focused. Desktop only; the
+// phone comparison is --compare mobile (milestone 3, step 9).
+const zoom = (label, times) => async (page) => {
+  for (let i = 0; i < times; i++) {
+    await page.getByRole('button', { name: label }).click();
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(300);
+};
+const POINT_STYLES = [['flags', ''], ['strings', '?points=strings']];
+const COMPARE_POINTS = POINT_STYLES.flatMap(([style, query]) => [
+  { name: `points-${style}-opening`,    viewports: ['desktop', 'laptop'], query },
+  { name: `points-${style}-zoomed-in`,  viewports: ['desktop'], query, act: zoom('Zoom in', 2) },
+  { name: `points-${style}-zoomed-out`, viewports: ['desktop'], query, act: zoom('Zoom out', 2) },
+  { name: `points-${style}-focused`,    viewports: ['desktop'], query, act: openPanel },
+]);
+
+const COMPARE = opt('compare');
+const STATES = COMPARE === 'points' ? COMPARE_POINTS : DEFAULT_STATES;
 
 // ── tiny static server over the repo root (apps/ plus node_modules fonts) ──
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
@@ -139,7 +160,7 @@ async function shoot(browser, base, tables, state, vpName) {
   await installClerkMock(page);
   await installSupabaseTableMock(page, tables);
 
-  await page.goto(base + PAGE);
+  await page.goto(base + PAGE + (state.query || ''));
   await page.locator(vp.mobile ? '.mobile-timeline' : 'canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
     errors.push('timeline did not render within 15s');
   });
