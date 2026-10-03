@@ -128,6 +128,17 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 - Everything clickable is reachable by keyboard, in a sensible order, with a
   visible focus ring (`:focus-visible`).
+- **Search is the keyboard and screen-reader route to the timeline** (owner's
+  decision, M3). Figures and landmarks are drawn on a canvas and can't be
+  tabbed through; search reaches every one of them. So the route has to
+  work end to end:
+  - a "Skip to search" link is the first stop;
+  - the welcome dialog takes focus on its main button, and returns the
+    keyboard to the top of the page when it closes;
+  - choosing a result opens the panel with focus on its title;
+  - Esc closes the panel and hands focus back to search.
+  A test walks this route. Full arrow-key navigation of the canvas is out of
+  scope for launch.
 - Touch targets are at least 44×44px on phone layouts.
 - Motion respects `prefers-reduced-motion: reduce`: the depth blur transition,
   panel slide and viewport animations become instant.

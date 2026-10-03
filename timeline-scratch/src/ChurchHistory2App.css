@@ -216,3 +216,31 @@
   background: var(--color-parchment-dark);
   border-color: var(--color-accent);
 }
+
+/* Keyboard access (DESIGN.md §8). The skip link is off-screen until it has
+   focus, then sits above the header as the page's first stop. */
+.ch2-skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.ch2-skip-link:focus-visible {
+  transform: none;
+  outline: 3px solid var(--color-action);
+  outline-offset: 2px;
+}
+
+/* The panel title takes focus when the panel opens; show the ring only to
+   keyboard users. */
+.ch2-app .modal-title:focus:not(:focus-visible) {
+  outline: none;
+}

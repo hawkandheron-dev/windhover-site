@@ -46,6 +46,15 @@ const EMPTY_LAYER = { people: [], points: [], periods: [] };
  * Search results named as the legend names them, with its shapes: Person,
  * Ruler, Council, Text. The generic chips said EVENT in the error red.
  */
+/**
+ * After the welcome dialog closes, start the keyboard at the top of the page.
+ * The skip link only shows for keyboard focus (:focus-visible), so a mouse
+ * reader sees nothing and a phone opens no keyboard.
+ */
+function focusSkipLink() {
+  requestAnimationFrame(() => document.querySelector('.ch2-skip-link')?.focus({ preventScroll: true }));
+}
+
 function describeSearchKind(entry) {
   const item = entry.item || {};
   if (entry.type === 'person') {
@@ -421,6 +430,8 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
               <TimelineSearch
                 ranked
                 describeKind={describeSearchKind}
+                inputId="lifelines-search"
+                inputLabel="Search figures, councils and texts"
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}
@@ -486,8 +497,9 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
       {tour.showWelcome && !loading && !error && frontData && (
         <WelcomeDialog
           onStartTour={tour.startTour}
-          onDismiss={tour.dismissWelcome}
+          onDismiss={() => { tour.dismissWelcome(); focusSkipLink(); }}
           title="Welcome to Lifelines"
+          manageFocus
         />
       )}
 
@@ -553,6 +565,8 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
               <TimelineSearch
                 ranked
                 describeKind={describeSearchKind}
+                inputId="lifelines-search"
+                inputLabel="Search figures, councils and texts"
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}
@@ -614,8 +628,9 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
       {tour.showWelcome && !loading && !error && frontData && (
         <WelcomeDialog
           onStartTour={tour.startTour}
-          onDismiss={tour.dismissWelcome}
+          onDismiss={() => { tour.dismissWelcome(); focusSkipLink(); }}
           title="Welcome to Lifelines"
+          manageFocus
         />
       )}
     </>
@@ -673,6 +688,15 @@ function ChurchHistory2App() {
 
   return (
     <div className="app ch2-app">
+      {/* Search is the keyboard route to every figure (DESIGN.md §8): the
+          canvas can't be tabbed through, so the first stop jumps to it. */}
+      <a
+        className="ch2-skip-link"
+        href="#lifelines-search"
+        onClick={(e) => { e.preventDefault(); document.getElementById('lifelines-search')?.focus(); }}
+      >
+        Skip to search
+      </a>
       {hasClerk ? (
         <AuthenticatedApp
           frontData={frontData}

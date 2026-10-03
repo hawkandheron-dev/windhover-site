@@ -53,6 +53,9 @@ export const churchHistory2Config = {
   /** Detail panel: description first, a smaller map after it, sentence-case
    *  headings (DESIGN.md §6). */
   panelLayout: 'compact',
+  /** Opening the panel moves focus to its title; closing returns it
+   *  (DESIGN.md §8). */
+  manageFocus: true,
 
   /**
    * Above this zoom-out level a landmark drops its flag and shows only its

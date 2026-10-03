@@ -58,7 +58,7 @@ const TYPE_LABELS = { person: 'Person', point: 'Event', period: 'Period' };
  * { label: 'Council', shape: 'cross', color }. Without it the generic
  * coloured chips (PERSON / EVENT) remain.
  */
-export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink, ranked = false, describeKind }) {
+export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink, ranked = false, describeKind, inputId, inputLabel = 'Search the timeline' }) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -207,6 +207,8 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
         {homeLink}
         <input
           ref={inputRef}
+          id={inputId}
+          aria-label={inputLabel}
           type="text"
           className="timeline-search-input"
           placeholder="Search timeline…"

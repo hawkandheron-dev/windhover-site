@@ -10,7 +10,7 @@
  *  - Wikipedia/Britannica attribution moved to top ("From Wikipedia")
  */
 
-import { useEffect, useMemo, useCallback, useState } from 'react';
+import { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { formatDateRange, formatYear, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
 import { EditableText } from './EditableText.jsx';
@@ -190,6 +190,31 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     setSaveError(null);
     setEditing(false);
   }, [item?.id]);
+
+  // config.manageFocus (Lifelines): opening moves focus to the title, so a
+  // keyboard or screen-reader reader lands in the panel they just opened;
+  // closing hands it back to whatever had it (usually the search box). Search
+  // is Lifelines' keyboard route to every figure (DESIGN.md §8), so without
+  // this the route ended at a panel the keyboard couldn't reach.
+  const manageFocus = config?.manageFocus === true;
+  const titleRef = useRef(null);
+  // Remember who had focus when the panel opened, and hand it back in the
+  // cleanup, which runs whether the panel closes or is unmounted (Lifelines
+  // unmounts it on close, so an effect keyed on isOpen === false never ran).
+  useEffect(() => {
+    if (!manageFocus || !isOpen) return;
+    const opener = document.activeElement;
+    return () => {
+      if (opener && opener !== document.body && document.contains(opener)) {
+        opener.focus({ preventScroll: true });
+      }
+    };
+  }, [manageFocus, isOpen]);
+  // Each item shown (including one reached from a related-people link) moves
+  // focus to its title, so the reader hears what they opened.
+  useEffect(() => {
+    if (manageFocus && isOpen) titleRef.current?.focus({ preventScroll: true });
+  }, [manageFocus, isOpen, item?.id]);
 
   // Handle escape key
   useEffect(() => {
@@ -534,11 +559,17 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
       onTouchMove={handleModalWheel}
     >
       {!isPanel && <div className="modal-backdrop" />}
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div
+        className="modal-content"
+        onClick={e => e.stopPropagation()}
+        {...(manageFocus && (isPanel
+          ? { role: 'region', 'aria-labelledby': 'timeline-detail-title' }
+          : { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'timeline-detail-title' }))}
+      >
         <button
           className="modal-close"
           onClick={onClose}
-          aria-label="Close modal"
+          aria-label={manageFocus ? 'Close details' : 'Close modal'}
         >
           &times;
         </button>
@@ -551,7 +582,10 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           />
         )}
 
-        <h2 className="modal-title">
+        <h2
+          className="modal-title"
+          {...(manageFocus && { id: 'timeline-detail-title', ref: titleRef, tabIndex: -1 })}
+        >
           {item.isMonarch && (
             <Icon name="crown" size={24} color="#ffd700" className="emperor-crown" />
           )}

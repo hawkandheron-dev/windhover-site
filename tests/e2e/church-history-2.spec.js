@@ -646,5 +646,38 @@ test.describe('Review round fixes (milestone 3)', () => {
     const mapY = (await panel.locator('.historical-map-section').boundingBox()).y;
     expect(descY).toBeLessThan(mapY);
   });
+
+  test('keyboard route: skip link, search, panel, Esc back to search', async ({ page }) => {
+    await loadPage(page, { dismissWelcome: false });
+    // The welcome dialog takes focus on its main button; Tab, Enter skips it.
+    const welcome = page.getByRole('dialog', { name: 'Welcome to Lifelines' });
+    await expect(welcome.getByRole('button', { name: 'Take the Tour' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(welcome.getByRole('button', { name: 'Skip' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(welcome).toHaveCount(0);
+
+    // Focus starts again at the top: the skip link, shown because the
+    // keyboard put it there.
+    const skip = page.getByRole('link', { name: 'Skip to search' });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press('Enter');
+    const search = page.getByLabel('Search figures, councils and texts');
+    await expect(search).toBeFocused();
+
+    // Pick a figure from the results without the mouse.
+    await page.keyboard.type('Athanasius');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const panel = page.getByRole('region', { name: 'Athanasius' });
+    await expect(panel).toBeVisible();
+    await expect(page.locator('#timeline-detail-title')).toBeFocused();
+
+    // Esc closes it and hands focus back to search.
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(search).toBeFocused();
+  });
 });
 
