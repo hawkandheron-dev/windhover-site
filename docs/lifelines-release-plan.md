@@ -1,6 +1,91 @@
 # Lifelines release plan
 
-> **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. **Next: M3** (now includes the legend rework) and M4. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
+> **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
+
+## M3 implementation: UI/UX review round
+
+**Context.** M1 and M2 are merged (M2 is #159). This milestone is the collaborative design pass. The review used the 16 screenshots from the last `npm run shots` run against the real dataset (Lifelines' code equals `main`), plus DESIGN.md. Matthew decided the four design questions on 2026-10-03 (below). Everything is Lifelines-only behind config or props; the other five apps stay identical (CLAUDE.md rule 2).
+
+**Matthew's decisions**
+1. **Legend:** a slim panel that collapses. The colour key goes (century ramp and swatches). Lifelines and its strapline sit at the top; "Windhover / Get a bird's eye view" sits at the bottom. The four show/hide checkboxes stay; councils and texts keep their shape icons. The panel collapses to a small "Key" button when the detail panel opens or the screen is narrow, so it never covers figures.
+2. **Events:** prototype harp strings behind `pointStyle: 'string'`, then show flags vs strings side by side at three zoom levels. Matthew picks.
+3. **Background rulers:** keep the faded default, but fix the ghosting. The control is relabelled "Rulers: Hide / Faint / Clear".
+4. **Keyboard access:** search is the accessible route. Add a skip link to search; Esc closes the panel and returns focus; the panel content is fully keyboard-usable. Recorded as a DESIGN.md §8 decision.
+
+**Findings** (severity on Nielsen's 0–4 scale; evidence is in `.shots/lifelines/`)
+
+| # | Sev | Finding | Evidence | Fix |
+|---|---|---|---|---|
+| 1 | 3 | Legend covers figures at the right edge, and floats mid-canvas when the panel opens; on tablet it covers about a quarter of the view | `default--tablet`, `panel--laptop` | Decision 1 |
+| 2 | 3 | Event cards form a staircase that dominates the view, hides axis labels on laptop, and pushes figures off screen | `default--laptop`, `default--tablet` | Decision 2 |
+| 3 | 3 | Names cut mid-word or overlapped by the next bar: "lement of Rome" under Jesus's label, "Thomas Bradwar", "Sylvester II / Gerbert of A" | `default--desktop`, `default--tablet` | When a label won't fit, show the name without dates; if it still won't fit, end it with "…". Never let a neighbouring bar cover a label (draw labels above bars) |
+| 4 | 3 | Phone: landmark cards overlap each other and cover the figure bars ("Paul's letter to the Galatians" hidden under "Council of Jerusalem") | `default--phone` | Stack the phone cards so they don't collide (reuse `stackPoints`), and make them opaque white with a border |
+| 5 | 2 | Background ghosting: blurred duplicate ruler names behind the crisp labels ("Septimius Severus" twice) | `default--desktop` | Decision 3: don't draw ruler names on the blurred canvas layer when the crisp label layer is on (opt-in config) |
+| 6 | 2 | Depth control "Off / Soft / Front" is jargon | all desktop shots | Decision 3 wording |
+| 7 | 2 | A hover card is left in the top-left corner ("Rome") after the pointer leaves the canvas into the header | `default--desktop`, `panel--desktop` | Clear the hover state when the pointer leaves the canvas |
+| 8 | 2 | Cursor year chip ("250 AD") sits at the very top and overlaps the header | `default--laptop`, `default--tablet` | Place it just below the header (`--ch2-header-height`) |
+| 9 | 2 | Detail panel: a large map dominates an event's panel; an all-caps "HISTORICAL MAP" label; "Related People" names don't look clickable | `panel--desktop`, `panel--laptop` | Smaller map below the description; sentence-case headings; related people as links |
+| 10 | 2 | Search labels results "EVENT" in red, while the legend says "Councils" / "Texts & creeds"; red is the error colour (DESIGN §3) | `search--desktop`, `search--phone` | Label results Council / Text / Person in neutral ink, with the shape icon |
+| 11 | 2 | Phone timeline still uses parchment: beige toolbar and dark brown-grey year gutter (existing known violation) | `default--phone` | White toolbar, light gutter with ink-faded year labels |
+| 12 | 2 | Ruler labels below the axis are about 9–10px and truncated ("Caligula 37–") | `default--desktop` | 11px minimum; the same truncation rule as #3 |
+| 13 | 2 | No keyboard route to figures (canvas) | `keyboard-focus--desktop` | Decision 4 |
+| 14 | 1 | Phone date format "1 AD – 66 AD" vs desktop "1–66" | `default--phone` | Use `formatYearSpan` on phone |
+| 15 | 1 | Search ranks "Athanasian canon" above "Athanasius" | `search--desktop` | Rank people above events on equal matches |
+| — | 0 | Welcome dialog (desktop and phone), the dark-mode parity and the readout are all fine | `first-visit--*`, `default-dark--*` | — |
+
+Error and loading states (raw "Error: …", plain "Loading…") stay in M4 as planned.
+
+**Order of work** (one PR, small commits; render after each)
+1. **Bug fixes (#7, #8, #14, #15):** quick and low-risk.
+2. **Legend rework (decision 1, #1):**
+   - New opt-in props on `TimelineLegend.jsx`: brand order, no ramp, collapsible.
+   - Lifelines config changes in `data/churchHistory2Data.js` (drop the `century-ramp` and swatch rows).
+   - Collapse logic: in `ChurchHistory2App.jsx`, collapse when a panel is open or the width is under 1100px.
+   - Update DESIGN.md §2, §3 and §6, and the e2e spec "legend shows a century ramp…" with the reason.
+3. **Labels and density (#3, #12):**
+   - The label-fitting rule goes in `TimelineOverlay.jsx`, behind config `labelFit: 'truncate'`.
+   - Rulers: change `MonarchLabels.jsx` and its CSS.
+4. **Background (decision 3, #5, #6):**
+   - Suppress the canvas ruler labels in `DepthLayers.jsx` / `rendering.js` behind config.
+   - New labels for the `DEPTH_MODES` in `Timeline.jsx` via config, so the other apps keep theirs.
+5. **Detail panel and search (#9, #10):**
+   - `TimelineModal.jsx` gets an opt-in `panelLayout: 'compact'`.
+   - `TimelineSearch.jsx` gets opt-in type labels.
+6. **Phone (#4, #11), now gated on step 9:** `MobileTimeline.jsx` stacking and white styling, scoped under `.ch2-app`. This runs only if Matthew keeps the vertical phone layout after the step 9 comparison; otherwise it's dropped.
+7. **Keyboard (decision 4, #13):**
+   - Skip link to search; Esc and focus return in the panel.
+   - Add the decision to DESIGN.md §8.
+8. **Harp strings prototype (decision 2):**
+   - Build it behind `pointStyle: 'string'`. It plugs into `TimelineOverlay.renderPointCallouts` and the layout sizes, reusing `yearToPixel` and the canvas hit map (narrow hit box).
+   - The focus set brightens the selected person's strings.
+   - Add a `--compare` option to `scripts/lifelines-shots.mjs` that renders flags vs strings at three zoom levels.
+   - Send Matthew the comparison and stop for his pick before making either the default.
+9. **Horizontal phone prototype** (Matthew's request, 2026-10-03). Phones get the same horizontal timeline as desktop, with the detail opening as a modal instead of the side panel. Done before step 6, since its outcome decides whether step 6 happens.
+   - **How:** a Lifelines config key `mobileLayout: 'horizontal'`. When it's set, `Timeline.jsx` renders `DesktopTimeline` below 768px instead of `MobileTimeline`, with `detailVariant: 'modal'` (that variant already exists). The other apps keep the vertical phone layout.
+   - **Phone-specific work it needs:**
+     - touch drag to pan and pinch to zoom on the canvas. Checked: `DesktopTimeline` has no touch or pointer handlers at all today, so these are new. Use pointer events on the container, feeding the existing `startPan`/`updatePan`/`endPan` and `handleZoom` in `useZoomPan` (anchored on the pinch midpoint). Tap opens items through the existing hit map. This is the bulk of the prototype's cost;
+     - the slim, collapsed legend from step 2;
+     - controls sized for touch (44px), and the year readout;
+     - a smaller label and flag density at phone widths (or harp strings, if chosen in step 8);
+     - the opening view framed on the measured width (the M1 fit), at a span that suits 390px.
+   - **Comparison:** a `--compare-mobile` option in `scripts/lifelines-shots.mjs` renders vertical vs horizontal at 390×844 and 430×932, at the opening view, zoomed in, and with a detail open. Send these to Matthew, then stop for his pick.
+   - **If horizontal wins:** make it the Lifelines default, and update DESIGN.md §6 (the phone layout, and the detail as a modal on phones). The vertical-layout fixes in step 6 are dropped; `MobileTimeline` stays for the other apps.
+
+**Verification**
+- After each step:
+  - Build, then run `npm run shots`, then read the affected PNGs, including dark mode and phone.
+  - Run `ux-review` on the result.
+  - Delete the fixed lines from DESIGN.md "Known violations".
+- Unit and e2e tests pass (with `CHROMIUM_PATH`). New e2e covers:
+  - the legend collapsing when the panel opens
+  - no duplicate ruler names
+  - the hover card cleared on leaving the canvas
+  - Esc closing the panel and returning focus
+  - the skip link
+- The other apps are unchanged: the before/after screenshot diff from M1, run on the 1.0 and Heresies pages.
+- Lint introduces no new findings in the touched files.
+
+---
 
 ## M2 implementation: site root goes straight to Lifelines
 

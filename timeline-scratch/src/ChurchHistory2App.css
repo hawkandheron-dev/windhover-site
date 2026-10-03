@@ -173,3 +173,19 @@
     height: auto;
   }
 }
+
+/* The slim legend (DESIGN.md §6) sits just below the header, and folds to a
+   "Key" button that carries no panel chrome of its own. */
+.ch2-app .timeline-legend--slim {
+  top: calc(var(--ch2-header-height) + 12px);
+  right: 16px;
+}
+
+.ch2-app .timeline-legend--collapsed {
+  width: auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}

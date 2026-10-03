@@ -35,7 +35,9 @@ replaces or why the reader needs it.
 ## 2. Naming and copy
 
 - The product is **Lifelines**. Strapline: **A church history timeline by
-  lifespans**. Publisher mark: **Windhover**.
+  lifespans**. Publisher mark: **Windhover**, with its strapline **Get a
+  bird's eye view**. Lifelines leads (top of the legend); Windhover signs off
+  (foot of the legend).
 - Never show "CH Timeline", "CH Timeline 2.0", "Church History Timeline" or
   "church-history-2" to a reader. Code identifiers and the route keep the old
   names on purpose — renaming the URL needs redirects and is its own decision.
@@ -54,7 +56,7 @@ Colour on the canvas is data, so its meanings are fixed:
 
 | Colour | Means | Rules |
 |---|---|---|
-| **Century ramp** (`CENTURY_COLORS`, `data/churchHistory2Centuries.js`) | *When* a figure lived | Only on figure bars and the legend's ramp strip. Always derived from dates by `colorForLifespan`, never picked per figure. A life spanning centuries is a gradient. Nothing filters by century. Never reuse ramp hues for UI chrome. |
+| **Century ramp** (`CENTURY_COLORS`, `data/churchHistory2Centuries.js`) | *When* a figure lived | Only on figure bars. There is no colour key; the legend does not explain it (owner's decision, M3). Always derived from dates by `colorForLifespan`, never picked per figure. A life spanning centuries is a gradient. Nothing filters by century. Never reuse ramp hues for UI chrome. |
 | **Councils** `#3f7d46` + cross shape | A council | Colour is always paired with its shape — never colour alone. |
 | **Texts & creeds** `#9a7b1f` + book shape | A text | Same: always with the shape. |
 | **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch, background layer | The background layer holds reigns and nothing else. Adding anything to it is a design decision, recorded here first. |
@@ -100,7 +102,7 @@ Every UI change is still checked in the `default-dark` screenshots.
 | Detail panel | Docked right on desktop; a modal below 768px | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
 | Opening view | 1–500 AD, centred, framed on the measured width | The welcome dialog offers the tour on a first visit (remembered under its own key). |
 | Address | Lifelines is the site's front page, `/` | It is the only indexed page. The owner's admin entry is `/?admin`. Lifelines has no link to any other part of the site. |
-| Legend | Floating, top right | Must not hide figures a reader is trying to read; it should collapse or move out of the way when space is tight. |
+| Legend | Floating, top right, just below the header | Slim (`legendLayout: 'slim'`): Lifelines' name, the four show/hide switches (councils and texts with their shapes, reigns with the crown, figures with a neutral bar), Windhover at the foot. No colour key, no section headings. It folds to a "Key" button while the detail panel is open or the timeline is under 1100px wide; a reader's own open/close holds until that changes. |
 | Controls | Bottom left | Zoom, pan, depth (Off / Soft / Front). |
 
 - **One breakpoint for mobile: 768px** (`useMobileDetect`). Lifelines CSS that
@@ -150,16 +152,11 @@ Fix them, or move them to a rule above as accepted exceptions. Delete each line
 when it's fixed. First found 2026-10-03 by rendering the real dataset
 (`npm run shots`); dark mode, the welcome copy, stray colours, button
 contrast, reduced motion, legend checkbox names, the opening view, the zoom
-readout and the phone header covering the toolbar were fixed in milestone 1.
+readout and the phone header covering the toolbar were fixed in milestone 1;
+the stray hover card and the legend covering figures in milestone 3.
 
-- **§6 Legend:** covers figures at the right edge of every desktop view, and
-  floats over the middle of the canvas while the panel is open
-  (`panel--desktop.png`).
 - **§7 Labels:** cut mid-word by neighbouring bars ("Thomas Bradwar",
   "Sylvester II / Gerbert of A"); landmark cards overlap on phone
   (`default--phone.png`).
-- **§6 Hover card:** a landmark's hover card is left behind in the top-left
-  corner when the pointer leaves the canvas upward into the header ("Rome",
-  `panel--desktop.png`, `default-dark--desktop.png`).
 - **§4 Phone toolbar:** the mobile timeline's toolbar is still parchment
   (beige ground, brown rules), not white (`default--phone.png`).

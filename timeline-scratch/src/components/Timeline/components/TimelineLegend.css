@@ -211,3 +211,114 @@
     color: #a09888;
   }
 }
+
+/* ── Slim legend (config.legendLayout = 'slim', Lifelines) ──────────────────
+   Name at the top, four switches, publisher at the foot. Host pages position
+   and colour it; this is only its inner structure. */
+.timeline-legend--slim {
+  width: 232px;
+  max-width: none;
+  padding: 14px 16px 12px;
+}
+
+.legend-slim-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.timeline-legend--slim .legend-site-title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--font-display, 'Cormorant', Georgia, serif);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.timeline-legend--slim .legend-site-subtitle {
+  margin-top: 4px;
+  font-family: var(--font-body, sans-serif);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.legend-collapse {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--color-ink-faded);
+}
+
+.legend-collapse:hover { background: var(--color-parchment-dark); color: var(--color-ink); }
+
+.legend-slim-rows {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.legend-slim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 14px;
+  color: var(--color-ink-light);
+  cursor: pointer;
+}
+
+/* Off rows read as off without dropping below AA: a fainter ink, not opacity. */
+.legend-slim-row.is-off .legend-slim-label { color: var(--color-ink-faded); }
+.legend-slim-row.is-off .legend-slim-mark { opacity: 0.45; }
+
+.legend-slim-bar {
+  /* A lifespan, drawn neutral: the row says "bars are figures", not what
+     their colours mean (the colour key was removed, DESIGN.md §3). */
+  width: 14px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--color-ink-faded);
+}
+
+.legend-slim-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+}
+
+.legend-publisher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.legend-publisher .legend-brand-logo { height: 18px; }
+
+.legend-publisher-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.legend-publisher .legend-brand-title { font-size: 13px; }
+
+.legend-publisher-strapline {
+  font-size: 12px;
+  color: var(--color-ink-faded);
+}

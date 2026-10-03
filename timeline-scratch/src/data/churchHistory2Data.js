@@ -7,12 +7,12 @@
  *   palette — canvas colours, so the shared renderer can draw on white instead
  *             of parchment without the other five apps changing
  *   depth   — how far "back" the background layer sits, and how it comes forward
- *   centuryRamp — the legend strip that replaces per-era filter rows
  *
- * Data comes from churchHistory2Adapter.js; the century swatches come from
- * churchHistory2Centuries.js so the legend and the bars can never disagree.
+ * Data comes from churchHistory2Adapter.js; the bars' century colours come
+ * from churchHistory2Centuries.js. The legend no longer explains them: it is
+ * a slim panel of the four things a reader can switch (legendLayout below).
  */
-import { CENTURY_COLORS, centuryLegendTicks, colorForCentury, ordinal } from './churchHistory2Centuries.js';
+import { CENTURY_COLORS } from './churchHistory2Centuries.js';
 
 /**
  * Back-layer colours. The background is reigns only now — heresiarchs are
@@ -94,28 +94,22 @@ export const churchHistory2Config = {
   },
 
   /**
-   * Centuries are a ramp, not a set of categories: sixteen checkbox rows would
-   * be a worse legend than the nine eras they replace. A strip with a few
-   * labelled ticks says "colour means when" in one glance, and nothing here is
-   * filterable by century.
+   * The legend (DESIGN.md §6): Lifelines' name at the top, the four switches,
+   * and Windhover signing off at the foot. No colour key. It collapses to a
+   * "Key" button while the detail panel is open or the timeline is narrow.
    */
-  centuryRamp: {
-    colors: CENTURY_COLORS,
-    ticks: centuryLegendTicks().map(c => ({ century: c, label: ordinal(c), color: colorForCentury(c) })),
-  },
+  legendLayout: 'slim',
+  legendCollapsible: true,
+  publisherStrapline: "Get a bird's eye view",
 
   legend: [
-    { type: 'heading', id: 'heading-figures', name: 'Figures' },
-    { type: 'century-ramp', id: 'century-ramp', name: 'Coloured by century' },
     { type: 'people', id: 'people', name: 'Church figures', color: CENTURY_COLORS[3], filterKey: 'people' },
 
     // No row for plain events: they are all deactivated, and a checkbox that
     // filters nothing is clutter. Restore this line if they come back.
-    { type: 'heading', id: 'heading-landmarks', name: 'Landmarks' },
     { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross',     filterKey: 'councils' },
     { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',      filterKey: 'documents' },
 
-    { type: 'heading', id: 'heading-background', name: 'Background' },
     { type: 'people', id: 'back-emperors', name: BACK_STYLES.emperors.label, color: BACK_STYLES.emperors.color, filterKey: 'emperors', isMonarch: true },
   ],
 };

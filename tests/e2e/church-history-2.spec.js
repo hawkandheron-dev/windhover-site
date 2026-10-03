@@ -161,27 +161,48 @@ test.describe('CH Timeline 2.0', () => {
     expect(bg).toBe('rgb(255, 255, 255)');
   });
 
-  test('legend shows a century ramp and a short key, not eras or periods', async ({ page }) => {
+  // Changed in milestone 3: the colour key (century ramp, swatches, section
+  // headings) was removed at the owner's direction. The legend is now
+  // Lifelines' name, the four switches, and Windhover at the foot.
+  test('legend leads with Lifelines, lists four switches, and signs off with Windhover', async ({ page }) => {
     await loadPage(page);
+    const legend = page.locator('.timeline-legend--slim');
 
-    // Colour means century now, shown as a ramp rather than sixteen rows.
-    await expect(page.locator('.legend-century-bar')).toHaveCount(1);
-    const ticks = await page.locator('.legend-century-ticks span').allTextContents();
-    expect(ticks[0]).toBe('1st');
-    expect(ticks[ticks.length - 1]).toBe('16th');
+    await expect(legend.locator('.legend-site-title')).toContainText('Lifelines');
+    await expect(legend.locator('.legend-publisher')).toContainText('Windhover');
+    await expect(legend.locator('.legend-publisher')).toContainText("Get a bird's eye view");
+    // Name above the switches, publisher below them.
+    const titleY = (await legend.locator('.legend-site-title').boundingBox()).y;
+    const rowsY = (await legend.locator('.legend-slim-rows').boundingBox()).y;
+    const publisherY = (await legend.locator('.legend-publisher').boundingBox()).y;
+    expect(titleY).toBeLessThan(rowsY);
+    expect(rowsY).toBeLessThan(publisherY);
 
-    const headings = page.locator('.legend-section-heading');
-    expect((await headings.allTextContents()).map(t => t.trim()))
-      .toEqual(['Figures', 'Landmarks', 'Background']);
-
-    const rows = (await page.locator('.legend-item').allTextContents()).map(t => t.trim());
+    const rows = (await legend.locator('.legend-slim-label').allTextContents()).map(t => t.trim());
     expect(rows).toEqual(['Church figures', 'Councils', 'Texts & creeds', 'Emperors & monarchs']);
 
-    // None of the era rows survive, and neither does 1.0's generic "Period".
-    for (const gone of ['The Apostolic Age', 'Early Middle Ages', 'Renaissance & Reformation']) {
-      await expect(page.locator('.legend-item', { hasText: gone })).toHaveCount(0);
-    }
-    await expect(page.locator('.legend-item').filter({ hasText: /^Period$/ })).toHaveCount(0);
+    // No colour key and no eras, ramp or period rows.
+    await expect(page.locator('.legend-century-bar')).toHaveCount(0);
+    await expect(page.locator('.legend-color-box')).toHaveCount(0);
+    await expect(page.locator('.legend-section-heading')).toHaveCount(0);
+    // Each switch is named by its row, so a screen reader hears "Councils".
+    await expect(legend.getByRole('checkbox', { name: 'Councils' })).toBeChecked();
+  });
+
+  test('legend folds to a Key button while the detail panel is open', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator('.timeline-legend--slim .legend-slim-rows')).toBeVisible();
+    const search = page.locator('.timeline-search-input').first();
+    await search.fill('Athanasius');
+    await page.locator('.timeline-search-dropdown [role="option"]').first().click();
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+
+    const key = page.getByRole('button', { name: 'Key' });
+    await expect(key).toBeVisible();
+    await expect(page.locator('.legend-slim-rows')).toHaveCount(0);
+    // The reader can still open it by hand.
+    await key.click();
+    await expect(page.locator('.legend-slim-rows')).toBeVisible();
   });
 
   test('hides heresiarchs, keeps contested figures, drops deactivated rows', async ({ page }) => {
@@ -495,7 +516,7 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     const bg = await tour.evaluate(el => getComputedStyle(el).backgroundColor);
     const [r, g, b] = bg.match(/\d+/g).map(Number);
     expect(Math.min(r, g, b)).toBeGreaterThan(200);
-    const legend = await page.locator('.legend-label').first().evaluate(el => getComputedStyle(el).color);
+    const legend = await page.locator('.legend-slim-label').first().evaluate(el => getComputedStyle(el).color);
     const [lr, lg, lb] = legend.match(/\d+/g).map(Number);
     expect(Math.max(lr, lg, lb)).toBeLessThan(140);
   });

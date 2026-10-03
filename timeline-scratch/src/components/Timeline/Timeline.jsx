@@ -499,6 +499,18 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     onPersonHover?.(type === 'person' ? item?.id ?? null : null);
   }, [mousePos, onPersonHover]);
 
+  // The legend gives way when space is short (config.legendCollapsible): it
+  // folds to a "Key" button while the detail panel is open or the timeline is
+  // narrower than 1100px, so it never sits over the figures being read. A
+  // reader's own open/close wins until that situation changes, e.g. the panel
+  // closes, and then the automatic choice applies again.
+  const legendAutoCollapsed = !!defaultConfig.legendCollapsible
+    && (!!selectedItem || (measured && dimensions.width < 1100));
+  const [legendChoice, setLegendChoice] = useState(null);
+  useEffect(() => { setLegendChoice(null); }, [legendAutoCollapsed]);
+  const legendCollapsed = legendChoice ?? legendAutoCollapsed;
+  const toggleLegend = useCallback(() => setLegendChoice(!legendCollapsed), [legendCollapsed]);
+
   // Leaving the timeline ends any hover as well as any drag. Canvas items only
   // clear their hover on a mousemove over empty canvas, so a pointer that left
   // straight into the header kept the last hover card on screen indefinitely.
@@ -942,6 +954,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
       {!hideLegend && (
         <TimelineLegend
+          collapsed={legendCollapsed}
+          onToggleCollapsed={defaultConfig.legendCollapsible ? toggleLegend : undefined}
           legend={defaultConfig.legend}
           isVisible={true}
           filters={filters}
