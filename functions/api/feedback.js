@@ -76,7 +76,12 @@ export async function onRequest({ request, env }) {
   if (message.length > MAX_MESSAGE) {
     return json(400, { error: `Please keep it under ${MAX_MESSAGE} characters.` });
   }
-  if (!token) return json(400, { error: 'Please complete the challenge.' });
+  // Only demanded when Turnstile is the control — see the gate check below.
+  // With the gate on the client renders no widget here and sends no token, so
+  // insisting on one would refuse every submission.
+  if (!gateEnabled(env) && !token) {
+    return json(400, { error: 'Please complete the challenge.' });
+  }
 
   // The subscriber gate, when it is switched on. Checked before Turnstile so
   // an unsubscribed caller is not made to solve a puzzle only to be refused.
@@ -92,14 +97,33 @@ export async function onRequest({ request, env }) {
     }
   }
 
-  const verdict = await verifyTurnstile(
-    token,
-    TURNSTILE_SECRET_KEY,
-    request.headers.get('CF-Connecting-IP')
-  );
-  if (!verdict.ok) {
-    console.warn('feedback: turnstile rejected', verdict.reason);
-    return json(403, { error: 'Could not verify that you are human. Please try again.' });
+  // Turnstile is required here ONLY when the gate is off.
+  //
+  // With the gate on, this request already carries a signed access token that
+  // could only have been obtained by receiving a six-digit code at a
+  // subscribed address. That is a strictly stronger claim than a captcha's: a
+  // captcha says a human is present, the token says a verified subscriber is.
+  // Asking for both made a returning reader solve a puzzle on every note, for
+  // no gain, and the double prompt is what the gate's own design was meant to
+  // spare them.
+  //
+  // With the gate off there is no token, so Turnstile is the only thing
+  // between a script and this endpoint, and it stays mandatory. Failing that
+  // way round matters: the weaker configuration must not be the one that
+  // drops a control.
+  //
+  // request-code keeps its own Turnstile regardless. It is what makes Resend
+  // send mail, and nothing else guards it.
+  if (!gateEnabled(env)) {
+    const verdict = await verifyTurnstile(
+      token,
+      TURNSTILE_SECRET_KEY,
+      request.headers.get('CF-Connecting-IP')
+    );
+    if (!verdict.ok) {
+      console.warn('feedback: turnstile rejected', verdict.reason);
+      return json(403, { error: 'Could not verify that you are human. Please try again.' });
+    }
   }
 
   // Past the captcha. Insert with the service-role key, pinning every column

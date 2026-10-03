@@ -333,3 +333,74 @@ describe('request-code fails closed on missing configuration', () => {
     expect(warned.join('\n')).toMatch(/invalid-input-secret/);
   });
 });
+
+/**
+ * Which control applies where.
+ *
+ * Turnstile used to run on BOTH the email step and the submit step, so a
+ * returning subscriber solved a puzzle for every note. With the gate on, the
+ * submit request already carries a signed access token obtainable only by
+ * receiving a code at a subscribed address — a stronger claim than "a human
+ * is present" — so the captcha there was dropped.
+ *
+ * The direction of that condition is the whole safety of the change, which is
+ * why it is asserted both ways round here. Inverted, it would drop the ONLY
+ * control on the weaker configuration.
+ */
+describe('Turnstile applies to the submit step only when the gate is off', () => {
+  const tokenFor = async (email = 'member@example.com') =>
+    issueToken(SECRET, await hashEmail(SECRET, email));
+
+  it('accepts a submission with NO Turnstile token when the gate is on', async () => {
+    const w = mockWorld();
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'A note', accessToken: await tokenFor() }), env: ENV });
+
+    expect(res.status).toBe(201);
+    expect(w.calls.some(c => c.url.includes('App_Issues'))).toBe(true);
+  });
+
+  it('does not call siteverify at all when the gate is on', async () => {
+    // Not merely tolerated: the round trip should not happen. A captcha the
+    // client no longer renders must not still be verified server-side, or the
+    // two halves disagree and every submission fails.
+    const w = mockWorld();
+    await submitFeedback({
+      request: post(URL_SUB, { message: 'A note', accessToken: await tokenFor() }), env: ENV });
+
+    expect(w.calls.some(c => c.url.includes('siteverify'))).toBe(false);
+  });
+
+  it('ignores a junk Turnstile token when the gate is on', async () => {
+    // A stale token left over from the email step rides along harmlessly.
+    const w = mockWorld({ turnstileOk: false });
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'A note', token: 'spent', accessToken: await tokenFor() }),
+      env: ENV });
+
+    expect(res.status).toBe(201);
+    expect(w.calls.some(c => c.url.includes('App_Issues'))).toBe(true);
+  });
+
+  it('STILL requires Turnstile on submit when the gate is off', async () => {
+    // The guard against inverting the condition. With no gate there is no
+    // token, so Turnstile is the only thing left and must not be skipped.
+    const { RESEND_API_KEY, FEEDBACK_SIGNING_SECRET, ...ungated } = ENV;
+    const w = mockWorld({ turnstileOk: false });
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'hi', token: 'bad' }), env: ungated });
+
+    expect(res.status).toBe(403);
+    expect(w.calls.some(c => c.url.includes('App_Issues'))).toBe(false);
+  });
+
+  it('request-code keeps its Turnstile either way — it is what sends mail', async () => {
+    // Nothing else guards Resend's quota, so this captcha never comes off.
+    const w = mockWorld({ turnstileOk: false });
+    const res = await requestCode({
+      request: post(URL_REQ, { email: 'member@example.com', token: 'bad' }), env: ENV });
+
+    expect(res.status).toBe(403);
+    expect(w.calls.some(c => c.url.includes('api.resend.com'))).toBe(false);
+  });
+});
