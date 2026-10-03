@@ -11,29 +11,18 @@
  * caller "we couldn't email you" confirms there was something to email.
  * Send failures are logged and swallowed.
  */
-import { gateEnabled, hashEmail, hashCode, generateCode, db, json } from '../../_lib/gate.js';
+import {
+  gateEnabled, hashEmail, hashCode, generateCode, db, json, verifyTurnstile,
+} from '../../_lib/gate.js';
 
 const CODE_TTL_MS = 10 * 60 * 1000;          // ten minutes
 const MAX_CODES_PER_HOUR = 5;                 // per address, not per IP
-const TURNSTILE_VERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
 /** The one response this endpoint ever gives on the happy path. */
 const ACCEPTED = () => json(202, {
   status: 'sent_if_subscribed',
   message: 'If that address is subscribed, a code is on its way.',
 });
-
-async function verifyTurnstile(token, secret, remoteip) {
-  const form = new URLSearchParams({ secret, response: token });
-  if (remoteip) form.set('remoteip', remoteip);
-  const res = await fetch(TURNSTILE_VERIFY, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: form,
-  });
-  if (!res.ok) return false;
-  return Boolean((await res.json()).success);
-}
 
 async function sendCodeEmail(env, email, code) {
   const res = await fetch('https://api.resend.com/emails', {
@@ -76,7 +65,28 @@ export async function onRequest({ request, env }) {
   }
   if (!token) return json(400, { error: 'Please complete the challenge.' });
 
-  if (!await verifyTurnstile(token, env.TURNSTILE_SECRET_KEY, request.headers.get('CF-Connecting-IP'))) {
+  // Checked here as well as in gateEnabled, which deliberately keys only on
+  // the two secrets that decide whether the gate exists at all. Without this,
+  // an absent TURNSTILE_SECRET_KEY reaches the verifier, comes back
+  // missing-input-secret, and the reader is told THEY failed a human check —
+  // blaming a person for a variable nobody set. /api/feedback already fails
+  // closed this way; the two endpoints should not disagree.
+  if (!env.TURNSTILE_SECRET_KEY || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('gate: missing env', {
+      turnstile: Boolean(env.TURNSTILE_SECRET_KEY),
+      url: Boolean(env.SUPABASE_URL),
+      serviceRole: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+    });
+    return json(503, { error: 'Feedback is not configured right now.' });
+  }
+
+  const verdict = await verifyTurnstile(
+    token, env.TURNSTILE_SECRET_KEY, request.headers.get('CF-Connecting-IP'));
+  if (!verdict.ok) {
+    // The reason is the whole point: invalid-input-secret means the secret
+    // does not pair with the site key, timeout-or-duplicate means the token
+    // was stale or already spent. Without it every failure looks the same.
+    console.warn('gate: turnstile rejected', verdict.reason);
     return json(403, { error: 'Could not verify that you are human. Please try again.' });
   }
 

@@ -114,3 +114,44 @@ export const json = (status, body) => new Response(JSON.stringify(body), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
 });
+
+/** Cloudflare's token verification endpoint. */
+const TURNSTILE_VERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+/**
+ * Verify a Turnstile token server-side.
+ *
+ * Returns {ok, reason} rather than a bare boolean, and the reason matters:
+ * Cloudflare says exactly why it refused — invalid-input-secret (the secret
+ * does not pair with the site key), timeout-or-duplicate (the token is stale
+ * or already spent), missing-input-secret (no secret was sent at all) — and
+ * every one of those is a different fix. Discarding it leaves a reader told
+ * they failed a human check and an operator with nothing to go on.
+ *
+ * Lives here because both endpoints need it and the two copies had already
+ * drifted: this one kept the error codes, the other threw them away.
+ */
+export async function verifyTurnstile(token, secret, remoteip) {
+  const form = new URLSearchParams({ secret: secret || '', response: token || '' });
+  // Cloudflare treats remoteip as optional; send it when the edge gave us one.
+  if (remoteip) form.set('remoteip', remoteip);
+
+  let res;
+  try {
+    res = await fetch(TURNSTILE_VERIFY, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: form,
+    });
+  } catch (err) {
+    // A verifier we cannot reach is a failed challenge, never a pass.
+    return { ok: false, reason: `verify-unreachable: ${err?.message || 'fetch failed'}` };
+  }
+
+  if (!res.ok) return { ok: false, reason: `verify-http-${res.status}` };
+
+  const data = await res.json().catch(() => ({}));
+  return data.success
+    ? { ok: true }
+    : { ok: false, reason: (data['error-codes'] || []).join(',') || 'verify-failed' };
+}

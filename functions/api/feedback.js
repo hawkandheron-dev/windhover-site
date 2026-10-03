@@ -16,12 +16,13 @@
  * was accepted and nothing about the database behind it.
  */
 
-import { gateEnabled, verifyToken } from '../_lib/gate.js';
+import {
+  gateEnabled, verifyToken, verifyTurnstile,
+} from '../_lib/gate.js';
 
 const APP_ID = 'ch-timeline-2';
 const MAX_MESSAGE = 4000;
 const MAX_TITLE = 120;
-const TURNSTILE_VERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -37,24 +38,6 @@ function deriveTitle(message) {
   return `${(lastSpace > 40 ? clipped.slice(0, lastSpace) : clipped).trimEnd()}…`;
 }
 
-async function verifyTurnstile(token, secret, remoteip) {
-  const form = new URLSearchParams({ secret, response: token });
-  // Cloudflare treats remoteip as optional; send it when the edge gave us one.
-  if (remoteip) form.set('remoteip', remoteip);
-
-  const res = await fetch(TURNSTILE_VERIFY, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: form,
-  });
-
-  if (!res.ok) return { ok: false, reason: `verify-http-${res.status}` };
-
-  const data = await res.json();
-  return data.success
-    ? { ok: true }
-    : { ok: false, reason: (data['error-codes'] || []).join(',') || 'verify-failed' };
-}
 
 /**
  * One handler, branching on method itself, rather than exporting both

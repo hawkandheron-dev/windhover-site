@@ -274,3 +274,62 @@ describe('crypto helpers', () => {
     expect(timingSafeEqual('abc', 'abcd')).toBe(false);
   });
 });
+
+/**
+ * A misconfigured server must say so, not blame the reader.
+ *
+ * From a real production failure: Turnstile said "Success!" in the browser,
+ * the endpoint answered 403 "Could not verify that you are human", and the
+ * log said nothing. gateEnabled keys only on RESEND_API_KEY and
+ * FEEDBACK_SIGNING_SECRET, so an absent TURNSTILE_SECRET_KEY sailed past it
+ * and reached the verifier, which naturally refused. /api/feedback already
+ * failed closed with 503 in that case; request-code did not, and the two
+ * endpoints disagreeing is what made it hard to read.
+ */
+describe('request-code fails closed on missing configuration', () => {
+  for (const missing of ['TURNSTILE_SECRET_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
+    it(`answers 503, not 403, when ${missing} is unset`, async () => {
+      mockWorld({ subscribers: [] });
+      const env = { ...ENV, [missing]: undefined };
+      const res = await requestCode({ request: post(URL_REQ, { email: 'a@b.com', token: 't' }), env });
+
+      expect(res.status).toBe(503);
+      // 403 would tell a person they failed a human check for a variable
+      // nobody set — the single most misleading answer available.
+      expect(res.status).not.toBe(403);
+      expect((await res.json()).error).toMatch(/not configured/i);
+    });
+  }
+
+  it('names the absent binding in the log, by name only', async () => {
+    mockWorld({ subscribers: [] });
+    const logged = [];
+    console.error.mockImplementation((...a) => logged.push(JSON.stringify(a)));
+
+    await requestCode({
+      request: post(URL_REQ, { email: 'a@b.com', token: 't' }),
+      env: { ...ENV, TURNSTILE_SECRET_KEY: undefined },
+    });
+
+    const line = logged.join('\n');
+    expect(line).toMatch(/missing env/);
+    expect(line).toMatch(/"turnstile":false/);
+    // Never the values themselves.
+    expect(line).not.toContain('service-role');
+    expect(line).not.toContain(SECRET);
+  });
+
+  it('logs why Turnstile refused, so a failure is diagnosable', async () => {
+    // The secret is present but wrong: Cloudflare says invalid-input-secret.
+    global.fetch = vi.fn(async (url) => String(url).includes('siteverify')
+      ? new Response(JSON.stringify({ success: false, 'error-codes': ['invalid-input-secret'] }), { status: 200 })
+      : new Response('{}', { status: 200 }));
+    const warned = [];
+    console.warn.mockImplementation((...a) => warned.push(a.join(' ')));
+
+    const res = await requestCode({ request: post(URL_REQ, { email: 'a@b.com', token: 't' }), env: ENV });
+
+    expect(res.status).toBe(403);
+    expect(warned.join('\n')).toMatch(/invalid-input-secret/);
+  });
+});
