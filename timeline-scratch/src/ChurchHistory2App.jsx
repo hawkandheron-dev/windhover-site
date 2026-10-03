@@ -98,7 +98,14 @@ function LayoutToggle({ value, onChange }) {
  * reader sees nothing and a phone opens no keyboard.
  */
 function focusSkipLink() {
-  requestAnimationFrame(() => document.querySelector('.ch2-skip-link')?.focus({ preventScroll: true }));
+  requestAnimationFrame(() => {
+    // Only if focus is still nowhere (the dialog that had it is gone). A
+    // reader who has already clicked into search keeps their place: taking
+    // focus from them closed the search results under their finger.
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    document.querySelector('.ch2-skip-link')?.focus({ preventScroll: true });
+  });
 }
 
 function describeSearchKind(entry) {

@@ -2,6 +2,105 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M3 round 2: Matthew's feedback on the prototypes (2026-10-03)
+
+**Context.** Matthew tried the M3 branch on his PC and phone.
+- **What he reported:** the page loads slowly, element by element. Tour images paint "bar by bar". Coming out of the tour, the full timeline appears with a jarring jump.
+- **What he picked:**
+  - **Harp strings** win, and should be hoverable and clickable. Their dots should sit on related people.
+  - **Phone:** both layouts work. Vertical is the phone default, horizontal the desktop default, and readers can switch between them.
+  - The **Rulers** control goes.
+  - The **tour** on phones becomes a bottom panel.
+  - The phone's scroll area must clear iOS Safari's address bar.
+  - The legend **subtitle** is no longer italic.
+- **His answers:**
+  - Tour exit: **sweep in**.
+  - Dots for events with no linked person go **in open space**, never on a bar.
+
+What the code shows (two read-only investigations):
+- **Load:**
+  - A blocking `<script src="/api/supabase-config">` holds up React.
+  - maplibre (1 MB raw, 277 KB gzip) loads eagerly, although only modals use it.
+  - Google Fonts load through CSS `@import` chains.
+  - Tour scenes are fetched only after all 10 tables, then linked media after that, so it's a waterfall.
+  - Tour images are full-resolution Wikimedia originals (`Special:FilePath/…` with no `?width=`). That is the "dial-up" effect.
+- **Strings:** the line has `pointer-events: none`, so only the label or the axis dot is a target. The canvas also keeps an invisible 120×20 hit box per point (`TimelineCanvas.jsx:428`).
+- **Links:** points carry `connectedPeople` (from `CH_EventConnections`). 32 of the 60 active points have at least one person, 4 of those links go to monarchs, and the overlay already gets `layout.stackedPeople` with each person's y.
+- **Tour exit:** the data swaps instantly. The canvas already has a 1200ms bar-grow animation driven by `animatingIds`.
+
+### Steps (same branch and PR as M3; render with shots after each)
+
+**A. Load speed**
+1. **Tour images:** in TourPanel, rewrite `Special:FilePath` URLs to `?width=` sized for the panel (×2 for Retina). Add `decoding="async"`, the aspect-ratio box and a fade-in on load. Preload the next scene's image. This is a client-side rewrite in a helper, so no data migration is needed.
+2. **Parallel fetches:** fetch tour scenes in the same `Promise.all` as the tables (`ChurchHistory2App.jsx:670`). Also stop `useTour` fetching linked media twice: wait for the real scene ids.
+3. **Lazy maps:** `React.lazy` for `HistoricalMap` and `YearDetailMap`. maplibre and its CSS then load only when a detail opens, with a fixed-size placeholder meanwhile. This is shared code, but a pure load change with no visible difference, and it helps every app (called out in the commit).
+4. **Config script:** make `/api/supabase-config` non-blocking for Lifelines (`defer`, read the globals at mount). It is only needed for the Supabase URL and the Clerk key, both read after mount.
+5. **Fonts:** replace the CSS `@import` with `<link rel="preconnect">` plus `<link rel="stylesheet">` in `church-history-2.html`. The self-hosting decision stays in M7.
+6. **Measure:** record bundle sizes before and after, and the request waterfall in Playwright (blocked domains stubbed), in the commit. The real-world check is Matthew reloading the preview on his PC.
+
+**B. Legend subtitle:** remove the italic on `.timeline-legend--slim .legend-site-subtitle` (Lifelines only). Update DESIGN.md §2 if it describes it.
+
+**C. Harp strings become the default** (`pointStyle: 'string'` in Lifelines config; remove `?points=strings`)
+1. **Hover and click on the string itself:** give each string an invisible ~9px-wide hit strip (`pointer-events: auto`) over the full height. On hover the line turns gold and goes to 2px, the label lifts, and the cursor is a pointer. Clicking opens the event modal or panel through the existing `onItemClick('point', …)`.
+   - New token `--color-string-hover` (gold) on `.ch2-app`, added to DESIGN.md §3 as a hover-only highlight colour.
+   - Strings sit under bars and labels (z-order), so a person bar still wins where they cross.
+   - Drop the 120px phantom canvas hit box when `pointStyle` is 'string'.
+2. **Dots on related people:**
+   - **Linked events:** for each point, take the `connectedPeople` that are in `layout.stackedPeople` and alive at the point's year. Place the dot on that person's bar at the point's x, choosing the bar nearest the axis if there are several. The other people are linked by the focus highlight as now.
+   - **Monarch links** (4) and **links to people not alive then:** use the open-space rule.
+   - **Unlinked events (open-space rule):** at the point's x, find the vertical gaps between bars in the people band (from `stackedPeople` rows covering that year) and the empty band between the people and the axis. Place the dot in the gap nearest the axis that isn't already holding a dot within 14px; if there's none, fall back to the axis.
+   - Texts below the axis use the same rule against the space below the axis (rulers are faint background, so their area counts as open).
+   - This is a pure function, `placeStringDots(points, stackedPeople, viewport…)` in `utils/stringDots.js`, with unit tests: linked → on the person's row; unlinked → never inside a bar; no two dots within 14px; deterministic.
+   - Dots stay clickable and hoverable, with the same gold hover as their string.
+3. **Labels** stay as they are (greedy per side).
+
+**D. Tour exit sweep**
+- When the tour closes, the figures and points the tour wasn't showing grow in from left to right. Reuse the canvas bar-grow by passing their ids as `animatingIds`/`animatingPointIds`, with a per-item delay based on screen x (a ~900ms wave). Labels and strings fade in behind it (an opacity transition keyed on the same set).
+- The ids are computed in `ChurchHistory2App` from `tour.tourData` against `frontData` at exit.
+- **Reduced motion:** the canvas grow loop checks `prefers-reduced-motion` and draws final frames at once (today it ignores the preference).
+- This also applies to the welcome dialog's "Skip", which goes straight to the full timeline, so it arrives the same way.
+
+**E. Controls and layout toggle**
+1. **Remove the Rulers control:** set `depthControl: false` in the Lifelines config so the control isn't rendered. Lifelines stays on "Faint", and hovering or focusing a figure still lifts their ruler. The other apps keep their depth control.
+2. **Layout toggle "Vertical / Horizontal"** where the Rulers control was: a two-button segmented control using the existing `.depth-controls` styling, renamed.
+   - **Defaults:** vertical below 768px, horizontal above.
+   - **Shown on phones and tablets only** (under 1100px). On a wide desktop, the vertical layout would be a very long single column; Matthew can say if he wants it there too.
+   - **Remembered:** the choice is stored per device in localStorage under its own key.
+   - **Where it lives:** in the vertical layout's toolbar and in the horizontal layout's controls.
+   - This replaces the `?mobile=horizontal` prototype switch.
+3. **iOS address bar:** size the app with `100dvh` (falling back to `100vh`) instead of `100vh`, and add `padding-bottom: env(safe-area-inset-bottom)` to the bottom controls and toolbar. Check at 390×844 with a simulated shorter visual viewport.
+
+**F. Tour as a bottom sheet on phones**
+- Below 768px, `TourPanel` docks to the bottom: full width, at most ~45% of the height, with its own scroll and the image above the text. The timeline keeps the top part and frames the scene's figures within it (pass the sheet height as a bottom inset to the tour's viewport framing).
+- Lifelines-only CSS and config (`tourPanelPlacement: 'bottom-on-phone'`).
+
+**G. DESIGN.md and step 6**
+- **DESIGN.md:**
+  - §3: the gold string hover.
+  - §6:
+    - Controls: no Rulers control; the Layout toggle and its defaults.
+    - Phone layout: vertical by default, switchable.
+    - Tour: a bottom sheet on phones.
+    - Legend: the subtitle is upright.
+  - §7: dot placement.
+  - §8: the tour-exit motion and reduced motion.
+- **Step 6 (vertical phone fixes) comes back**, because vertical stays the phone default:
+  - card stacking (#4);
+  - white toolbar (#11);
+  - the zoom-into-empty-BC bug, found in the comparison.
+
+**Verification**
+- Unit: `stringDots` placement rules, and the image URL rewrite.
+- E2E:
+  - string hover turns gold and click opens the event;
+  - a linked dot sits within its person's bar;
+  - no unlinked dot sits inside a bar (real data);
+  - the layout toggle switches and is remembered;
+  - the Rulers control is absent on Lifelines but present on Heresies;
+  - after skipping the tour, all figures are present within 1.5s.
+- Shots: the default set, plus the tour exit mid-sweep (a new state) and the phone tour sheet. Run `ux-review`. The other-apps diff shows Heresies and 1.0 unchanged apart from lazy maps.
+- Matthew re-checks the load on his PC and the scroll area on an iPhone using the preview.
+
 ## M3 implementation: UI/UX review round
 
 **Context.** M1 and M2 are merged (M2 is #159). This milestone is the collaborative design pass. The review used the 16 screenshots from the last `npm run shots` run against the real dataset (Lifelines' code equals `main`), plus DESIGN.md. Matthew decided the four design questions on 2026-10-03 (below). Everything is Lifelines-only behind config or props; the other five apps stay identical (CLAUDE.md rule 2).

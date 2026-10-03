@@ -63,6 +63,9 @@ const DEFAULT_STATES = [
   // Leaving the tour: the rest of the timeline sweeps in left to right.
   { name: 'tour-exit-mid',  viewports: ['desktop'], welcome: true, act: tourExit(450) },
   { name: 'tour-exit-end',  viewports: ['desktop'], welcome: true, act: tourExit(2200) },
+  // The tour itself, a few scenes in (a bottom sheet on phones).
+  { name: 'tour',           viewports: ['phone', 'desktop'], welcome: true, act: tourScene(2) },
+  { name: 'tour-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(2) },
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
 ];
 
@@ -155,6 +158,14 @@ async function openSearch(page) {
   await input.click();
   await input.fill(PANEL_QUERY.slice(0, 4));
   await page.waitForTimeout(250);
+}
+function tourScene(n) {
+  return async (page) => {
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.waitForTimeout(1200);
+    for (let i = 0; i < n; i++) { await page.locator('[title="Next (→)"]').click(); await page.waitForTimeout(900); }
+    await page.waitForTimeout(600);
+  };
 }
 function tourExit(afterMs) {
   return async (page) => {

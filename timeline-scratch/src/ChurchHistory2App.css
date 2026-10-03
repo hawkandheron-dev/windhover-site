@@ -412,3 +412,56 @@ body:has(.ch2-app) {
 .ch2-app .timeline-legend--slim:not(.timeline-legend--collapsed) {
   width: 256px;
 }
+
+/* The tour on a phone is a bottom sheet (owner's call, M3 round 2). As a
+   side rail it took two-thirds of a 390px screen and left the timeline a
+   sliver. Here the timeline keeps the top and the tour docks underneath,
+   full width, at most 45% of the height, scrolling inside. */
+@media (max-width: 768px) {
+  .ch2-app .ch2-timeline-wrapper {
+    flex-direction: column;
+  }
+
+  .ch2-app .ch2-timeline-wrapper > .timeline-with-panel,
+  .ch2-app .ch2-timeline-wrapper > .timeline-container,
+  .ch2-app .ch2-timeline-wrapper > .mobile-timeline {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .ch2-app .tour-panel {
+    width: 100%;
+    max-height: 45%;
+    flex: 0 0 auto;
+    border-left: none;
+    border-top: 1px solid var(--color-border-hover);
+    box-shadow: 0 -4px 16px var(--color-shadow);
+    border-radius: 12px 12px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation-name: ch2TourSheetIn;
+  }
+
+  .ch2-app .tour-panel-header {
+    padding: 10px 16px 8px;
+  }
+
+  .ch2-app .tour-panel-body {
+    padding: 14px 16px;
+    min-height: 0;
+  }
+
+  .ch2-app .tour-scene-image {
+    aspect-ratio: 16 / 7;
+    margin-bottom: 10px;
+  }
+
+  .ch2-app .tour-panel-footer {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
+@keyframes ch2TourSheetIn {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}

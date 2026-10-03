@@ -287,6 +287,19 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.person-label[style*="timeline-reveal"]')).toHaveCount(0, { timeout: 4000 });
   });
 
+  test('on a phone the tour is a bottom sheet, leaving the timeline the top', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const sheet = await page.locator('.tour-panel').boundingBox();
+    expect(sheet.width).toBeGreaterThanOrEqual(388);
+    expect(sheet.y + sheet.height).toBeGreaterThan(844 - 2);
+    expect(sheet.height).toBeLessThanOrEqual(844 * 0.5);
+    // The timeline keeps the full width above it.
+    const timeline = await page.locator('.mobile-timeline').boundingBox();
+    expect(timeline.width).toBeGreaterThanOrEqual(388);
+    expect(timeline.y + timeline.height).toBeLessThanOrEqual(sheet.y + 1);
+  });
+
   test('the layout toggle switches between the two timelines and is remembered', async ({ page }) => {
     await loadPage(page);
     const toggle = page.getByRole('group', { name: 'Layout' });
@@ -682,6 +695,9 @@ test.describe('Review round fixes (milestone 3)', () => {
     // could still be mounting when it was measured.
     await expect(panel.locator('.modal-description')).toBeVisible();
     const descY = (await panel.locator('.modal-description').boundingBox()).y;
+    // The map loads on first use (LazyMaps): its placeholder is swapped for
+    // the real section, so wait for that before measuring it.
+    await expect(panel.locator('.historical-map-container:not([aria-busy])')).toBeAttached();
     const mapY = (await panel.locator('.historical-map-section').boundingBox()).y;
     expect(descY).toBeLessThan(mapY);
   });
