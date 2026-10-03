@@ -30,8 +30,10 @@ Personal profile/portfolio site with several sub-projects: a static HTML landing
 - **`icons/`** — Icon assets organized by era (`classical/`, `medieval/`, `renaissance/`, `universal/`). Has `index.json` manifest.
 - **`timeline/`** — Older standalone timeline (`app.js`, `events.json`, `index.html`). Likely legacy.
 - **`scripts/`** — Utility scripts (`generate-seed-sql.mjs`).
-- **`docs/`** — Documentation (`data-upload.md`, this file).
-- **`.github/workflows/`** — CI: `supabase-migrations.yml`.
+- **`docs/`** — Documentation (`data-upload.md`, `lifelines-feedback-gate.md`, this file).
+- **`functions/`** — Cloudflare Pages Functions (the feedback gate's endpoints; `_lib/` is excluded from routing by its underscore).
+- **`workers/`** — Standalone Workers deployed separately from Pages (`subscriber-intake/`, an Email Worker).
+- **`.github/workflows/`** — CI: `ci.yml` (unit, build, e2e) and `supabase-migrations.yml`.
 
 ## Run / Build / Deploy
 
