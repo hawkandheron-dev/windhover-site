@@ -46,6 +46,10 @@ export function TimelineCanvas({
   /** 'front' draws the axis and leaves points to the overlay; 'back' draws
    *  point markers itself and renders movement spans as soft washes. */
   layerMode = 'front',
+  /** Skip a ruler's canvas name when crisp HTML labels already name the
+   *  rulers (DepthLayers' MonarchLabels); drawn twice, the blurred copy sat
+   *  offset under the crisp one and read as a rendering fault. */
+  suppressMonarchNames = false,
 }) {
   const canvasRef = useRef(null);
   const hitMapRef = useRef(new Map()); // For click detection
@@ -219,7 +223,7 @@ export function TimelineCanvas({
 
       // The focus layer is the only place a background figure gets a name —
       // blurred labels on the resting layer are noise, not information.
-      if (showLabels) {
+      if (showLabels && !(suppressMonarchNames && person.isMonarch)) {
         drawLayerLabel(ctx, person.name, x + 4, y + boxHeight / 2, color);
       }
 

@@ -262,13 +262,16 @@ test.describe('CH Timeline 2.0', () => {
     });
     expect(await blurPx()).toBeGreaterThan(1);
 
-    await page.locator('.depth-btn', { hasText: 'Front' }).click();
+    // Milestone 3 renamed the modes in the reader's terms (Rulers: Hide /
+    // Faint / Clear, was Off / Soft / Front); what each does is unchanged.
+    const rulers = page.getByRole('group', { name: 'Rulers' });
+    await rulers.getByRole('button', { name: 'Clear' }).click();
     await expect.poll(blurPx, { timeout: 3000 }).toBe(0);
 
-    await page.locator('.depth-btn', { hasText: 'Off' }).click();
+    await rulers.getByRole('button', { name: 'Hide' }).click();
     await expect(wash).toHaveCount(0);
 
-    await page.locator('.depth-btn', { hasText: 'Soft' }).click();
+    await rulers.getByRole('button', { name: 'Faint' }).click();
     await expect(page.locator('.ch2-layer-wash')).toBeVisible();
   });
 

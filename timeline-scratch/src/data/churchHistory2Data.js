@@ -104,6 +104,19 @@ export const churchHistory2Config = {
    * and Windhover signing off at the foot. No colour key. It collapses to a
    * "Key" button while the detail panel is open or the timeline is narrow.
    */
+  /**
+   * The background control in the reader's words: it shows or hides the
+   * rulers' band, faint (the default) or clear.
+   */
+  depthControl: {
+    heading: 'Rulers',
+    modes: {
+      hidden:      { label: 'Hide',  title: 'Hide the emperors and monarchs' },
+      watercolour: { label: 'Faint', title: 'Show the rulers faintly behind the figures (default)' },
+      forward:     { label: 'Clear', title: 'Show the rulers clearly — or hold Alt' },
+    },
+  },
+
   legendLayout: 'slim',
   legendCollapsible: true,
   publisherStrapline: "Get a bird's eye view",

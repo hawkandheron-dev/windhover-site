@@ -1058,19 +1058,31 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
         {/* Depth control — only where there is a background layer to lift */}
         {filteredBackData && onDepthModeChange && (
-          <div className="depth-controls">
-            {DEPTH_MODES.map(mode => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => onDepthModeChange(mode.id)}
-                title={mode.title}
-                className={`btn btn-sm depth-btn${depthMode === mode.id ? ' active' : ''}`}
-                aria-pressed={depthMode === mode.id}
-              >
-                {mode.label}
-              </button>
-            ))}
+          <div
+            className="depth-controls"
+            role="group"
+            aria-label={defaultConfig.depthControl?.heading ?? 'Background layer'}
+          >
+            {defaultConfig.depthControl?.heading && (
+              <span className="depth-controls-heading" aria-hidden="true">{defaultConfig.depthControl.heading}</span>
+            )}
+            {DEPTH_MODES.map(mode => {
+              // config.depthControl renames the modes in the reader's terms
+              // ("Rulers: Hide / Faint / Clear") without changing what they do.
+              const own = defaultConfig.depthControl?.modes?.[mode.id];
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => onDepthModeChange(mode.id)}
+                  title={own?.title ?? mode.title}
+                  className={`btn btn-sm depth-btn${depthMode === mode.id ? ' active' : ''}`}
+                  aria-pressed={depthMode === mode.id}
+                >
+                  {own?.label ?? mode.label}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
