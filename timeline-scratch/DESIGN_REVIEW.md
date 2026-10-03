@@ -1,5 +1,10 @@
 # CH Timeline — Design Review
 
+> **Historical.** This reviews the 1.0 parchment timeline and predates
+> Lifelines (2.0). Some items were fixed, some were made moot by the 2.0
+> rework. The current rules are in `/DESIGN.md`; the review method is the
+> `ux-review` skill.
+
 Comprehensive design review based on app and web design best practices.
 Covers: main view, modals, search, filters, mobile, overlay, and cross-cutting concerns.
 

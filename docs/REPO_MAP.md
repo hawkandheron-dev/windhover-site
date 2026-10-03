@@ -1,5 +1,7 @@
 # Repo Map — profile-site
 
+> Working rules for Claude: `/CLAUDE.md`. Lifelines design rules: `/DESIGN.md`. Skills: `.claude/skills/`.
+
 Personal profile/portfolio site with several sub-projects: a static HTML landing page, an interactive church-history timeline (React + Vite + Supabase), and a pantheon database app (Next.js + Prisma) that can use Supabase in the broader platform and SQLite for local workflows. Hosted on Cloudflare Pages; auth via Clerk; primary shared data via Supabase with optional local SQLite in `pantheon-db`.
 
 ## Zones
@@ -29,7 +31,7 @@ Personal profile/portfolio site with several sub-projects: a static HTML landing
 - **`data/`** — Raw data files (`works.csv`, `Pantheons/` subfolder).
 - **`icons/`** — Icon assets organized by era (`classical/`, `medieval/`, `renaissance/`, `universal/`). Has `index.json` manifest.
 - **`timeline/`** — Older standalone timeline (`app.js`, `events.json`, `index.html`). Likely legacy.
-- **`scripts/`** — Utility scripts (`generate-seed-sql.mjs`).
+- **`scripts/`** — Utility scripts (`generate-seed-sql.mjs`; `lifelines-shots.mjs` renders Lifelines screenshots, `npm run shots`; `lifelines-snapshot.sql` refreshes its data).
 - **`docs/`** — Documentation (`data-upload.md`, `lifelines-feedback-gate.md`, this file).
 - **`functions/`** — Cloudflare Pages Functions (the feedback gate's endpoints; `_lib/` is excluded from routing by its underscore).
 - **`workers/`** — Standalone Workers deployed separately from Pages (`subscriber-intake/`, an Email Worker).
