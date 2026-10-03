@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { filterByDate } from '@openhistoricalmap/maplibre-gl-dates';
 import MaplibreLanguage from '@openhistoricalmap/maplibre-gl-language';
 import { getCoordinatesForLocation } from '../../../data/locationCoordinates.js';
+import { formatYear } from '../utils/dateUtils.js';
 
 const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.json';
 
@@ -167,8 +168,5 @@ function formatYearForOHM(year) {
 }
 
 function formatDisplayYear(year) {
-  if (year <= 0) {
-    return `${Math.abs(year - 1) + 1} BC`;
-  }
-  return `${year} AD`;
+  return formatYear(year);
 }

@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useCallback, useState } from 'react';
-import { formatDateRange, getYear } from '../utils/dateUtils.js';
+import { formatDateRange, formatYear, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
 import { EditableText } from './EditableText.jsx';
 import { sanitizeHtml } from '../../../utils/sanitize.js';
@@ -293,11 +293,11 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     if (itemType !== 'person') return '';
     const startYear = getYear(item?.startDate);
     const endYear = getYear(item?.endDate);
-    const formatYear = (year) => {
+    const searchYear = (year) => {
       if (!year && year !== 0) return '?';
-      return year <= 0 ? Math.abs(year - 1) + 1 : year;
+      return formatYear(year, 'BC/AD', { showAD: false });
     };
-    return `${item?.name} (${formatYear(startYear)}-${formatYear(endYear)})`;
+    return `${item?.name} (${searchYear(startYear)}-${searchYear(endYear)})`;
   }, [itemType, item?.name, item?.startDate, item?.endDate]);
 
   const handleReferenceClick = useCallback((event) => {

@@ -147,6 +147,9 @@ async function shoot(browser, base, tables, state, vpName) {
 
   const skip = page.locator('.welcome-btn-secondary');
   if (!state.welcome && await skip.count()) await skip.click();
+  // Park the pointer over the header so the shot doesn't catch a hover card
+  // left behind by whatever sat under the Skip button.
+  await page.mouse.move(vp.width / 2, 4);
   await page.waitForTimeout(400);
 
   let note = '';

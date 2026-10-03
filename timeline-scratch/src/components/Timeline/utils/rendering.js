@@ -2,6 +2,8 @@
  * Canvas rendering utilities for timeline
  */
 
+import { formatYear } from './dateUtils.js';
+
 /**
  * Draw a rounded rectangle
  * @param {CanvasRenderingContext2D} ctx - Canvas context
@@ -471,7 +473,6 @@ export function drawTimeAxis(ctx, width, height, axisY, viewportStartYear, years
 
   // Calculate first label year (rounded to interval)
   const firstLabelYear = Math.ceil(viewportStartYear / labelInterval) * labelInterval;
-  const [bcLabel, adLabel] = eraLabels === 'BC/AD' ? ['BC', 'AD'] : ['BCE', 'CE'];
 
   // Draw year labels
   for (let year = firstLabelYear; year < viewportStartYear + (width * yearsPerPixel); year += labelInterval) {
@@ -486,9 +487,7 @@ export function drawTimeAxis(ctx, width, height, axisY, viewportStartYear, years
     ctx.stroke();
 
     // Format year label
-    const displayYear = year <= 0 ? Math.abs(year - 1) + 1 : year;
-    const era = year <= 0 ? bcLabel : adLabel;
-    const label = `${displayYear} ${era}`;
+    const label = formatYear(year, eraLabels);
 
     // Draw label
     ctx.fillText(label, x, axisY + 8);

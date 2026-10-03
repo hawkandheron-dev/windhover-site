@@ -20,16 +20,15 @@
 import { memo } from 'react';
 import { Icon } from './Icon.jsx';
 import { yearToPixel } from '../utils/coordinates.js';
-import { getYearRange } from '../utils/dateUtils.js';
+import { getYearRange, formatYear } from '../utils/dateUtils.js';
 import './MonarchLabels.css';
 
 /**
  * Years are stored as signed integers, so Augustus reigns from -27. Printing
  * that raw gives "Augustus -27–14", which reads as a typo rather than a date.
  */
-function formatYear(year) {
-  if (year === null || year === undefined) return '';
-  return year < 0 ? `${Math.abs(year)} BC` : `${year}`;
+function formatBareYear(year) {
+  return formatYear(year, 'BC/AD', { showAD: false });
 }
 
 /** "Constantine 306–337 (b. 272)" — the full form, used as the tooltip. */
@@ -39,7 +38,7 @@ function formatMonarchLabel(person) {
   const parts = [person.name];
   if (reign) parts.push(reign);
   const base = parts.join(' ');
-  return birth !== null ? `${base} (b. ${formatYear(birth)})` : base;
+  return birth !== null ? `${base} (b. ${formatBareYear(birth)})` : base;
 }
 
 function formatReign(person) {
@@ -48,7 +47,7 @@ function formatReign(person) {
   if (start === null || end === null) return '';
   // Only the first year carries the era marker unless they differ, so a reign
   // that straddles the turn reads "27 BC–14" rather than "27 BC–14 AD".
-  return `${formatYear(start)}–${formatYear(end)}`;
+  return `${formatBareYear(start)}–${formatBareYear(end)}`;
 }
 
 /**
@@ -100,7 +99,7 @@ export const MonarchLabels = memo(function MonarchLabels({
             <Icon name="crown" size={11} color="#8a6d3b" />
             <span className="ch2-monarch-name">{person.name}</span>
             {reign && <span className="ch2-monarch-reign">{reign}</span>}
-            {birth !== null && <span className="ch2-monarch-birth">(b. {formatYear(birth)})</span>}
+            {birth !== null && <span className="ch2-monarch-birth">(b. {formatBareYear(birth)})</span>}
           </span>
         );
       })}

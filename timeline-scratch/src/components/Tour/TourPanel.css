@@ -238,8 +238,8 @@
 }
 
 .tour-nav-primary:hover:not(:disabled) {
-  background: #4a6cd6;
-  border-color: #4a6cd6;
+  background: var(--color-action-hover);
+  border-color: var(--color-action-hover);
 }
 
 /* Highlighted connection pill during tour */
@@ -262,7 +262,7 @@
 
 @keyframes tourPillPulse {
   0%, 100% { background-color: var(--color-action); }
-  50% { background-color: #4a6cd6; }
+  50% { background-color: var(--color-action-hover); }
 }
 
 /* Inline highlight badge in tour narrative */

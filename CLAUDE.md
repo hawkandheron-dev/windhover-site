@@ -59,8 +59,9 @@ A UI change is done when:
 | E2E (Playwright) | `npm run test:e2e` (needs `apps/`) | root |
 | Lint | `npm run lint` | `timeline-scratch/` |
 
-In the cloud sandbox, e2e needs the preinstalled browser. If Playwright asks
-to install, check the version mismatch instead of downloading.
+In the cloud sandbox, run e2e as `CHROMIUM_PATH=/opt/pw-browsers/chromium npm
+run test:e2e`; the config and `shots` both honour it. Don't run `playwright
+install`.
 
 ## Environment notes
 

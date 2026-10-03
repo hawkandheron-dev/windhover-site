@@ -10,16 +10,19 @@ import { TOUR_SCENES as FALLBACK_SCENES } from './tourScenes.js';
 import { getYear } from '../Timeline/utils/dateUtils.js';
 import { fetchLinkedMedia } from '../../data/churchHistorySupabaseAdapter.js';
 
-const LS_KEY = 'windhover-timeline-tour-completed';
+const DEFAULT_STORAGE_KEY = 'windhover-timeline-tour-completed';
 
 /**
  * @param {Object}  opts
  * @param {Object}  opts.fullData       – the complete timeline data { people, points, periods }
  * @param {Object}  opts.timelineRef    – React ref to Timeline (imperative handle)
  * @param {Array}   [opts.scenes]       – scene definitions from Supabase (falls back to static)
+ * @param {string}  [opts.storageKey]   – where "tour seen" is remembered. Pages that
+ *   share the default share the memory, so a reader who finished one page's tour
+ *   never sees another's welcome.
  * @returns tour state and controls
  */
-export function useTour({ fullData, timelineRef, scenes }) {
+export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_STORAGE_KEY }) {
   const TOUR_SCENES = scenes ?? FALLBACK_SCENES;
 
   // Compute the set of all person IDs featured in the tour (for build-out filtering)
@@ -53,14 +56,14 @@ export function useTour({ fullData, timelineRef, scenes }) {
   // On mount, check localStorage to decide whether to show the welcome dialog
   useEffect(() => {
     try {
-      if (!localStorage.getItem(LS_KEY)) {
+      if (!localStorage.getItem(storageKey)) {
         setShowWelcome(true);
       }
     } catch {
       // localStorage unavailable — show welcome anyway
       setShowWelcome(true);
     }
-  }, []);
+  }, [storageKey]);
 
   // Fetch linked media for all tour scene IDs on mount
   useEffect(() => {
@@ -463,11 +466,11 @@ export function useTour({ fullData, timelineRef, scenes }) {
     setBuildOutIds(null);
     setTourActive(false);
     try {
-      localStorage.setItem(LS_KEY, 'true');
+      localStorage.setItem(storageKey, 'true');
     } catch {
       // ignore
     }
-  }, [timelineRef, clearStaggerTimer]);
+  }, [timelineRef, clearStaggerTimer, storageKey]);
 
   const skipTour = useCallback(() => {
     timelineRef?.current?.closeModal?.();
@@ -480,20 +483,20 @@ export function useTour({ fullData, timelineRef, scenes }) {
     setTourActive(false);
     setShowWelcome(false);
     try {
-      localStorage.setItem(LS_KEY, 'true');
+      localStorage.setItem(storageKey, 'true');
     } catch {
       // ignore
     }
-  }, [timelineRef, clearStaggerTimer]);
+  }, [timelineRef, clearStaggerTimer, storageKey]);
 
   const dismissWelcome = useCallback(() => {
     setShowWelcome(false);
     try {
-      localStorage.setItem(LS_KEY, 'true');
+      localStorage.setItem(storageKey, 'true');
     } catch {
       // ignore
     }
-  }, []);
+  }, [storageKey]);
 
   return {
     // State

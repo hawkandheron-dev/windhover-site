@@ -64,8 +64,8 @@
 }
 
 .feedback-count { color: var(--color-ink-faded, #6e6e66); }
-.feedback-count-over { color: #b3261e; font-weight: 600; }
-.feedback-error { color: #b3261e; text-align: right; }
+.feedback-count-over { color: var(--color-error); font-weight: 600; }
+.feedback-error { color: var(--color-error); text-align: right; }
 
 .feedback-actions {
   display: flex;

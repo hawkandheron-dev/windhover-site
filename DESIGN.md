@@ -39,8 +39,12 @@ replaces or why the reader needs it.
 - Never show "CH Timeline", "CH Timeline 2.0", "Church History Timeline" or
   "church-history-2" to a reader. Code identifiers and the route keep the old
   names on purpose — renaming the URL needs redirects and is its own decision.
-- Dates read `325 AD`, `27 BC–14`, `5 AD – 65 AD` as the existing formatters
-  produce them. Never hand-format a date in a component; use the date utils.
+- Years are stored historically (−63 is 63 BC). Every year shown to a reader
+  goes through `formatYear` / `formatYearSpan` in
+  `components/Timeline/utils/dateUtils.js`. Never hand-format one in a
+  component: five inline copies once disagreed, and gave Augustus a birth in
+  65 BC.
+- The zoom readout names the years in view ("300–700 AD"), never a ratio.
 - Write plainly and briefly. Sentence case for buttons and headings. No
   exclamation marks, no "Oops".
 
@@ -80,19 +84,21 @@ there and to this table.
 Lifelines **holds its light palette** when the OS is in dark mode; it only
 softens pure white to `#f7f7f5`. This is a decision, not an omission.
 
-So every component rendered on this page must hold light too. Shared
-components carry `prefers-color-scheme: dark` overrides for the parchment apps
-(the `.btn` family in `index.css` among them); on Lifelines those must be
-neutralised under `.ch2-app`. Every UI change is checked in the `default-dark`
-screenshots.
+The mechanism: `church-history-2.html` sets `<html data-theme="light">`, and
+`timeline-scratch/postcss-light-theme-optout.js` rewrites every shared dark
+rule to skip a page that does. Write new dark rules for other apps normally;
+they will not reach Lifelines. A dark-OS style Lifelines *does* want is
+written against `:root[data-theme="light"]` (see `ChurchHistory2App.css`).
+Every UI change is still checked in the `default-dark` screenshots.
 
 ## 6. Layout
 
 | Region | Where | Rules |
 |---|---|---|
-| Header | Top, 56px (`--ch2-header-height`), above everything | Its controls stay reachable at all times, including while the panel is open. |
+| Header | Top, 56px (`--ch2-header-height`), above everything; on phones its own row | Search, Tour, Feedback. No site navigation and no sign-in for readers (the owner adds `?admin` to a clean URL). Its controls stay reachable at all times, including while the panel is open. On phones it must not cover the timeline's toolbar. |
 | Timeline | Fills the rest | Figures and councils above the axis; texts and reigns below. The back layer shares the foreground's horizontal pan exactly; it must stay time-true. |
 | Detail panel | Docked right on desktop; a modal below 768px | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
+| Opening view | 1–500 AD, centred, framed on the measured width | The welcome dialog offers the tour on a first visit (remembered under its own key). |
 | Legend | Floating, top right | Must not hide figures a reader is trying to read; it should collapse or move out of the way when space is tight. |
 | Controls | Bottom left | Zoom, pan, depth (Off / Soft / Front). |
 
@@ -139,34 +145,20 @@ decision rather than a commit.
 
 ## Known violations
 
-Found on 2026-10-03 by rendering the real dataset (`npm run shots`). Fix them,
-or move them to a rule above as accepted exceptions. Delete each line when it's
-fixed.
+Fix them, or move them to a rule above as accepted exceptions. Delete each line
+when it's fixed. First found 2026-10-03 by rendering the real dataset
+(`npm run shots`); dark mode, the welcome copy, stray colours, button
+contrast, reduced motion, legend checkbox names, the opening view, the zoom
+readout and the phone header covering the toolbar were fixed in milestone 1.
 
-- **§5 Dark mode:** header buttons and zoom controls render as dark chips, and
-  the legend's heading and labels fade to near-invisible
-  (`default-dark--desktop.png`).
-- **§2 Copy:** the welcome dialog says "Welcome to the Church History Timeline"
-  (`components/Tour/WelcomeDialog.jsx:7`).
 - **§6 Legend:** covers figures at the right edge of every desktop view, and
   floats over the middle of the canvas while the panel is open
   (`panel--desktop.png`).
 - **§7 Labels:** cut mid-word by neighbouring bars ("Thomas Bradwar",
   "Sylvester II / Gerbert of A"); landmark cards overlap on phone
   (`default--phone.png`).
-- **§3 Colour:** stray action blue `#4a6cd6` in `Tour/TourPanel.css` and
-  `Tour/WelcomeDialog.css`; three different error reds (`#d32f2f` inline in
-  `ChurchHistory2App.jsx`, `#b3261e` in `Feedback/FeedbackButton.css`,
-  `--color-error`).
-- **§8 Contrast:** white text on `--color-action` (`#5b7ee8`) is 3.75:1, under
-  the 4.5:1 that 13–16px button text needs. Affects "Take the Tour" and the
-  feedback dialog's buttons. Darken the token on `.ch2-app` (around `#3f63d0`
-  clears 4.5:1) rather than per button.
-- **§8 Motion:** no `prefers-reduced-motion` handling anywhere in the app.
-- **§8 Access:** the legend's filter checkboxes have no accessible names
-  (zero `aria-` attributes in `TimelineLegend.jsx`).
-- **Unclear — decide:** Lifelines opens centred on AD 1000 (the shared
-  default; it sets no `initialCenterYear`), though its config's 1–500 AD
-  viewport suggests it was meant to open on the early church.
-- **Unclear — decide:** the zoom readout "1.6x" means nothing to a reader
-  (raised in the 1.0 review, still present).
+- **§6 Hover card:** a landmark's hover card is left behind in the top-left
+  corner when the pointer leaves the canvas upward into the header ("Rome",
+  `panel--desktop.png`, `default-dark--desktop.png`).
+- **§4 Phone toolbar:** the mobile timeline's toolbar is still parchment
+  (beige ground, brown rules), not white (`default--phone.png`).

@@ -79,6 +79,9 @@ export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilte
                   <input
                     type="checkbox"
                     checked={isActive}
+                    // The visible name sits in a sibling span, not a <label>,
+                    // so without this a screen reader announces "checkbox".
+                    aria-label={`Show ${item.name}`}
                     onChange={() => handleToggle(item.filterKey)}
                     onClick={(e) => e.stopPropagation()}
                   />
