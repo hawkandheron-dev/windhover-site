@@ -17,12 +17,15 @@
  */
 
 import {
-  gateEnabled, verifyToken, verifyTurnstile,
+  gateEnabled, verifyToken, verifyTurnstile, db,
 } from '../_lib/gate.js';
 
 const APP_ID = 'ch-timeline-2';
 const MAX_MESSAGE = 4000;
 const MAX_TITLE = 120;
+// Per subscriber, per hour. A reader with something to say sends one note, or
+// a few; nobody writes ten an hour in good faith.
+const MAX_NOTES_PER_HOUR = 10;
 
 const json = (status, body) => new Response(JSON.stringify(body), {
   status,
@@ -94,6 +97,39 @@ export async function onRequest({ request, env }) {
     subscriber = await verifyToken(env.FEEDBACK_SIGNING_SECRET, accessToken);
     if (!subscriber) {
       return json(401, { error: 'Please confirm your subscriber email before sending feedback.' });
+    }
+  }
+
+  // A token is reusable for thirty days, so dropping Turnstile below would
+  // otherwise leave nothing bounding how fast one holder can post. Before this
+  // change each submission carried its own single-use challenge; that implicit
+  // limit has to be replaced explicitly, not simply removed. It matters for a
+  // copied or shared token as much as for a subscriber behaving badly — and
+  // 20261001140000_public_feedback.sql named exactly this as the reason RLS
+  // alone was never enough.
+  //
+  // Counted per subscriber rather than per IP: the token is the identity we
+  // actually have, and an IP is both shared and trivially changed.
+  if (subscriber) {
+    const since = new Date(Date.now() - 3600_000).toISOString();
+    const ref = subscriber.emailHash.slice(0, 16);
+    const recent = await db(env,
+      `App_Issues?source=eq.public&created_at=gte.${encodeURIComponent(since)}`
+      + `&page_context->>subscriber_ref=eq.${encodeURIComponent(ref)}&select=issue_id`);
+
+    if (recent.ok) {
+      const rows = await recent.json().catch(() => []);
+      if (rows.length >= MAX_NOTES_PER_HOUR) {
+        console.warn('feedback: per-subscriber rate limit hit', ref);
+        return json(429, {
+          error: 'That is a lot of feedback in one hour. Please try again later.',
+        });
+      }
+    } else {
+      // Fails open, loudly, as the same check in request-code does. A reader
+      // with something to say should not be refused because a count query
+      // blipped, and an attacker has no way to make it blip on demand.
+      console.error('feedback: rate-limit check failed', recent.status);
     }
   }
 

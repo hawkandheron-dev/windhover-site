@@ -30,7 +30,7 @@ const post = (url, body) => new Request(url, {
  * Fakes Turnstile, Resend and PostgREST. `subscribers` is the roll; `codes`
  * is mutable so consumption and attempt counting can be observed.
  */
-function mockWorld({ subscribers = [], codes = [], turnstileOk = true, resendOk = true } = {}) {
+function mockWorld({ subscribers = [], codes = [], notes = [], turnstileOk = true, resendOk = true } = {}) {
   const calls = [];
   global.fetch = vi.fn(async (url, init = {}) => {
     const u = String(url);
@@ -63,10 +63,16 @@ function mockWorld({ subscribers = [], codes = [], turnstileOk = true, resendOk 
       if (u.includes('consumed_at=is.null')) rows = rows.filter(c => !c.consumed_at);
       return new Response(JSON.stringify(rows), { status: 200 });
     }
-    if (u.includes('App_Issues')) return new Response('', { status: 201 });
+    if (u.includes('App_Issues')) {
+      // A GET is the per-subscriber rate-limit count; a POST is the insert.
+      if (init.method === 'POST') { notes.push(JSON.parse(init.body)); return new Response('', { status: 201 }); }
+      const ref = /subscriber_ref=eq\.([a-f0-9]+)/.exec(u)?.[1];
+      const rows = notes.filter(n => !ref || n?.page_context?.subscriber_ref === ref);
+      return new Response(JSON.stringify(rows.map((_, i) => ({ issue_id: i }))), { status: 200 });
+    }
     return new Response('{}', { status: 200 });
   });
-  return { calls, codes };
+  return { calls, codes, notes };
 }
 
 beforeEach(() => {
@@ -225,7 +231,9 @@ describe('the access token on /api/feedback', () => {
       request: post(URL_SUB, { message: 'A note', token: 't', accessToken: token }), env: ENV });
 
     expect(res.status).toBe(201);
-    const insert = w.calls.find(c => c.url.includes('App_Issues'));
+    // The POST specifically: a GET on App_Issues now precedes it, for the
+    // per-subscriber rate-limit count.
+    const insert = w.calls.find(c => c.url.includes('App_Issues') && c.init.method === 'POST');
     const body = JSON.parse(insert.init.body);
     expect(body.page_context.subscriber_ref).toBe(emailHash.slice(0, 16));
     // The address itself must appear nowhere in the row.
@@ -402,5 +410,63 @@ describe('Turnstile applies to the submit step only when the gate is off', () =>
 
     expect(res.status).toBe(403);
     expect(w.calls.some(c => c.url.includes('api.resend.com'))).toBe(false);
+  });
+});
+
+/**
+ * The implicit limit that came off with the captcha.
+ *
+ * Every submission used to carry its own single-use Turnstile token, which
+ * bounded how fast anyone could post. An access token is reusable for thirty
+ * days, so removing the captcha without replacing that bound would let one
+ * holder — a subscriber behaving badly, or anyone with a copied token — flood
+ * App_Issues through the service-role insert. Raised as a P1 in review on
+ * #156, and correctly: the original RLS migration named exactly this as the
+ * reason policies alone were never sufficient.
+ */
+describe('per-subscriber submission cap', () => {
+  const tokenFor = async (email = 'member@example.com') =>
+    issueToken(SECRET, await hashEmail(SECRET, email));
+
+  it('accepts submissions below the cap', async () => {
+    const w = mockWorld();
+    for (let i = 0; i < 3; i++) {
+      const res = await submitFeedback({
+        request: post(URL_SUB, { message: `note ${i}`, accessToken: await tokenFor() }), env: ENV });
+      expect(res.status).toBe(201);
+    }
+    expect(w.notes).toHaveLength(3);
+  });
+
+  it('refuses the eleventh note in an hour, and does not insert it', async () => {
+    const w = mockWorld();
+    for (let i = 0; i < 10; i++) {
+      await submitFeedback({
+        request: post(URL_SUB, { message: `note ${i}`, accessToken: await tokenFor() }), env: ENV });
+    }
+    expect(w.notes).toHaveLength(10);
+
+    const res = await submitFeedback({
+      request: post(URL_SUB, { message: 'eleven', accessToken: await tokenFor() }), env: ENV });
+
+    expect(res.status).toBe(429);
+    // The refusal must actually prevent the write, not merely report one.
+    expect(w.notes).toHaveLength(10);
+  });
+
+  it('counts per subscriber, so one flooder does not block another', async () => {
+    const w = mockWorld();
+    for (let i = 0; i < 10; i++) {
+      await submitFeedback({
+        request: post(URL_SUB, { message: `n${i}`, accessToken: await tokenFor('a@example.com') }), env: ENV });
+    }
+    const blocked = await submitFeedback({
+      request: post(URL_SUB, { message: 'x', accessToken: await tokenFor('a@example.com') }), env: ENV });
+    expect(blocked.status).toBe(429);
+
+    const other = await submitFeedback({
+      request: post(URL_SUB, { message: 'hello', accessToken: await tokenFor('b@example.com') }), env: ENV });
+    expect(other.status).toBe(201);
+    expect(w.notes).toHaveLength(11);
   });
 });
