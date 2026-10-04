@@ -424,6 +424,14 @@
   background: var(--color-border);
 }
 
+/* A figure's years on the vertical timeline: 9px at 75% white measured
+   about 3.4:1 on the bars' blue. 11px solid white is 4.8:1 (WCAG AA) and
+   meets DESIGN's 11px floor. */
+.ch2-app .mobile-person-dates {
+  font-size: 11px;
+  color: #ffffff;
+}
+
 /* iOS Safari: 100vh is the height with its toolbars hidden, so with the
    address bar showing, the bottom of the timeline (controls, the vertical
    timeline's last rows) sat behind it. 100dvh is the height actually

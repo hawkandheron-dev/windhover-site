@@ -212,5 +212,15 @@ when it's fixed. First found 2026-10-03 by rendering the real dataset
 contrast, reduced motion, legend checkbox names, the opening view, the zoom
 readout and the phone header covering the toolbar were fixed in milestone 1;
 the stray hover card, the legend covering figures, the phone's overlapping
-landmark cards and its parchment toolbar in milestone 3.
+landmark cards and its parchment toolbar in milestone 3 (on screens under
+1100px; see the first line below).
+
+- **§6 Legend (desktop, 1100px and wider):** the open Key still covers the
+  top-right figures in the opening view (Patrick, Pope Celestine, Cyril of
+  Alexandria in `default--desktop.png`). It collapses only on narrower screens
+  or while the panel is open. Found by the M3 ux-review.
+- **§6 Controls with the panel open:** the zoom, readout and layout controls
+  float over figure bars at the bottom left (Clement of Rome and Polycarp in
+  `panel--laptop.png`), and at 820px their labels wrap to two lines ("Zoom /
+  in", "50–340 / AD" in `panel--tablet.png`). Found by the M3 ux-review.
 
