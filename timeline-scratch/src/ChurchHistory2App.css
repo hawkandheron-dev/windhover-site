@@ -490,15 +490,15 @@ body:has(.ch2-app) {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Rulers, quiet (M3 round 3): their names in grey, lighter than a figure's,
-   on a near-opaque chip so strings behind them don't show through. */
-.ch2-app .ch2-monarch-label {
-  color: var(--color-ink-faded);
-  font-weight: 500;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-/* Rulers in a strip (?rulers=strip): the controls sit above it. */
+/* Rulers in a strip (rulerStyle: 'strip'): the controls sit above it. */
 .ch2-app .timeline-container--ruler-strip .timeline-controls {
   bottom: calc(var(--ruler-strip-height, 0px) + 12px);
+}
+
+/* The panel's title takes focus when the panel opens, so a keyboard or
+   screen-reader user lands on it (DESIGN §8). It is not a control, so it
+   draws no focus ring: after a click the ring read as a stray selection box
+   round the name (owner's report, round 6). */
+.ch2-app #timeline-detail-title:focus {
+  outline: none;
 }

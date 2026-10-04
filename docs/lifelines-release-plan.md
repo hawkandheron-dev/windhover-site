@@ -2,6 +2,72 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M3 round 6b: strip default, no title ring, apply the migration (2026-10-04)
+
+**Context.** Matthew:
+- "Rulers across the bottom is *excellent*." Make the strip the default.
+- When a person or ruler opens, their name in the panel shows a blue box. That's the focus ring on the panel title, which takes focus for keyboard and screen-reader users (DESIGN §8). Remove the box.
+- "Apply migration for councils and events."
+- The mobile-tour question (skip auto-opening panels on phones) is undecided; leave it.
+
+**State:** done but not yet committed. 47 of 49 Lifelines e2e tests passed on the last run.
+- **Strip as default:** `rulerStyle: 'strip'` in config, and the `?rulers=strip` switch and `--compare rulers` are gone.
+- **Quiet band removed:** its code is gone (depth override, `backClearsFrontPoints`, `utils/rulerDrop.js` and its test, the monarch-label CSS), and `DepthLayers` is back to its pre-round-4 form.
+- **Panel title:** `outline: none` on `#timeline-detail-title:focus`. It isn't a control; focus still lands there.
+- **100 BC:** `minYear: -100`, honoured by `Timeline.jsx` (`defaultConfig.minYear ?? derivedMinYear`) and `MobileTimeline` `dataBounds`.
+- **Tests:** strip default; 100 BC floor; the title has focus but no ring; the panel test checks strip focus (Constantius II).
+
+**Steps**
+1. **Fix the 2 failing e2e tests** (from the last run: "expected > 21, got 1" and "expected < 79.5, got 159"). Find which tests they are and whether the strip changed the geometry they measure, e.g. the controls moved up or the canvas height shrank. Fix the cause, or update the test where the decision changed, saying why. Never loosen a test.
+2. **DONE 2026-10-04.** Applied and verified on the live project:
+   - councils: 7 major, 12 minor (still active, hidden by the app);
+   - events: 16 major (active), 9 minor (inactive);
+   - documents: 43 major.
+   
+   (Original step:) **Apply the migration** `20261004120000_ch_event_significance.sql` to the live project (`fnxsfdbbnjbveyjmwanc`), as Matthew asked. Run the file's SQL as written (`execute_sql`): it's idempotent, so the CI workflow re-running it on merge is a no-op, as with the M1 active flags. Then verify with read-only queries:
+   - `significance` exists;
+   - 7 shown councils, 16 shown events, and texts unchanged;
+   - the two new Constantinople rows are present.
+3. **Run the checks:** full unit + e2e suites, lint compared with HEAD on the touched files, and shots (desktop, laptop, phone, dark). Read the strip and the panel title.
+4. **DESIGN.md:**
+   - §3 Reigns row: the strip is the treatment, the quiet band was retired;
+   - §6: the timeline starts at 100 BC;
+   - §8: the panel title takes focus without a ring.
+5. **Commit and push:** round 6 in one commit, with the reasons and the migration note. Sync `docs/lifelines-release-plan.md`.
+6. **Report to Matthew:**
+   - the migration is applied, with counts;
+   - the tour copy doc is ready (link);
+   - the sign-in explanation (Clerk on `*.pages.dev`, or a Preview env var);
+   - the still-open mobile tour question.
+
+## M3 round 6: start at 100 BC; tour copy doc (2026-10-04)
+
+**Context.** Matthew:
+- "Start the whole thing at 100 BC; we don't need anything earlier... lots of white space."
+- He tried signing in to edit the tour copy and couldn't.
+
+**Findings.**
+- **Pan floor:** the timeline lets readers pan to `data minimum − max(10% of span, 200 years)` (`Timeline.jsx` `derivedMinYear`). The earliest record is Augustus, born 63 BC, so the floor is about 263 BC. The vertical phone timeline pads its own bounds similarly (`MobileTimeline` `dataBounds`).
+- **Tour copy:** Lifelines has no tour-text editing at all, signed in or not, merged or not. The copy lives in `CH_TourScenes`; signing in only unlocks the picture-crop control.
+- **His answer:** edit the copy in a **shared doc** (M6, brought forward).
+- **Sign-in itself:** it probably fails on the preview because of the Clerk setup:
+  - a production Clerk key only accepts its own domain, not `*.pages.dev`;
+  - or Cloudflare Pages has no `CLERK_PUBLISHABLE_KEY` for the Preview environment, since Pages variables are set per environment.
+
+  Neither needs code. I'll explain both and Matthew checks; it only matters for the admin tools (notes, suggestions, picture crop).
+
+**Steps**
+1. **100 BC floor** (Lifelines config `minYear: -100`, opt-in):
+   - `Timeline.jsx`: `minYear = defaultConfig.minYear ?? derivedMinYear`, passed to `useZoomPan` (`clampStart` already enforces it).
+   - `MobileTimeline`: clamp `dataBounds.minYear` to `config.minYear` when set.
+   - The opening view (1–500 AD) is unchanged.
+   - E2E: panning far left stops with the readout starting at 100 BC; phone: scrolling to the top shows 100 BC.
+   - DESIGN §6 "Opening view" row: the timeline starts at 100 BC.
+2. **Tour copy doc:** a Claude Doc with all 20 scenes from `CH_TourScenes`. Each scene gets its number, the title, the narrative and any additional or third narrative lines, plus which figures it shows, for context.
+   - Matthew edits it.
+   - I then write one migration updating `CH_TourScenes` and send screenshots.
+   - The doc's scene ids keep his edits matched to the rows.
+
 ## Added to the plan (2026-10-04): placeholder portraits
 
 **Context.** Matthew: "we need a good placeholder portrait for male and female people who don't have images."

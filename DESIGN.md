@@ -59,7 +59,7 @@ Colour on the canvas is data, so its meanings are fixed:
 | **Century ramp** (`CENTURY_COLORS`, `data/churchHistory2Centuries.js`) | *When* a figure lived | Only on figure bars. There is no colour key; the legend does not explain it (owner's decision, M3). Always derived from dates by `colorForLifespan`, never picked per figure. A life spanning centuries is a gradient. Nothing filters by century. Never reuse ramp hues for UI chrome. |
 | **Councils** `#3f7d46` + cross shape | A council | Colour is always paired with its shape — never colour alone. |
 | **Texts & creeds** `#9a7b1f` + book shape | A text | Same: always with the shape. |
-| **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch, background layer | The background layer holds reigns and nothing else. Adding anything to it is a design decision, recorded here first. It is **crisp and quiet**: pale, unblurred bars with grey names (round 3; the blur read as a fault), starting **below** the texts' label row, never in it (`backClearsFrontPoints`). A figure in focus draws their rulers at full strength. `?rulers=strip` is a prototype that moves them to a strip pinned to the foot of the screen, awaiting the owner's pick. |
+| **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch | Reigns and nothing else. They live in a **strip pinned to the foot of the timeline** (`rulerStyle: 'strip'`, owner's pick, round 6): a thin reign bar and a small name each, at most five rows, panning sideways with the timeline. The controls sit above it. A figure in focus marks their rulers there. (A blurred band, then a quiet band under the axis, were tried and retired.) |
 | **String gold** `--color-string-hover` `#e3a92b` | "This landmark, under the pointer" | Only for a harp string being hovered: its line (3px, over everything), label and dot, and a ring round each linked figure. Never at rest, never for anything else. |
 | **Events** `#b2622c` + dot | A major event | The dot mark, as on its string. Minor events are hidden for now. |
 | **Action blue** `--color-action` | "Do this" | The only colour for a filled primary button. At most **one** filled primary per region (a dialog, the panel, the header). Never decorative, never a background wash. No other blues in UI chrome. |
@@ -104,7 +104,7 @@ Every UI change is still checked in the `default-dark` screenshots.
 | Layout | Vertical (lives run down the page) or horizontal | Phones start **vertical**, wider screens **horizontal**; the reader switches with the Layout toggle and the choice is remembered on that device (`lifelines-layout`). Both are kept working. |
 | Tour | Docked right on desktop; a bottom sheet on phones | On a phone the tour sheet is full width and at most 45% of the height, scrolling inside; the timeline keeps the top. The scene's picture is a 64px thumbnail beside the title, and each scene frames its figures in the vertical timeline (`frameYears`). |
 | Detail panel | Docked right in the horizontal layout on desktop; a modal on phones | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
-| Opening view | 1–500 AD, centred, framed on the measured width (1–160 AD for the horizontal layout on a phone, `config.phone`) | The welcome dialog offers the tour on a first visit (remembered under its own key). |
+| Opening view | 1–500 AD, centred, framed on the measured width (1–160 AD for the horizontal layout on a phone, `config.phone`); nothing before **100 BC** (`minYear`) | The welcome dialog offers the tour on a first visit (remembered under its own key). |
 | Address | Lifelines is the site's front page, `/` | It is the only indexed page. The owner's admin entry is `/?admin`. Lifelines has no link to any other part of the site. |
 | Legend | Floating, top right, just below the header | Slim (`legendLayout: 'slim'`): Lifelines' name, the four show/hide switches (councils and texts with their shapes, reigns with the crown, figures with a neutral bar), Windhover at the foot. No colour key, no section headings. It folds to a "Key" button while the detail panel is open or the timeline is under 1100px wide; a reader's own open/close holds until that changes. |
 | Controls | Bottom left (horizontal); the toolbar (vertical) | Zoom, pan, the year readout and the Layout toggle (Vert / Horiz). No depth control: the rulers stay faint, and lift with a hovered or chosen figure, or while Alt is held. On a phone the arrows go (fingers pan) and the buttons are 44px. |
@@ -162,7 +162,8 @@ Every UI change is still checked in the `default-dark` screenshots.
   - a "Skip to search" link is the first stop;
   - the welcome dialog takes focus on its main button, and returns the
     keyboard to the top of the page when it closes;
-  - choosing a result opens the panel with focus on its title;
+  - choosing a result opens the panel with focus on its title (no focus ring:
+    the title is not a control, and the ring read as a selection box);
   - Esc closes the panel and hands focus back to search.
   A test walks this route. Full arrow-key navigation of the canvas is out of
   scope for launch.

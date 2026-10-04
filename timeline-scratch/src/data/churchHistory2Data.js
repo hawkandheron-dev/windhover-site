@@ -42,6 +42,9 @@ export const churchHistory2Config = {
   // Without these the shared defaults centre on AD 1000.
   initialCenterYear: 250,
   fitInitialViewport: true,
+  /** Nothing before 100 BC: the earliest figures are a generation either
+   *  side of Jesus, and panning further only showed empty canvas (round 6). */
+  minYear: -100,
   /** Overrides on a phone (mobileLayout: 'horizontal'). 500 years in 390px
    *  leaves every name a stub, so a phone opens on the apostolic age. */
   phone: {
@@ -62,8 +65,6 @@ export const churchHistory2Config = {
   /** Landmarks as harp strings: a line through the timeline at each year,
    *  with a dot on a linked figure or in open space (owner's pick, M3). */
   pointStyle: 'string',
-  /** The rulers' band starts under the texts' labels, not in their row. */
-  backClearsFrontPoints: true,
   /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
    *  timeline). */
   touchGestures: true,
@@ -108,19 +109,9 @@ export const churchHistory2Config = {
    * sharpens. That same scale is the vertical foreshortening; there is no
    * separate pan multiplier, which would unregister the two axes.
    */
-  // "Crisp and quiet" (owner's call, M3 round 3): the blur read as a fault
-  // rather than as depth, so the band is pale instead of soft. A figure in
-  // focus draws their rulers at full strength over it.
-  depth: {
-    blur: 0,
-    opacity: 0.42,
-    saturate: 0.35,
-    scale: 1,
-    hoverBlur: 0,
-    hoverOpacity: 0.7,
-    transitionMs: 220,
-  },
-  /** Colour of the rulers' strip (?rulers=strip prototype). */
+  /** The rulers live in a strip pinned to the foot of the timeline, not in a
+   *  band below the axis (owner's pick, M3 round 6: "exactly what we need"). */
+  rulerStyle: 'strip',
   rulerColor: BACK_STYLES.emperors.color,
 
   /**

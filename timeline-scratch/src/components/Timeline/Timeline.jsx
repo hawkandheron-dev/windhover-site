@@ -18,7 +18,6 @@ import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
 import { RulerStrip } from './components/RulerStrip.jsx';
 import { rulerStripHeight } from './utils/rulerStrip.js';
-import { rulerDropFor } from './utils/rulerDrop.js';
 import { getYear, formatYear, formatYearSpan } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import bgManuscript from '../../assets/bg-manuscript.jpg';
@@ -214,7 +213,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     initialYearsPerPixel: initialYearsPerPixel,
     minYearsPerPixel: 0.1,
     maxYearsPerPixel: 50,
-    minYear: derivedMinYear,
+    // A page may set its own floor (Lifelines starts at 100 BC); otherwise
+    // the data's extent plus padding.
+    minYear: defaultConfig.minYear ?? derivedMinYear,
     maxYear: derivedMaxYear
   });
 
@@ -296,14 +297,6 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // not as a list: bare markers rather than labelled callouts, and rows close
   // enough that eighty-five events form a band beside the axis instead of a
   // cascade running off the bottom of the screen.
-  // How far to lower the rulers' band so it starts under the foreground's
-  // landmarks below the axis rather than in their row (Lifelines,
-  // config.backClearsFrontPoints): the texts' labels sat on top of the first
-  // ruler names. Pure layout arithmetic, see utils/rulerDrop.js.
-  const rulerDrop = defaultConfig.backClearsFrontPoints
-    ? rulerDropFor(layout)
-    : 0;
-
   const backLayout = useTimelineLayout(
     filteredBackData || EMPTY_LAYER_DATA,
     defaultConfig.laneOrder,
@@ -1088,7 +1081,6 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           depthMode={depthMode}
           isPreview={isFocusPreview}
           showLabels={showPointLabels}
-          extraYOffset={rulerDrop}
         />
       )}
 
@@ -1136,7 +1128,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         showPointLabels={showPointLabels}
         focusIds={focusIds}
         backObstacles={!rulerStripOn && filteredBackData && depthMode !== 'hidden'
-          ? { layout: backLayout, yOffset: layout.axisY - backLayout.axisY + rulerDrop }
+          ? { layout: backLayout, yOffset: layout.axisY - backLayout.axisY }
           : null}
       />
 

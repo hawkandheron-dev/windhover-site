@@ -43,13 +43,7 @@ const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
 const EMPTY_LAYER = { people: [], points: [], periods: [] };
 
-// Prototype switch, to compare before the owner picks: ?rulers=strip puts the
-// rulers in a strip pinned to the foot (M3 round 3).
-const PROTOTYPE = new URLSearchParams(window.location.search);
-const lifelinesConfig = {
-  ...churchHistory2Config,
-  ...(PROTOTYPE.get('rulers') === 'strip' && { rulerStyle: 'strip' }),
-};
+const lifelinesConfig = churchHistory2Config;
 
 // The reader's layout: the vertical timeline (lives running down the page)
 // or the horizontal one. Phones start vertical and everything wider starts

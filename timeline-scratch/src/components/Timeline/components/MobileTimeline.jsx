@@ -100,8 +100,10 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     if (!isFinite(minYear)) { minYear = 0; maxYear = 200; }
     const span = maxYear - minYear;
     const pad = Math.max(span * 0.05, 10);
-    return { minYear: Math.floor(minYear - pad), maxYear: Math.ceil(maxYear + pad) };
-  }, [data]);
+    // A page may set its own floor (Lifelines starts at 100 BC).
+    const floor = config?.minYear ?? -Infinity;
+    return { minYear: Math.max(Math.floor(minYear - pad), floor), maxYear: Math.ceil(maxYear + pad) };
+  }, [data, config?.minYear]);
 
   const filteredData = useMemo(() => applyFilters(data, filters), [data, filters]);
 

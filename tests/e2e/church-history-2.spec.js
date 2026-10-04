@@ -253,51 +253,16 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.timeline-search-option')).toHaveCount(0);
   });
 
-  // Round 3 (owner's call): the rulers are "crisp and quiet". The blur read
-  // as a fault rather than as depth, so the band is pale and sharp instead,
-  // still inert. The blurred test it replaces asserted the old look.
-  test('the rulers are crisp, pale and non-interactive at rest', async ({ page }) => {
+  // The rulers (round 6, owner's pick): a strip pinned to the foot of the
+  // timeline, not a band under the axis. The blurred band, then the "crisp
+  // and quiet" band and the Rulers control, were each tried and retired; the
+  // tests that asserted them went with them.
+  test('the rulers sit in a strip at the foot, above which the controls sit', async ({ page }) => {
     await loadPage(page);
-
-    const wash = page.locator('.ch2-layer-wash');
-    await expect(wash).toBeVisible();
-
-    const style = await wash.evaluate(el => {
-      const cs = getComputedStyle(el);
-      return { filter: cs.filter, opacity: Number(cs.opacity), pointerEvents: cs.pointerEvents };
-    });
-    expect(style.filter).not.toMatch(/blur\((?!0px)/);
-    expect(style.opacity).toBeLessThan(0.6);
-    expect(style.pointerEvents).toBe('none');
-
-    // Nothing is focused yet, so the full-strength overlay is not mounted.
-    await expect(page.locator('.ch2-layer-focus')).toHaveCount(0);
-  });
-
-  // Milestone 3 renamed the depth control (Rulers: Hide / Faint / Clear);
-  // round 2 removed it from Lifelines (owner's decision): the rulers stay
-  // faint and lift with a figure, or while Alt is held. The other apps keep
-  // their control.
-  test('the rulers stay faint with no depth control, and Alt lifts them', async ({ page }) => {
-    await loadPage(page);
-    await expect(page.locator('.depth-controls')).toHaveCount(0);
-
-    const wash = page.locator('.ch2-layer-wash');
-    // Opacity is transitioned, so poll rather than sampling mid-animation.
-    const opacity = () => wash.evaluate(el => Number(getComputedStyle(el).opacity));
-    expect(await opacity()).toBeLessThan(0.6);
-
-    await page.keyboard.down('Alt');
-    await expect.poll(opacity, { timeout: 3000 }).toBe(1);
-    await page.keyboard.up('Alt');
-    await expect.poll(opacity, { timeout: 3000 }).toBeLessThan(0.6);
-  });
-
-  test('?rulers=strip moves the rulers into a strip at the foot, above the controls', async ({ page }) => {
-    await loadPage(page, { query: '?rulers=strip' });
     const strip = page.locator('.ruler-strip');
     await expect(strip).toBeVisible();
     await expect(page.locator('.ch2-layer-wash')).toHaveCount(0);
+    await expect(page.locator('.depth-controls')).toHaveCount(0);
     await expect(strip.getByText('Constantius II')).toBeVisible();
     const s = await strip.boundingBox();
     const viewport = page.viewportSize();
@@ -307,6 +272,25 @@ test.describe('CH Timeline 2.0', () => {
     // A ruler in the strip opens like any figure.
     await strip.getByText('Constantius II').click();
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Constantius II');
+  });
+
+  test('the timeline starts at 100 BC', async ({ page }) => {
+    await loadPage(page);
+    // Pan far to the left: the view stops at the floor.
+    for (let i = 0; i < 6; i++) await page.locator('[title="Scroll left"]').dispatchEvent('mousedown');
+    await page.locator('.timeline-container').evaluate(el => {
+      for (let i = 0; i < 40; i++) el.dispatchEvent(new WheelEvent('wheel', { deltaX: -400, bubbles: true, cancelable: true }));
+    });
+    await expect(page.locator('.zoom-info')).toHaveText(/^100 BC/);
+  });
+
+  test("the detail panel's title takes focus without a ring", async ({ page }) => {
+    await loadPage(page);
+    await page.locator('.timeline-search-input').first().fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    const title = page.locator('#timeline-detail-title');
+    await expect(title).toBeFocused();
+    await expect(title).toHaveCSS('outline-style', 'none');
   });
 
   test('leaving the tour, the rest of the timeline sweeps in, then settles', async ({ page }) => {
@@ -434,9 +418,9 @@ test.describe('CH Timeline 2.0', () => {
     // The timeline stays live — a centred modal freezes it with this class.
     await expect(page.locator('body.modal-open')).toHaveCount(0);
 
-    // Athanasius's background is now in focus: his opponent, his movement and
-    // the council he is tied to are drawn crisp on the focus layer.
-    await expect(page.locator('.ch2-layer-focus')).toBeVisible();
+    // Athanasius's background is now in focus: the emperor reigning in his
+    // lifetime is marked in the rulers' strip.
+    await expect(page.locator('.ruler-strip-item.is-focus', { hasText: 'Constantius II' })).toBeVisible();
 
     // Closing gives the width back.
     await page.locator('.modal-close').click();
@@ -880,17 +864,6 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(rings).toHaveCount(0);
   });
 
-  test('on real data, the rulers sit below the texts and no names overlap', async ({ page }) => {
-    await loadPage(page, { realData: true });
-    const overlaps = await page.evaluate(() => {
-      const rect = el => el.getBoundingClientRect();
-      const texts = [...document.querySelectorAll('.point-string-label')].map(rect);
-      const rulers = [...document.querySelectorAll('.ch2-monarch-label')].map(rect);
-      return texts.filter(t => rulers.some(r => t.left < r.right && t.right > r.left && t.top < r.bottom && t.bottom > r.top)).length;
-    });
-    expect(overlaps).toBe(0);
-  });
-
   test('strings rest behind the figures; the hovered one comes to the front', async ({ page }) => {
     await loadPage(page);
     // At rest, no string is drawn over the page: they are on the canvas,
@@ -1018,7 +991,9 @@ test.describe('Horizontal phone prototype (milestone 3)', () => {
     await loadPage(page, PHONE);
     const [start] = await span(page);
     const t = await touch(page);
-    await t.drag([300, 700], [100, 700]);
+    // Mid-timeline: the foot of the screen holds the rulers' strip and,
+    // above it, the controls, which keep their own touch.
+    await t.drag([300, 500], [100, 500]);
     // Dragging leftwards brings later years into view.
     await expect.poll(async () => (await span(page))[0]).toBeGreaterThan(start + 20);
     // A drag is not a tap: no year summary or detail opens.
@@ -1041,7 +1016,7 @@ test.describe('Horizontal phone prototype (milestone 3)', () => {
     await loadPage(page, PHONE);
     const [a0, b0] = await span(page);
     const t = await touch(page);
-    await t.pinch([195, 700], 80, 240);
+    await t.pinch([195, 500], 80, 240);
     // Spreading the fingers threefold shows about a third as many years.
     await expect.poll(async () => { const [a, b] = await span(page); return b - a; })
       .toBeLessThan((b0 - a0) / 2);
