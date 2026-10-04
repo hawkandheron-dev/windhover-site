@@ -135,9 +135,9 @@ export const churchHistory2Config = {
   legend: [
     { type: 'people', id: 'people', name: 'Church figures', color: CENTURY_COLORS[3], filterKey: 'people' },
 
-    // No row for plain events: they are all deactivated, and a checkbox that
-    // filters nothing is clutter. Restore this line if they come back.
     { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross', mark: 'diamond', filterKey: 'councils' },
+    // The major events, back since M3 round 5; a dot, like their strings.
+    { type: 'point', id: 'events',    name: POINT_STYLES.events.label,    color: POINT_STYLES.events.color,    shape: 'reference', mark: 'dot', filterKey: 'events' },
     { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',  mark: 'square',  filterKey: 'documents' },
 
     { type: 'people', id: 'back-emperors', name: BACK_STYLES.emperors.label, color: BACK_STYLES.emperors.color, filterKey: 'emperors', isMonarch: true },

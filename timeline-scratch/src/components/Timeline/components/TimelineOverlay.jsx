@@ -403,31 +403,6 @@ export function TimelineOverlay({
       },
     );
 
-    // Roomy view (config.stringDotLabels): a small label beside one dot per
-    // landmark among the people, in the margin under the bars. One label per
-    // landmark, on its dot nearest the axis; a label that would touch a bar,
-    // another label or an axis label is dropped, and its dot still hovers.
-    const dotLabels = new Map();
-    if (config.stringDotLabels) {
-      const taken = [
-        ...bars.map(b => ({ x0: b.x0, x1: b.x1, y0: b.y0, y1: b.y1 - 1 })),
-        ...labelled.filter(l => l.labelRect).map(l => l.labelRect),
-      ];
-      const hits = (r) => taken.some(t => r.x0 < t.x1 && r.x1 > t.x0 && r.y0 < t.y1 && r.y1 > t.y0);
-      for (const { point } of labelled) {
-        const dot = (dots.get(point.id) || []).find(d => d.y < axisScreenY - 6);
-        if (!dot) continue;
-        const w = measureLabel(point.name, '500 11px') + 6;
-        // Under a bar's edge the text hangs below the dot; in open space it
-        // sits level with it.
-        const top = dot.personId ? dot.y + 3 : dot.y - 7;
-        const rect = { x0: dot.x + 7, x1: dot.x + 7 + w, y0: top, y1: top + 14 };
-        if (rect.x1 > width || hits(rect)) continue;
-        taken.push(rect);
-        dotLabels.set(point.id, rect);
-      }
-    }
-
     // Vertical runs at x that no bar covers, for the strings' hit strips.
     const openRuns = (x) => {
       const covered = bars.filter(b => x >= b.x0 - 4 && x <= b.x1 + 4).map(b => [b.y0, b.y1]).sort((a, b) => a[0] - b[0]);
@@ -459,6 +434,18 @@ export function TimelineOverlay({
           {hovered && (
             <div className="point-string is-hover" data-point-id={point.id} />
           )}
+          {/* While a string is hovered, the figures linked to it light up: a
+              gold ring around each one's bar (owner's call, round 5). */}
+          {hovered && bars
+            .filter(b => (point.connectedPeople || []).includes(b.id) && b.x1 > 0 && b.x0 < width)
+            .map(b => (
+              <div
+                key={`ring-${b.id}`}
+                className="point-string-person-ring"
+                data-person-id={b.id}
+                style={{ left: `${b.x0 - 3}px`, top: `${b.y0 - 3}px`, width: `${b.x1 - b.x0 + 6}px`, height: `${b.y1 - b.y0 + 6}px` }}
+              />
+            ))}
           {/* The line itself is a target too: a strip a few pixels wide, but
               only between bars. Over a bar, the bar keeps the pointer. */}
           {openRuns(x).map(([y0, y1]) => (
@@ -474,16 +461,6 @@ export function TimelineOverlay({
               {/* The full name, the same at rest and on hover (owner's call,
                   round 4: a label that changed under the pointer was odd). */}
               <span>{point.name}</span>
-            </div>
-          )}
-          {dotLabels.has(point.id) && (
-            <div
-              className={`point-string-dot-label${hovered ? ' is-hover' : ''}`}
-              style={{ left: `${dotLabels.get(point.id).x0}px`, top: `${dotLabels.get(point.id).y0}px` }}
-              data-point-id={point.id}
-              {...handlers}
-            >
-              {point.name}
             </div>
           )}
           {pointDots.map(dot => (

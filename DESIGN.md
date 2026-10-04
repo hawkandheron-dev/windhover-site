@@ -60,7 +60,8 @@ Colour on the canvas is data, so its meanings are fixed:
 | **Councils** `#3f7d46` + cross shape | A council | Colour is always paired with its shape — never colour alone. |
 | **Texts & creeds** `#9a7b1f` + book shape | A text | Same: always with the shape. |
 | **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch, background layer | The background layer holds reigns and nothing else. Adding anything to it is a design decision, recorded here first. It is **crisp and quiet**: pale, unblurred bars with grey names (round 3; the blur read as a fault), starting **below** the texts' label row, never in it (`backClearsFrontPoints`). A figure in focus draws their rulers at full strength. `?rulers=strip` is a prototype that moves them to a strip pinned to the foot of the screen, awaiting the owner's pick. |
-| **String gold** `--color-string-hover` `#c08f12` | "This landmark, under the pointer" | Only for a harp string being hovered (its line, label and dot together). Never at rest, never for anything else. |
+| **String gold** `--color-string-hover` `#e3a92b` | "This landmark, under the pointer" | Only for a harp string being hovered: its line (3px, over everything), label and dot, and a ring round each linked figure. Never at rest, never for anything else. |
+| **Events** `#b2622c` + dot | A major event | The dot mark, as on its string. Minor events are hidden for now. |
 | **Action blue** `--color-action` | "Do this" | The only colour for a filled primary button. At most **one** filled primary per region (a dialog, the panel, the header). Never decorative, never a background wash. No other blues in UI chrome. |
 | **Error** `--color-error` | Something failed | The only red for error text and states. |
 
@@ -138,7 +139,8 @@ Every UI change is still checked in the `default-dark` screenshots.
   and other dots. A labelled landmark with no living linked figure needs no
   dot.
 - Line, label and dot hover gold together, and each opens the landmark; the
-  hovered string is redrawn **in front** of everything. The line is a target
+  hovered string is redrawn **in front** of everything at three times its
+  width, and every figure linked to it gets a gold ring. The line is a target
   only between bars: over a bar, the bar keeps the pointer.
 - Monarch labels drop past `pointLabelMaxYearsPerPixel` (1.0 year/px).
 - A name label may run into empty space but never into the next bar of its
@@ -182,7 +184,8 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 Manuscript background · parallax grey rules · era brackets and era colours ·
 heresiarchs on the timeline · gold "defender" rings · the wavy connection
-chain · movements · plain (non-council, non-text) events · filtering by
+chain · movements · minor landmarks (non-ecumenical councils and minor
+events, `significance = 'minor'`; major events returned in M3 round 5) · filtering by
 century. Most survive in data behind an `active` flag or in dormant files
 (`churchHistory2Eras.js`), so restoring one is cheap. That is why it needs a
 decision rather than a commit.

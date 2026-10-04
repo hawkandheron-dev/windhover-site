@@ -139,8 +139,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 2px;
-  margin-left: -1px;
+  /* Three times the resting 1px line (+200%, owner's call, round 5). */
+  width: 3px;
+  margin-left: -1.5px;
   pointer-events: none;
   /* Over bars and names: only the hovered or focused string is drawn here. */
   z-index: 12;
@@ -225,26 +226,14 @@
   to { opacity: 1; }
 }
 
-/* Roomy view (config.stringDotLabels): the small label beside a string's dot
-   among the people, in the margin under the bars. Quieter than the axis
-   labels, so the figures stay the main thing. */
-.point-string-dot-label {
+/* A figure linked to the hovered string: a gold ring round their bar, under
+   the string itself (z 12) and over the names. */
+.point-string-person-ring {
   position: absolute;
-  height: 14px;
-  padding: 0 3px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 14px;
-  white-space: nowrap;
-  color: var(--color-ink-light, #555);
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 2px;
-  cursor: pointer;
-  pointer-events: auto;
-  z-index: 3;
-}
-
-.point-string-dot-label.is-hover {
-  color: var(--color-ink, #222);
-  z-index: 13;
+  box-sizing: border-box;
+  border: 2px solid var(--color-string-hover, #c9a227);
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px rgba(227, 169, 43, 0.25);
+  pointer-events: none;
+  z-index: 11;
 }

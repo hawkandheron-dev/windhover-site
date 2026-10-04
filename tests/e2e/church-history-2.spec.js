@@ -86,6 +86,22 @@ const TABLES = {
       event_date: '0313-01-01', end_date: null, location: 'Milan',
       description: 'Test fixture.', reference_url: null, active: false,
     },
+    // Round 5: landmarks are major or minor; minor ones are hidden.
+    {
+      event_id: 'event-fire-rome', name: 'Great Fire of Rome', event_type: 'event',
+      event_date: '0064-01-01', end_date: null, location: 'Rome',
+      description: 'Test fixture.', reference_url: null, active: true, significance: 'major',
+    },
+    {
+      event_id: 'event-hagia-sophia', name: 'Hagia Sophia consecrated', event_type: 'event',
+      event_date: '0360-01-01', end_date: null, location: 'Constantinople',
+      description: 'Test fixture.', reference_url: null, active: true, significance: 'minor',
+    },
+    {
+      event_id: 'council-arles-314', name: 'Council of Arles', event_type: 'council',
+      event_date: '0314-01-01', end_date: null, location: 'Arles',
+      description: 'Test fixture.', reference_url: null, active: true, significance: 'minor',
+    },
   ],
   CH_Movements: [
     {
@@ -174,7 +190,7 @@ test.describe('CH Timeline 2.0', () => {
   // Changed in milestone 3: the colour key (century ramp, swatches, section
   // headings) was removed at the owner's direction. The legend is now
   // Lifelines' name, the four switches, and Windhover at the foot.
-  test('legend leads with Lifelines, lists four switches, and signs off with Windhover', async ({ page }) => {
+  test('legend leads with Lifelines, lists five switches, and signs off with Windhover', async ({ page }) => {
     await loadPage(page);
     const legend = page.locator('.timeline-legend--slim');
 
@@ -189,7 +205,8 @@ test.describe('CH Timeline 2.0', () => {
     expect(rowsY).toBeLessThan(publisherY);
 
     const rows = (await legend.locator('.legend-slim-label').allTextContents()).map(t => t.trim());
-    expect(rows).toEqual(['Church figures', 'Councils', 'Texts & creeds', 'Emperors & monarchs']);
+    // Round 5 brought the major events back, with their own switch.
+    expect(rows).toEqual(['Church figures', 'Councils', 'Events', 'Texts & creeds', 'Emperors & monarchs']);
 
     // No colour key and no eras, ramp or period rows.
     await expect(page.locator('.legend-century-bar')).toHaveCount(0);
@@ -814,17 +831,34 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(page.locator('.legend-slim-rows .string-mark--square')).toHaveCount(1);
   });
 
-  test('?density=roomy opens a margin under each figure where dots carry labels', async ({ page }) => {
-    await loadPage(page, { query: '?density=roomy' });
-    const label = page.locator('.point-string-dot-label[data-point-id="council-nicaea"]');
-    await expect(label).toHaveText('Council of Nicaea');
-    // In the margin, overlapping no figure's name.
-    const l = await label.boundingBox();
-    const names = await page.locator('.person-label').evaluateAll(els => els.map(e => e.getBoundingClientRect().toJSON()));
-    expect(names.some(n => l.x < n.right && l.x + l.width > n.left && l.y < n.bottom && l.y + l.height > n.top)).toBe(false);
-    // Compact (the default) has no labels among the figures.
+  test('major events show with a dot; minor events and councils are hidden', async ({ page }) => {
     await loadPage(page);
-    await expect(page.locator('.point-string-dot-label')).toHaveCount(0);
+    const fire = page.locator('.point-string-label', { hasText: 'Great Fire of Rome' });
+    await expect(fire).toBeVisible();
+    await expect(fire.locator('.string-mark--dot')).toHaveCount(1);
+    await expect(page.locator('.point-string-label', { hasText: 'Hagia Sophia' })).toHaveCount(0);
+    await expect(page.locator('.point-string-label', { hasText: 'Council of Arles' })).toHaveCount(0);
+    // Minor landmarks aren't searchable either.
+    await page.locator('.timeline-search-input').first().fill('Arles');
+    await expect(page.locator('.timeline-search-option', { hasText: 'Council of Arles' })).toHaveCount(0);
+    await page.locator('.timeline-search-input').first().fill('');
+    // The Key's Events row switches them.
+    await page.getByRole('checkbox', { name: 'Events' }).click();
+    await expect(fire).toHaveCount(0);
+  });
+
+  test('hovering a string lights up the people linked to it', async ({ page }) => {
+    await loadPage(page);
+    const hit = page.locator('.point-string-hit[data-point-id="council-nicaea"]').last();
+    await hit.hover();
+    const line = page.locator('.point-string[data-point-id="council-nicaea"]');
+    await expect(line).toHaveCSS('width', '3px');
+    await expect(line).toHaveCSS('background-color', 'rgb(227, 169, 43)');
+    const rings = page.locator('.point-string-person-ring');
+    await expect(rings).toHaveCount(2);
+    expect((await rings.evaluateAll(els => els.map(e => e.dataset.personId))).sort()).toEqual(['athanasius', 'eusebius']);
+    await page.mouse.move(5, 5);
+    await expect(rings).toHaveCount(0);
   });
 
   test('on real data, the rulers sit below the texts and no names overlap', async ({ page }) => {
@@ -857,7 +891,7 @@ test.describe('Review round fixes (milestone 3)', () => {
     const line = page.locator('.point-string[data-point-id="council-nicaea"]');
     await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().hover();
     await expect(line).toHaveClass(/is-hover/);
-    await expect(line).toHaveCSS('background-color', 'rgb(192, 143, 18)');
+    await expect(line).toHaveCSS('background-color', 'rgb(227, 169, 43)');
     await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().click();
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
   });
