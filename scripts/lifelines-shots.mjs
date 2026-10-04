@@ -65,6 +65,7 @@ const DEFAULT_STATES = [
   { name: 'tour-exit-end',  viewports: ['desktop'], welcome: true, act: tourExit(2200) },
   // The tour itself, a few scenes in (a bottom sheet on phones).
   { name: 'tour',           viewports: ['phone', 'desktop'], welcome: true, act: tourScene(2) },
+  { name: 'tour-later',     viewports: ['phone'], welcome: true, act: tourScene(6) },
   { name: 'tour-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(2) },
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
 ];
@@ -153,6 +154,14 @@ function fontCss(base) {
 function loadTables() {
   const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/e2e/data/lifelines-snapshot.json'), 'utf8'));
   delete snap._meta;
+  // Tour pictures come from CH_LinkedMedia, which the snapshot doesn't carry,
+  // and from Wikimedia, which the sandbox can't reach: give every scene a
+  // stand-in so the tour panel's picture layout can be seen at all.
+  snap.CH_LinkedMedia = (snap.CH_TourScenes || []).map((scene, i) => ({
+    media_id: `stand-in-${i}`, entity_type: 'tour_scene', entity_id: scene.scene_id,
+    media_url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Stand-in.jpg',
+    alt_text: 'Stand-in picture', attribution: 'Stand-in (screenshots only)', sort_order: 0,
+  }));
   return snap;
 }
 
@@ -214,6 +223,10 @@ async function shoot(browser, base, tables, state, vpName) {
   // the catch-all abort goes in before the specific mocks.
   await page.route(u => !u.host.startsWith('localhost') && !u.host.startsWith('127.0.0.1'), r => r.abort());
   await page.route('**/fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: fontCss(base) }));
+  await page.route('**/commons.wikimedia.org/**', r => r.fulfill({
+    status: 200, contentType: 'image/jpeg',
+    body: fs.readFileSync(path.join(ROOT, 'resources/Bodleian-Library-MS-Laud-Misc-388_00001_fol-016v.jpg')),
+  }));
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
   await installSupabaseTableMock(page, tables);

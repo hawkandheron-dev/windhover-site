@@ -4,7 +4,7 @@
  * Each person gets a fixed-width column so bars never overlap or truncate
  */
 
-import { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { getYear, getYearRange, formatYear, formatYearSpan } from '../utils/dateUtils.js';
 import { getYearLabelInterval } from '../utils/coordinates.js';
 import { Icon, ShapeIcon } from './Icon.jsx';
@@ -248,11 +248,40 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
   }, []);
 
   // Expose search methods to parent via ref
+  // Tour framing: bring a span of years into view. The tour's framing drove
+  // only the horizontal timeline's viewport, so on a phone every scene stayed
+  // wherever the reader last scrolled ("15 BC – 30 AD" for scene after
+  // scene). The span is fitted to the visible height within the zoom limits;
+  // if it still won't fit, the latest years stay in view, since that is where
+  // a scene's new figures are. A request lapses after a second so a later
+  // zoom by the reader isn't pulled back to it.
+  const [frameRequest, setFrameRequest] = useState(null);
+  const frameYears = useCallback((minYear, maxYear) => {
+    const el = scrollRef.current;
+    if (!el || !(maxYear > minYear)) return;
+    const fit = (el.clientHeight * 0.9) / (maxYear - minYear);
+    setPixelsPerYear(Math.min(MAX_PIXELS_PER_YEAR, Math.max(MIN_PIXELS_PER_YEAR, fit)));
+    setFrameRequest({ minYear, maxYear, at: Date.now() });
+  }, []);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !frameRequest || Date.now() - frameRequest.at > 1000) return;
+    const { minYear, maxYear } = frameRequest;
+    const height = el.clientHeight;
+    const spanPx = (maxYear - minYear) * pixelsPerYear;
+    const top = spanPx <= height
+      ? yearToY(minYear) - (height - spanPx) / 2
+      : yearToY(maxYear) - height + 24;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
+  }, [frameRequest, yearToY, pixelsPerYear]);
+
   useImperativeHandle(ref, () => ({
     selectItem: handleSearchSelect,
     highlight: handleSearchHighlight,
     clearHighlight: handleSearchClearHighlight,
-  }), [handleSearchSelect, handleSearchHighlight, handleSearchClearHighlight]);
+    frameYears,
+  }), [handleSearchSelect, handleSearchHighlight, handleSearchClearHighlight, frameYears]);
 
   // Compute highlighted item IDs
   const highlightedItemIds = useMemo(() => {

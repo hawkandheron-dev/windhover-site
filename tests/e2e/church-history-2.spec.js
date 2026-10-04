@@ -368,6 +368,25 @@ test.describe('CH Timeline 2.0', () => {
     expect(timeline.y + timeline.height).toBeLessThanOrEqual(sheet.y + 1);
   });
 
+  test('on a phone, each tour scene frames its figures in the vertical timeline', async ({ page }) => {
+    // The tour's framing only drove the horizontal timeline, so on a phone
+    // every scene stayed wherever the reader had last scrolled (round 5).
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.locator('[title="Next (→)"]').click();
+    // Scene two: Athanasius and Gregory of Nyssa, whole, inside the visible
+    // part of the timeline (above the tour sheet).
+    await expect.poll(() => page.evaluate(() => {
+      const view = document.querySelector('.mobile-timeline-scroll').getBoundingClientRect();
+      const bar = (name) => [...document.querySelectorAll('.mobile-person-name')]
+        .find(el => el.textContent === name)?.closest('.mobile-person-lane')?.getBoundingClientRect();
+      return ['Athanasius', 'Gregory of Nyssa'].every(name => {
+        const b = bar(name);
+        return b && b.top >= view.top - 1 && b.bottom <= view.bottom + 1;
+      });
+    }), { timeout: 3000 }).toBe(true);
+  });
+
   test('the layout toggle switches between the two timelines and is remembered', async ({ page }) => {
     await loadPage(page);
     const toggle = page.getByRole('group', { name: 'Layout' });

@@ -111,6 +111,11 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
     const framedMax = maxYear + padding;
 
     const ref = timelineRef.current;
+    // The vertical (phone) timeline frames by years itself.
+    if (ref?.frameYears) {
+      ref.frameYears(framedMin, framedMax, { animate });
+      return;
+    }
     const info = ref.getViewportInfo?.();
     if (!info) return;
 

@@ -450,9 +450,33 @@ body:has(.ch2-app) {
     min-height: 0;
   }
 
+  /* The picture shrinks to a thumbnail beside the title (owner's call,
+     round 5): at full width it took most of the sheet and pushed the words
+     below the fold. Its credit can't be read at this size; per-image credit
+     lines are part of M7 (licensing). */
   .ch2-app .tour-scene-image {
-    aspect-ratio: 16 / 7;
-    margin-bottom: 10px;
+    float: left;
+    width: 64px;
+    height: 64px;
+    aspect-ratio: 1;
+    margin: 0 12px 4px 0;
+    border-radius: 6px;
+  }
+
+  .ch2-app .tour-scene-image .tour-image-attribution {
+    display: none;
+  }
+
+  /* Beside a thumbnail, the title centres on it. */
+  .ch2-app .tour-scene-image + .tour-scene-title {
+    min-height: 64px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .ch2-app .tour-scene-narrative {
+    clear: left;
   }
 
   .ch2-app .tour-panel-footer {
