@@ -382,6 +382,48 @@
   }
 }
 
+/* The vertical timeline on white (DESIGN §4): a white toolbar and a light
+   year gutter with ink years, in place of the parchment bar and the dark
+   brown-grey gutter it was drawn with. */
+.ch2-app .mobile-timeline-toolbar,
+.ch2-app .mobile-filter-drawer {
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom-color: var(--color-border);
+}
+
+.ch2-app .mobile-toolbar-btn {
+  background: #ffffff;
+  border-color: var(--color-border-hover);
+  color: var(--color-ink-light);
+}
+
+.ch2-app .mobile-toolbar-btn:active {
+  background: var(--color-parchment-dark);
+}
+
+.ch2-app .mobile-year-gutter {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: none;
+}
+
+.ch2-app .mobile-axis-line {
+  width: 1px;
+  background: var(--color-border-hover);
+}
+
+.ch2-app .mobile-year-label {
+  color: var(--color-ink-faded);
+  font-weight: 600;
+}
+
+.ch2-app .mobile-year-tick {
+  background: var(--color-border-hover);
+}
+
+.ch2-app .mobile-gridline {
+  background: var(--color-border);
+}
+
 /* iOS Safari: 100vh is the height with its toolbars hidden, so with the
    address bar showing, the bottom of the timeline (controls, the vertical
    timeline's last rows) sat behind it. 100dvh is the height actually

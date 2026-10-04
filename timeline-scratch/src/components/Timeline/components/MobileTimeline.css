@@ -287,6 +287,66 @@
   color: var(--color-ink-faded);
 }
 
+/* ── Harp strings (config.pointStyle === 'string') ──
+   A thin line at the landmark's year, behind the bars (z 2 < lanes' 4); its
+   label in a column of its own beside the axis; a mark on each linked bar. */
+.mobile-string-line {
+  position: absolute;
+  height: 1px;
+  background: var(--string-color);
+  opacity: 0.35;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.mobile-string-label {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  text-align: right;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mobile-string-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 14px;
+  color: var(--color-ink-light);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+/* The mark on the string, at the label column's inner edge. A 21px target
+   around a 9px mark: padding, not size, so the mark stays the same
+   everywhere. */
+.mobile-string-mark,
+.mobile-string-dot {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  transform: translateY(-50%);
+  padding: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mobile-string-mark {
+  padding: 6px;
+}
+
 /* ── Year gutter (z-index 10, dark overlay, sticky left) ── */
 /* Sits IN FRONT of lanes and points to mask content scrolling behind it */
 .mobile-year-gutter {

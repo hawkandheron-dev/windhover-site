@@ -11,6 +11,9 @@ import { Icon, ShapeIcon } from './Icon.jsx';
 import { TimelineModal } from './TimelineModal.jsx';
 import { YearSummaryModal } from './YearSummaryModal.jsx';
 import { applyFilters, buildInitialFilters } from '../utils/filters.js';
+import { StringMark } from './StringMark.jsx';
+import { markForPoint } from '../utils/stringMark.js';
+import { placeVerticalLabels } from '../utils/verticalStrings.js';
 import './MobileTimeline.css';
 
 const DEFAULT_PIXELS_PER_YEAR = 8;
@@ -19,6 +22,10 @@ const MAX_PIXELS_PER_YEAR = 40;
 const LANE_WIDTH = 100;
 const LANE_GAP = 4;
 const GUTTER_WIDTH = 60;
+// Harp strings (config.pointStyle === 'string'): the landmarks' labels get a
+// column of their own between the year axis and the lanes, so they never sit
+// on a figure's bar.
+const STRING_LABEL_COLUMN = 116;
 
 /** Lighten a hex color for readability on dark backgrounds */
 function lightenColor(hex, floor = 160) {
@@ -106,6 +113,10 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
   }, [data, config?.minYear]);
 
   const filteredData = useMemo(() => applyFilters(data, filters), [data, filters]);
+  const stringStyle = defaultConfig.pointStyle === 'string';
+  // No landmarks on screen (early tour scenes, or all filtered out): no column.
+  const labelColumn = stringStyle && filteredData.points.length ? STRING_LABEL_COLUMN : 0;
+  const lanesLeft = GUTTER_WIDTH + labelColumn;
 
   const itemIndex = useMemo(() => {
     const map = new Map();
@@ -161,14 +172,35 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Zooming keeps a year where it is on screen: the middle for the buttons,
+  // the point between the fingers for a pinch. Without this the scroll offset
+  // stayed put in pixels, so zooming in slid the view back towards the first
+  // year (on Lifelines, empty years BC).
+  const zoomAnchor = useRef(null);
+  const anchorAt = useCallback((offset) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const at = offset ?? el.clientHeight / 2;
+    zoomAnchor.current = { year: dataBounds.minYear + (el.scrollTop + at) / pixelsPerYear, offset: at };
+  }, [dataBounds.minYear, pixelsPerYear]);
+  useLayoutEffect(() => {
+    const anchor = zoomAnchor.current;
+    const el = scrollRef.current;
+    if (!anchor || !el) return;
+    el.scrollTop = Math.max(0, (anchor.year - dataBounds.minYear) * pixelsPerYear - anchor.offset);
+    if (!pinchRef.current.active) zoomAnchor.current = null;
+  }, [pixelsPerYear, dataBounds.minYear]);
+
   const handleTouchStart = useCallback((e) => {
     if (e.touches.length === 2) {
       e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const rect = scrollRef.current?.getBoundingClientRect();
+      if (rect) anchorAt((e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top);
       pinchRef.current = { active: true, startDist: Math.sqrt(dx * dx + dy * dy), startPPY: pixelsPerYear };
     }
-  }, [pixelsPerYear]);
+  }, [pixelsPerYear, anchorAt]);
 
   const handleTouchMove = useCallback((e) => {
     if (pinchRef.current.active && e.touches.length === 2) {
@@ -181,7 +213,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     }
   }, []);
 
-  const handleTouchEnd = useCallback(() => { pinchRef.current.active = false; }, []);
+  const handleTouchEnd = useCallback(() => { pinchRef.current.active = false; zoomAnchor.current = null; }, []);
 
   const handleItemClick = useCallback((type, item) => {
     setSelectedItem({ type, item });
@@ -309,9 +341,9 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     setYearSummaryOpen(true);
   }, [dataBounds.minYear, pixelsPerYear]);
 
-  const handleZoomIn = useCallback(() => setPixelsPerYear(p => Math.min(MAX_PIXELS_PER_YEAR, p * 1.5)), []);
-  const handleZoomOut = useCallback(() => setPixelsPerYear(p => Math.max(MIN_PIXELS_PER_YEAR, p / 1.5)), []);
-  const handleZoomReset = useCallback(() => setPixelsPerYear(DEFAULT_PIXELS_PER_YEAR), []);
+  const handleZoomIn = useCallback(() => { anchorAt(); setPixelsPerYear(p => Math.min(MAX_PIXELS_PER_YEAR, p * 1.5)); }, [anchorAt]);
+  const handleZoomOut = useCallback(() => { anchorAt(); setPixelsPerYear(p => Math.max(MIN_PIXELS_PER_YEAR, p / 1.5)); }, [anchorAt]);
+  const handleZoomReset = useCallback(() => { anchorAt(); setPixelsPerYear(DEFAULT_PIXELS_PER_YEAR); }, [anchorAt]);
 
   const showYearReadout = defaultConfig.zoomReadout === 'years';
   const updateVisibleYears = useCallback(() => {
@@ -348,6 +380,77 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     return '#5b7ee8';
   }, [defaultConfig.legend]);
 
+  // Harp strings: where each landmark's line, label and mark go.
+  const stringLayout = useMemo(() => {
+    if (!stringStyle) return [];
+    const points = filteredData.points
+      .map(point => ({ ...point, year: getYear(point.date) }))
+      .filter(point => point.year != null);
+    const byId = new Map(points.map(point => [point.id, point]));
+    return placeVerticalLabels(points, yearToY).map(entry => ({ ...entry, point: byId.get(entry.id) }));
+  }, [stringStyle, filteredData.points, yearToY]);
+
+  function renderStrings() {
+    return stringLayout.map(({ point, y, labelTop, showLabel, markSlot }) => {
+      const mark = markForPoint(point);
+      const color = point.color || '#888';
+      const name = `${point.name}, ${formatEraYear(point.year)}`;
+      // A dot on each linked figure alive that year, as on the horizontal
+      // timeline: "this person was involved".
+      const linked = (point.connectedPeople || []).length
+        ? peopleLayout.filter(person => {
+          if (!point.connectedPeople.includes(person.id)) return false;
+          const { start, end } = getYearRange(person.startDate, person.endDate);
+          return point.year >= start && point.year <= end;
+        })
+        : [];
+      // The mark sits at the column's inner edge, on the string; a second
+      // landmark in the same few pixels steps sideways along it.
+      const markX = lanesLeft - 14 + markSlot * 12;
+      return (
+        <div key={point.id} className="mobile-string" data-point-id={point.id} style={{ '--string-color': color }}>
+          <span
+            className="mobile-string-line"
+            style={{ top: `${y}px`, left: `${lanesLeft - 10}px`, width: `${contentWidth + 10}px` }}
+          />
+          {showLabel && (
+            <button
+              type="button"
+              className="mobile-string-label"
+              style={{ top: `${labelTop}px`, left: `${GUTTER_WIDTH + 4}px`, width: `${labelColumn - 22}px` }}
+              aria-label={name}
+              onClick={() => handleItemClick('point', point)}
+            >
+              <span className="mobile-string-name">{point.name}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="mobile-string-mark"
+            style={{ top: `${y}px`, left: `${markX - 6}px` }}
+            aria-label={name}
+            tabIndex={showLabel ? -1 : 0}
+            onClick={() => handleItemClick('point', point)}
+          >
+            <StringMark mark={mark} color={color} />
+          </button>
+          {linked.map(person => (
+            <button
+              key={person.id}
+              type="button"
+              className="mobile-string-dot"
+              style={{ top: `${y}px`, left: `${lanesLeft + person.column * (LANE_WIDTH + LANE_GAP) + LANE_GAP + LANE_WIDTH - 14}px` }}
+              aria-label={name}
+              onClick={() => handleItemClick('point', point)}
+            >
+              <StringMark mark={mark} color={color} />
+            </button>
+          ))}
+        </div>
+      );
+    });
+  }
+
   return (
     <div className="mobile-timeline">
       {/* Toolbar */}
@@ -382,7 +485,9 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
                 {(item.type === 'people' || item.type === 'bracket') && (
                   <span className="mobile-filter-swatch" style={{ backgroundColor: item.color }} />
                 )}
-                {item.type === 'point' && <ShapeIcon shape={item.shape} color={item.color} size={14} />}
+                {item.type === 'point' && (item.mark
+                  ? <StringMark mark={item.mark} color={item.color} />
+                  : <ShapeIcon shape={item.shape} color={item.color} size={14} />)}
                 {item.isMonarch && <Icon name="crown" size={12} color={item.color} />}
                 <span>{item.name}</span>
               </label>
@@ -402,7 +507,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
       >
         <div
           className="mobile-timeline-content"
-          style={{ height: `${totalHeight + 80}px`, width: `${contentWidth + GUTTER_WIDTH}px` }}
+          style={{ height: `${totalHeight + 80}px`, width: `${contentWidth + lanesLeft}px` }}
           onClick={handleBackgroundClick}
         >
           {/* Horizontal gridlines (behind everything) */}
@@ -410,12 +515,12 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
             <div
               key={`grid-${m.year}`}
               className="mobile-gridline"
-              style={{ top: `${m.y}px`, width: `${contentWidth + GUTTER_WIDTH}px` }}
+              style={{ top: `${m.y}px`, width: `${contentWidth + lanesLeft}px` }}
             />
           ))}
 
           {/* ── Lanes area (people + periods, scrolls with content) ── */}
-          <div className="mobile-lanes-area" style={{ left: `${GUTTER_WIDTH}px`, width: `${contentWidth}px` }}>
+          <div className="mobile-lanes-area" style={{ left: `${lanesLeft}px`, width: `${contentWidth}px` }}>
             {/* Person lane columns */}
             {peopleLayout.map(person => {
               const { start, end } = getYearRange(person.startDate, person.endDate);
@@ -465,8 +570,10 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
             })}
           </div>
 
+          {stringStyle && renderStrings()}
+
           {/* ── Point markers (positioned at gutter edge, sticky label) ── */}
-          {filteredData.points.map(point => {
+          {!stringStyle && filteredData.points.map(point => {
             const year = getYear(point.date);
             const topY = yearToY(year);
             return (

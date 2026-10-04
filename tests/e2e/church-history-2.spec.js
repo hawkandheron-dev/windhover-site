@@ -714,6 +714,59 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     await zoomOut.click();
     await expect(label).not.toHaveText(mid);
   });
+
+  test('on a phone, zooming in keeps the years on screen', async ({ page }) => {
+    // Zooming kept the scroll offset in pixels, so zooming in slid the view
+    // back towards 100 BC and empty years (M3 step 6).
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, realData: true });
+    const label = page.locator('.mobile-zoom-label');
+    await expect(label).toHaveText(/AD/);
+    const middle = (text) => {
+      const years = [...text.matchAll(/(\d+)\s*(BC|AD)?/g)].map(m => (m[2] === 'BC' ? -Number(m[1]) : Number(m[1])));
+      // "5 BC – 85 AD", or "100–150 AD" with one era for both.
+      if (/BC/.test(text) && !/AD/.test(text)) years.forEach((y, i) => { years[i] = -Math.abs(y); });
+      return (years[0] + years[years.length - 1]) / 2;
+    };
+    const before = middle(await label.textContent());
+    const zoomIn = page.locator('.mobile-zoom-controls .mobile-toolbar-btn').nth(1);
+    await zoomIn.click();
+    await zoomIn.click();
+    await expect(label).not.toHaveText(/BC/);
+    expect(Math.abs(middle(await label.textContent()) - before)).toBeLessThanOrEqual(8);
+  });
+
+  test('on a phone, landmarks are strings whose labels sit beside the axis, clear of figures and each other', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, realData: true });
+    // The old cards sat on the bars and on one another (DESIGN §7 known
+    // violation, M3 step 6).
+    await expect(page.locator('.mobile-point-marker')).toHaveCount(0);
+    expect(await page.locator('.mobile-string-mark').count()).toBeGreaterThan(50);
+    const clashes = await page.evaluate(() => {
+      const rects = (sel) => [...document.querySelectorAll(sel)].map(el => el.getBoundingClientRect());
+      const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+      const labels = rects('.mobile-string-name');
+      const bars = rects('.mobile-person-lane');
+      let found = 0;
+      labels.forEach((l, i) => {
+        if (bars.some(b => hit(l, b))) found++;
+        if (labels.slice(i + 1).some(o => hit(l, o))) found++;
+      });
+      return { found, labels: labels.length };
+    });
+    expect(clashes.labels).toBeGreaterThan(3);
+    expect(clashes.found).toBe(0);
+    // Tapping a mark opens the landmark.
+    await page.locator('.mobile-string-mark').first().click();
+    await expect(page.locator('.timeline-modal .modal-title')).toBeVisible();
+  });
+
+  test('on a phone, the vertical timeline is on white: toolbar and year gutter', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    const bg = (sel) => page.locator(sel).evaluate(el => getComputedStyle(el).backgroundColor);
+    const channels = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+    expect(Math.min(...channels(await bg('.mobile-timeline-toolbar')))).toBeGreaterThanOrEqual(250);
+    expect(Math.min(...channels(await bg('.mobile-year-gutter')))).toBeGreaterThanOrEqual(250);
+  });
 });
 
 test.describe('Lifelines as the front page (milestone 2)', () => {

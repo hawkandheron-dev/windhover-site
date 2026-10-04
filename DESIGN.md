@@ -142,6 +142,17 @@ Every UI change is still checked in the `default-dark` screenshots.
   hovered string is redrawn **in front** of everything at three times its
   width, and every figure linked to it gets a gold ring. The line is a target
   only between bars: over a bar, the bar keeps the pointer.
+- **On the vertical timeline** the strings run across, at the year, behind
+  the bars. Labels sit in a column of their own between the year axis and
+  the figures (right-aligned, at most three lines, the first level with the
+  string), so they never sit on a bar; the column goes when no landmark is
+  shown. A label that would run into the one above is dropped, and its mark
+  stays on the string. Two marks in the same few pixels step sideways along
+  it, so both can be tapped. Linked figures get a mark on their bar's edge
+  (`utils/verticalStrings.js`).
+- The vertical timeline is on white too: a white toolbar and a light year
+  gutter with ink years. Zooming keeps the year in the middle (or between
+  the fingers) where it was.
 - Monarch labels drop past `pointLabelMaxYearsPerPixel` (1.0 year/px).
 - A name label may run into empty space but never into the next bar of its
   row. If it doesn't fit, the dates go first, then the name ends in "…"; with
@@ -200,10 +211,6 @@ when it's fixed. First found 2026-10-03 by rendering the real dataset
 (`npm run shots`); dark mode, the welcome copy, stray colours, button
 contrast, reduced motion, legend checkbox names, the opening view, the zoom
 readout and the phone header covering the toolbar were fixed in milestone 1;
-the stray hover card and the legend covering figures in milestone 3.
+the stray hover card, the legend covering figures, the phone's overlapping
+landmark cards and its parchment toolbar in milestone 3.
 
-- **§7 Labels (phone):** landmark cards overlap each other and the figure
-  bars on phone (`default--phone.png`). Desktop and tablet labels are fitted
-  since milestone 3 (`labelFit: 'fit'`).
-- **§4 Phone toolbar:** the mobile timeline's toolbar is still parchment
-  (beige ground, brown rules), not white (`default--phone.png`).
