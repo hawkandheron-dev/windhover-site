@@ -8,7 +8,6 @@ import { Icon, ShapeIcon } from './Icon.jsx';
 import { useState } from 'react';
 import './TimelineOverlay.css';
 import { placeStringDots } from '../utils/stringDots.js';
-import { shortLabel } from '../utils/shortLabel.js';
 import { StringMark } from './StringMark.jsx';
 import { markForPoint } from '../utils/stringMark.js';
 import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
@@ -360,11 +359,10 @@ export function TimelineOverlay({
     const labelled = visible.map(({ point, x }) => {
       const side = point.aboveTimeline === false ? 'below' : 'above';
       const rowY = point.y - panOffsetY + point.height / 2;
-      const short = shortLabel(point, config.shortLabels);
-      const labelWidth = 22 + measureLabel(short, '600 12px');
+      const labelWidth = 22 + measureLabel(point.name, '600 12px');
       const showLabel = x + 4 >= lastRight[side] + 8 && x + 4 + labelWidth <= width;
       if (showLabel) lastRight[side] = x + 4 + labelWidth;
-      return { point, x, side, rowY, showLabel, short, labelRect: showLabel ? { x0: x, x1: x + 4 + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
+      return { point, x, side, rowY, showLabel, labelRect: showLabel ? { x0: x, x1: x + 4 + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
     });
 
     // Then the dots (utils/stringDots.js): on a linked figure's bar, or in
@@ -418,7 +416,7 @@ export function TimelineOverlay({
       return runs.filter(([a, b]) => b - a >= 4);
     };
 
-    return labelled.map(({ point, x, rowY, showLabel, short }) => {
+    return labelled.map(({ point, x, rowY, showLabel }) => {
       const inFocus = focusActive && focusIds.has(point.id);
       const hovered = hoverStringId === point.id;
       const mark = markForPoint(point);
@@ -448,8 +446,9 @@ export function TimelineOverlay({
               {...handlers}
             >
               <StringMark mark={mark} color={point.color} size={8} />
-              {/* The thing itself at rest; the full name on hover. */}
-              <span>{hovered ? point.name : short}</span>
+              {/* The full name, the same at rest and on hover (owner's call,
+                  round 4: a label that changed under the pointer was odd). */}
+              <span>{point.name}</span>
             </div>
           )}
           {pointDots.map(dot => (

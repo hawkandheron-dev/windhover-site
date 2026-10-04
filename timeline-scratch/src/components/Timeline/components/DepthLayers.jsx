@@ -50,6 +50,9 @@ export function DepthLayers({
   isPreview = false,
   /** False when zoomed too far out for names to be readable. */
   showLabels = true,
+  /** Extra drop, in px, for the band below the axis: Lifelines lowers its
+   *  rulers under the texts' label row (config.backClearsFrontPoints). */
+  extraYOffset = 0,
 }) {
   const depth = { ...DEFAULT_DEPTH, ...(config?.depth || {}) };
 
@@ -59,7 +62,7 @@ export function DepthLayers({
   // independently — the background has its own row count — so their axes land
   // at different Y positions and the background needs shifting onto the
   // foreground's.
-  const yOffset = (frontAxisY ?? layout.axisY) - layout.axisY;
+  const yOffset = (frontAxisY ?? layout.axisY) - layout.axisY + extraYOffset;
 
   // The layer is scaled about the shared axis, so a bar's distance from the
   // axis shrinks but its position on it does not. transform-origin can't

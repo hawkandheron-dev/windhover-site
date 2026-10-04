@@ -794,14 +794,16 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(page.locator('.point-callout')).toHaveCount(0);
     // Strings rest on the canvas (round 3); their hit strips are the sign.
     expect(await page.locator('.point-string-hit').count()).toBeGreaterThan(0);
-    await page.locator('.point-string-label', { hasText: 'Nicaea' }).click();
+    await page.locator('.point-string-label', { hasText: 'Council of Nicaea' }).click();
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
   });
 
-  test('labels rest short and show the full name on hover; marks follow the kind', async ({ page }) => {
+  // Round 3 tried short labels that grew on hover; round 4 took them back
+  // (owner's call): a label reads the same at rest and under the pointer.
+  test('labels show the full name and do not change on hover; marks follow the kind', async ({ page }) => {
     await loadPage(page);
-    const label = page.locator('.point-string-label', { hasText: 'Nicaea' });
-    await expect(label).toHaveText('Nicaea');
+    const label = page.locator('.point-string-label', { hasText: 'Council of Nicaea' });
+    await expect(label).toHaveText('Council of Nicaea');
     await label.hover();
     await expect(label).toHaveText('Council of Nicaea');
     // A council's mark is a diamond, in the label and on its dots.
@@ -810,6 +812,17 @@ test.describe('Review round fixes (milestone 3)', () => {
     // The Key shows the same marks.
     await expect(page.locator('.legend-slim-rows .string-mark--diamond')).toHaveCount(1);
     await expect(page.locator('.legend-slim-rows .string-mark--square')).toHaveCount(1);
+  });
+
+  test('on real data, the rulers sit below the texts and no names overlap', async ({ page }) => {
+    await loadPage(page, { realData: true });
+    const overlaps = await page.evaluate(() => {
+      const rect = el => el.getBoundingClientRect();
+      const texts = [...document.querySelectorAll('.point-string-label')].map(rect);
+      const rulers = [...document.querySelectorAll('.ch2-monarch-label')].map(rect);
+      return texts.filter(t => rulers.some(r => t.left < r.right && t.right > r.left && t.top < r.bottom && t.bottom > r.top)).length;
+    });
+    expect(overlaps).toBe(0);
   });
 
   test('strings rest behind the figures; the hovered one comes to the front', async ({ page }) => {

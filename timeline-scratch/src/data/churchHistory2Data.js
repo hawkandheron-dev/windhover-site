@@ -62,11 +62,8 @@ export const churchHistory2Config = {
   /** Landmarks as harp strings: a line through the timeline at each year,
    *  with a dot on a linked figure or in open space (owner's pick, M3). */
   pointStyle: 'string',
-  /** Short labels the rules in utils/shortLabel.js get wrong, by event id. */
-  shortLabels: {
-    'doc-institutes': 'Institutes',
-    'doc-twelve-anathemas': 'Twelve Anathemas',
-  },
+  /** The rulers' band starts under the texts' labels, not in their row. */
+  backClearsFrontPoints: true,
   /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
    *  timeline). */
   touchGestures: true,

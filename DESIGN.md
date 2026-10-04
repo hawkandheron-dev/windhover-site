@@ -59,7 +59,7 @@ Colour on the canvas is data, so its meanings are fixed:
 | **Century ramp** (`CENTURY_COLORS`, `data/churchHistory2Centuries.js`) | *When* a figure lived | Only on figure bars. There is no colour key; the legend does not explain it (owner's decision, M3). Always derived from dates by `colorForLifespan`, never picked per figure. A life spanning centuries is a gradient. Nothing filters by century. Never reuse ramp hues for UI chrome. |
 | **Councils** `#3f7d46` + cross shape | A council | Colour is always paired with its shape — never colour alone. |
 | **Texts & creeds** `#9a7b1f` + book shape | A text | Same: always with the shape. |
-| **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch, background layer | The background layer holds reigns and nothing else. Adding anything to it is a design decision, recorded here first. It is **crisp and quiet**: pale, unblurred bars with grey names (round 3; the blur read as a fault). A figure in focus draws their rulers at full strength. `?rulers=strip` is a prototype that moves them to a strip pinned to the foot of the screen, awaiting the owner's pick. |
+| **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch, background layer | The background layer holds reigns and nothing else. Adding anything to it is a design decision, recorded here first. It is **crisp and quiet**: pale, unblurred bars with grey names (round 3; the blur read as a fault), starting **below** the texts' label row, never in it (`backClearsFrontPoints`). A figure in focus draws their rulers at full strength. `?rulers=strip` is a prototype that moves them to a strip pinned to the foot of the screen, awaiting the owner's pick. |
 | **String gold** `--color-string-hover` `#c08f12` | "This landmark, under the pointer" | Only for a harp string being hovered (its line, label and dot together). Never at rest, never for anything else. |
 | **Action blue** `--color-action` | "Do this" | The only colour for a filled primary button. At most **one** filled primary per region (a dialog, the panel, the header). Never decorative, never a background wash. No other blues in UI chrome. |
 | **Error** `--color-error` | Something failed | The only red for error text and states. |
@@ -127,10 +127,9 @@ Every UI change is still checked in the `default-dark` screenshots.
 - Each kind has one **mark**, the same size everywhere (dots, labels, Key,
   search): a **diamond** for a council, a **square** for a text, a **dot**
   for anything else (`StringMark.jsx`).
-- Labels rest **short**, the thing itself ("Nicaea", "Didache",
-  "Confessions"), and show the full name on hover (`utils/shortLabel.js`;
-  exceptions in `config.shortLabels`, all current names pinned by a unit
-  test).
+- Labels give the **full name** and never change under the pointer; hover
+  only lifts the label and turns its string gold. (Short labels that grew on
+  hover were tried in round 3 and withdrawn.)
 - Every string has a **dot**, its handle (`utils/stringDots.js`). A landmark
   linked to figures alive that year (`CH_EventConnections`) puts a dot on
   **each** of their bars, on the lower edge, clear of the name. Anything else goes
