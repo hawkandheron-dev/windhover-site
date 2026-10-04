@@ -32,7 +32,12 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
     // point collisions are sized by the marker instead of by a label they
     // never render (see stackPoints).
     pointMarkerWidth = null,
+    // A figure's box height, when it should be less than the row it sits in:
+    // the difference is an empty margin under each bar (Lifelines' roomy
+    // view labels the landmarks there). Defaults to the whole row.
+    personBarHeight = null,
   } = sizes;
+  const personHeight = personBarHeight ?? personRowHeight;
 
   // Stack all items with above/below separation
   const stacked = useMemo(() => {
@@ -121,13 +126,13 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
       ...above.people.map(p => ({
         ...p,
         y: abovePeopleY + (maxAbovePeopleRow - p.row) * personRowHeight,
-        height: personRowHeight,
+        height: personHeight,
         aboveTimeline: true
       })),
       ...below.people.map(p => ({
         ...p,
         y: belowPeopleY + p.row * personRowHeight,
-        height: personRowHeight,
+        height: personHeight,
         aboveTimeline: false
       }))
     ];
@@ -182,7 +187,7 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
         axisHeight
       }
     };
-  }, [stacked, personRowHeight, pointRowHeight, periodRowHeight, periodBracketHeight, lanePadding, axisHeight, peopleInsidePeriods]);
+  }, [stacked, personRowHeight, personHeight, pointRowHeight, periodRowHeight, periodBracketHeight, lanePadding, axisHeight, peopleInsidePeriods]);
 
   return layout;
 }

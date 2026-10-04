@@ -115,10 +115,18 @@ const COMPARE_RULERS = [['quiet', ''], ['strip', '?rulers=strip']].flatMap(([sty
   { name: `rulers-${style}-phone`, viewports: ['phone'], query, layout: 'horizontal' },
 ]);
 
+// --compare density: compact (today) against roomy (?density=roomy), M3 round 4.
+const COMPARE_DENSITY = [['compact', ''], ['roomy', '?density=roomy']].flatMap(([style, query]) => [
+  { name: `density-${style}-opening`, viewports: ['desktop', 'laptop'], query },
+  { name: `density-${style}-zoomed-in`, viewports: ['desktop'], query, act: zoom('Zoom in', 2) },
+  { name: `density-${style}-focused`, viewports: ['desktop'], query, act: openPanel },
+]);
+
 const COMPARE = opt('compare');
 const STATES = COMPARE === 'points' ? COMPARE_POINTS
   : COMPARE === 'mobile' ? COMPARE_MOBILE
   : COMPARE === 'rulers' ? COMPARE_RULERS
+  : COMPARE === 'density' ? COMPARE_DENSITY
   : DEFAULT_STATES;
 
 // ── tiny static server over the repo root (apps/ plus node_modules fonts) ──

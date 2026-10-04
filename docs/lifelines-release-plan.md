@@ -2,6 +2,149 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M3 round 4: rulers lower, full labels, compact vs roomy (2026-10-03)
+
+**Context.** Matthew's notes on round 3:
+1. **Monarchs need to move down.** In the quiet band the first ruler row sits right under the axis, in the same row as the texts' labels ("Galatians" over "Nero", "Shepherd of Hermas" over "Commodus").
+2. **Labels go back to full names.** "Truncated labels is weird, I take it back. Labels shouldn't change when we hover on them."
+3. **New:** "a compact vs. roomy view, where events and texts that show up in between people could have a small label and enough vertical margin for them to show."
+
+### Steps (same branch; render with shots after each)
+
+**A. Rulers below the texts' row.**
+- In `Timeline.jsx`, measure the front layout's below-axis band: the deepest below-axis landmark row (`stackedPoints` with `aboveTimeline === false`) under the axis, plus about 10px of air.
+- Behind the opt-in config `backClearsFrontPoints: true` (Lifelines), pass that height to `DepthLayers` as an extra `yOffset` (the canvas, the focus layer and `MonarchLabels` all share it). Pass it to the overlay's `backObstacles` too, so the texts' dots still avoid the rulers.
+- The rulers then start under the texts' labels, clear of them, at every zoom. Other apps are unchanged.
+- The `?rulers=strip` prototype is unaffected.
+
+**B. Full names, no hover swap.**
+- Labels show `point.name` at rest and on hover; the hover only lifts the label (the shadow) and turns its string gold.
+- Remove `utils/shortLabel.js`, its unit test, `config.shortLabels` and the adapter's `shortName`. Git keeps them if short labels return.
+- The collision pass measures the full names again (as in round 2).
+- DESIGN.md §7: drop the short-label rule and say labels never change on hover.
+
+**C. Compact vs roomy prototype** (`?density=roomy`; compact stays the default until Matthew picks).
+- **Roomy** opens a margin under each figure's bar, so the strings' dots among the people can carry a small label:
+  - People rows grow from 34px to about 52px (bar unchanged, a gap of about 20px under it), via the Lifelines `layoutSizes` when `density === 'roomy'`.
+  - Each dot among the people (a linked dot on a bar's lower edge, or an open-space dot in a gap) gets a small label beside it, in the gap under the bar. It's 11px, ink-light, with the string's mark, giving the landmark's full name.
+  - One in-context label per landmark: on the dot nearest the axis.
+  - A greedy per-gap collision pass drops a label that would hit another label or a bar; the dot stays and still hovers and opens.
+- **Compact** is today's layout (no labels among the people).
+- **Implementation:**
+  - A `stringDotLabels: true` option in `TimelineOverlay.renderPointStrings`, and a `labelRect` per placed dot from `placeStringDots`. The open-space search in roomy mode prefers the gaps, which are now taller.
+  - The density comes from a URL parameter read in `ChurchHistory2App` (like `?rulers=strip`).
+- **Comparison:** `--compare density` in the shots script renders compact vs roomy at the opening view, zoomed in and with Athanasius selected, on desktop and laptop. Send it to Matthew and stop for his pick. If roomy wins, it can become the default or a reader toggle beside Layout.
+
+**Verification**
+- Unit:
+  - `placeStringDots` returns label rects that never overlap a bar or each other.
+  - The ruler offset helper (pure function for the below-band height).
+- E2E:
+  - On real data, no ruler label overlaps a text label (bounding boxes).
+  - A string label reads the same before and during hover.
+  - With `?density=roomy`:
+    - people rows are taller;
+    - Nicaea's dot on Athanasius carries a "Council of Nicaea" label, which doesn't overlap any figure label.
+- Shots: the defaults plus `--compare density` and `--compare rulers`, read in light and dark.
+- Unit and e2e pass; lint unchanged; the other apps unchanged.
+
+## M3 round 3: harp strings, rulers, zoom (Matthew's feedback, 2026-10-03)
+
+**Context.** Matthew used round 2 on his PC.
+- **What he liked:**
+  - Dots where a string meets its related people.
+  - One line of councils above the axis and one of texts below, which keeps the focus on people.
+- **What he asked for:**
+  - **Markers:** texts become small squares, other events stay dots, councils become diamonds, all the same size.
+  - **Labels:** short at rest ("Didache"), the full name on hover.
+  - **Strings:** behind every entry, with a hovered string brought to the front.
+  - **Dots:** one on every related person a string crosses.
+- **Problems he reported:**
+  - The rulers' band is cluttered, and the blur doesn't read as anything.
+  - The exit sweep felt no different. When the tour is finished, its last scene has already shown everyone, so there's nothing left to sweep.
+  - After a trackpad pinch over the header zoomed the page, he couldn't scroll back up out of the timeline.
+  - He asked whether it should be "Lyons" or "Lyon".
+- **His answers:**
+  - Councils go to the place only ("Nicaea").
+  - Rulers: try "crisp and quiet" (the default) and "a strip pinned to the bottom" behind a URL parameter.
+  - Tour exit: glide plus sweep, always.
+
+**Irenaeus:** keep **"Irenaeus of Lyons"**.
+- It's the established English name for the saint, for example in John Behr's *Irenaeus of Lyons* (OUP, 2013) and the Catholic Encyclopedia. "Lyon" is the city's modern official name.
+- The data is already consistent: his name is "Irenaeus of Lyons" and his location "Lyons, Gaul". Only Michael VIII's note mentions the 1274 "Council of Lyon", which is that council's usual modern name.
+- So nothing changes. I'll recheck it against Wikipedia and Britannica in M5's date pass, once the network is widened.
+
+### Steps (same branch; render with shots after each)
+
+**A. Marker shapes.**
+- Councils get a diamond, texts a square and anything else a dot, all 9px with a 2px white rim.
+- The dots, the label icons and the legend rows (Lifelines config `shape`) use the same marks, so the Key matches the canvas. `ShapeIcon` gets `square`/`diamond` if they're missing.
+- Gold hover keeps the shape.
+- The dots drop their native `title`, which duplicated the hover card (his screenshot).
+
+**B. Short labels.**
+- `utils/shortLabel.js` derives the resting label from the name:
+  - **Councils:** the place, with ordinals as numerals ("Ephesus II", "Constantinople I"). Parentheticals are dropped ("Antioch").
+  - **Texts:**
+    - Drop "X writes / delivers / compiles / completes / posts" and trailing "composed / written / completed / mentioned / published", plus a leading "The".
+    - "Paul's letter to the Galatians" → "Galatians"; "First epistle of Clement" → "1 Clement"; papyri → "P42", "P46".
+- A config map of overrides covers anything the rules get wrong. Later, a `short_name` column (M5) can override in the data.
+- A unit test pins all 60 current names to their short forms; I'll show Matthew that table.
+- Hovering a label grows it to the full name, in front of its neighbours; the collision pass uses the short widths.
+
+**C. Strings behind entries.**
+- The resting lines move onto the front canvas, drawn before the bars, so every bar and name sits on top.
+  - Same colours and opacities, including focus.
+  - Behind `pointStyle: 'string'`, so other apps are untouched.
+- The overlay keeps only the hit strips, labels and dots.
+- The hovered or focused string is drawn again in the overlay, gold and 2px, above everything.
+
+**D. A dot on every related person.**
+- `placeStringDots` returns a list per landmark: one dot on each linked figure alive that year (on their bar's lower edge), or one open-space dot if there are none.
+- The unit tests are extended to cover several dots per landmark.
+
+**E. Rulers, two prototypes** (`?rulers=strip` switches; the default is quiet).
+- **Quiet (default):**
+  - No blur.
+  - Thin pale bars and small grey names, under the strings.
+  - The text dots' open-space search treats ruler rows as obstacles, so dots stop landing in the ruler names.
+  - Hovering or choosing a figure darkens their ruler(s) instead of un-blurring them.
+- **Strip (`?rulers=strip`):**
+  - A compact band pinned to the bottom of the timeline: rows of about 14px, at most 5 rows, panning horizontally with the axis but not vertically.
+  - Below the axis, only the texts' line remains.
+  - The controls sit above the strip. Rulers in the strip still hover and open.
+- Matthew compares the two on the preview and picks. Shots render both (`--compare rulers`).
+- DESIGN.md §3/§6 record the background as reigns only, with the chosen treatment.
+
+**F. Tour exit: glide plus sweep, always.**
+- On every exit (Exit, Skip, Esc, Finish), the viewport glides about 1s from the tour's last frame to the opening view, and the people the tour wasn't showing sweep in during it.
+- Finish after the build-out still glides.
+- This uses the imperative `animateViewport` the tour already uses, with the opening frame as the target (exposed from Timeline as `resetView({ animate })`).
+- Reduced motion jumps straight there.
+
+**G. Trackpad and browser zoom.**
+- Over the timeline, a trackpad pinch (Chrome, Edge and Firefox send it as a ctrl+wheel; Safari as `gesture*` events) zooms the timeline, not the page.
+- If the page is already zoomed by the browser (`visualViewport.scale > 1`), the timeline stops capturing the scroll wheel, so the reader can always scroll back out to the header and zoom out.
+- Browser zoom stays available everywhere else, for accessibility.
+- E2E: a ctrl+wheel zooms the readout; a plain wheel while visually zoomed isn't swallowed.
+
+**H. Then:** step 6 (the vertical phone: card overlap, white toolbar, zoom into empty BC), `ux-review`, and the M3 PR.
+
+**Verification:**
+- Unit: `shortLabel` (all 60 names), `placeStringDots` with multiple dots.
+- E2E:
+  - the shapes per kind;
+  - a short label that expands on hover;
+  - a string under a bar (`elementFromPoint` on a bar crossing returns the canvas or bar, not the string);
+  - a hovered string on top;
+  - multiple dots on the Nicaea fixture (add a second linked person);
+  - glide on Finish;
+  - pinch zoom;
+  - the visual-zoom scroll passthrough;
+  - `?rulers=strip` renders the strip.
+- Shots: the defaults plus `--compare rulers`, read in light and dark.
+- Lint unchanged, and the other apps unchanged.
+
 ## M3 round 2: Matthew's feedback on the prototypes (2026-10-03)
 
 **Context.** Matthew tried the M3 branch on his PC and phone.

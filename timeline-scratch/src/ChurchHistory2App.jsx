@@ -43,11 +43,21 @@ const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
 const EMPTY_LAYER = { people: [], points: [], periods: [] };
 
-// ?rulers=strip: the prototype that moves the rulers into a strip pinned to
-// the foot of the timeline (M3 round 3), to compare with the quiet band.
-const lifelinesConfig = new URLSearchParams(window.location.search).get('rulers') === 'strip'
-  ? { ...churchHistory2Config, rulerStyle: 'strip' }
-  : churchHistory2Config;
+// Prototype switches, to compare before the owner picks:
+//   ?rulers=strip   the rulers in a strip pinned to the foot (M3 round 3)
+//   ?density=roomy  a margin under each figure, where the landmarks' dots
+//                   carry small labels (M3 round 4)
+const PROTOTYPE = new URLSearchParams(window.location.search);
+const ROOMY = PROTOTYPE.get('density') === 'roomy';
+const lifelinesConfig = {
+  ...churchHistory2Config,
+  ...(PROTOTYPE.get('rulers') === 'strip' && { rulerStyle: 'strip' }),
+  // The rulers keep their tight rows: Timeline spreads layoutSizes over the
+  // background layout too.
+  ...(ROOMY && { stringDotLabels: true, backLayoutSizes: { personRowHeight: 20, personBarHeight: undefined } }),
+};
+// Roomy rows: the same 28px bar in a taller row, leaving a 22px margin under it.
+const ROOMY_SIZES = ROOMY ? { personRowHeight: 56, personBarHeight: 34 } : undefined;
 
 // The reader's layout: the vertical timeline (lives running down the page)
 // or the horizontal one. Phones start vertical and everything wider starts
@@ -300,6 +310,7 @@ function Timeline2({
         backData={tourLayers ? tourLayers.back : backData}
         config={lifelinesConfig}
         showBackgroundImage={false}
+        layoutSizes={ROOMY_SIZES}
         focusIds={depth.focusIds}
         depthMode={sceneWantsBackground ? 'forward' : depth.effectiveDepthMode}
         isFocusPreview={depth.isPreview}

@@ -814,6 +814,19 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(page.locator('.legend-slim-rows .string-mark--square')).toHaveCount(1);
   });
 
+  test('?density=roomy opens a margin under each figure where dots carry labels', async ({ page }) => {
+    await loadPage(page, { query: '?density=roomy' });
+    const label = page.locator('.point-string-dot-label[data-point-id="council-nicaea"]');
+    await expect(label).toHaveText('Council of Nicaea');
+    // In the margin, overlapping no figure's name.
+    const l = await label.boundingBox();
+    const names = await page.locator('.person-label').evaluateAll(els => els.map(e => e.getBoundingClientRect().toJSON()));
+    expect(names.some(n => l.x < n.right && l.x + l.width > n.left && l.y < n.bottom && l.y + l.height > n.top)).toBe(false);
+    // Compact (the default) has no labels among the figures.
+    await loadPage(page);
+    await expect(page.locator('.point-string-dot-label')).toHaveCount(0);
+  });
+
   test('on real data, the rulers sit below the texts and no names overlap', async ({ page }) => {
     await loadPage(page, { realData: true });
     const overlaps = await page.evaluate(() => {
