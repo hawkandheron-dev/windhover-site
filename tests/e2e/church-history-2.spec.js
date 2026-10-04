@@ -371,6 +371,46 @@ test.describe('CH Timeline 2.0', () => {
     }), { timeout: 3000 }).toBe(true);
   });
 
+  // Scene 7 of the real tour opens Irenaeus. On a phone the full dialog, map
+  // and all, covered the timeline and half the tour sheet; it is now a short
+  // card above the sheet (owner's call, round 6c).
+  for (const layout of ['vertical', 'horizontal']) {
+    test(`on a phone (${layout}), a tour step's figure opens as a short card above the sheet`, async ({ page }) => {
+      await page.addInitScript(l => localStorage.setItem('lifelines-layout', l), layout);
+      await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: layout === 'vertical', dismissWelcome: false, realData: true });
+      await page.getByRole('button', { name: 'Take the Tour' }).click();
+      for (let i = 0; i < 6; i++) {
+        await page.locator('[title="Next (→)"]').click();
+        await page.waitForTimeout(150);
+      }
+      const card = page.locator('.timeline-modal--brief .modal-content');
+      await expect(card.getByRole('heading', { name: 'Irenaeus of Lyons' })).toBeVisible({ timeout: 3000 });
+      // No backdrop, map or works list; short, and clear of the tour sheet.
+      await expect(page.locator('.modal-backdrop')).toHaveCount(0);
+      await expect(page.locator('.historical-map-container')).toHaveCount(0);
+      await expect(card.locator('.modal-works')).toHaveCount(0);
+      const box = await card.boundingBox();
+      const sheet = await page.locator('.tour-panel').boundingBox();
+      expect(box.height).toBeLessThanOrEqual(844 * 0.45);
+      expect(box.y + box.height).toBeLessThanOrEqual(sheet.y);
+      // The tour carries on underneath it.
+      await expect(page.locator('[title="Next (→)"]')).toBeEnabled();
+
+      // "More" opens the full detail, map included.
+      await card.getByRole('button', { name: 'More about Irenaeus of Lyons' }).click();
+      await expect(page.locator('.timeline-modal--brief')).toHaveCount(0);
+      await expect(page.locator('.historical-map-container')).toHaveCount(1, { timeout: 10_000 });
+    });
+  }
+
+  test('on a phone, a figure tapped outside the tour still opens the full detail', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    await page.locator('.mobile-person-name', { hasText: 'Athanasius' }).first().click();
+    await expect(page.locator('.timeline-modal .modal-title')).toContainText('Athanasius');
+    await expect(page.locator('.timeline-modal--brief')).toHaveCount(0);
+    await expect(page.locator('.historical-map-container')).toHaveCount(1, { timeout: 10_000 });
+  });
+
   test('the layout toggle switches between the two timelines and is remembered', async ({ page }) => {
     await loadPage(page);
     const toggle = page.getByRole('group', { name: 'Layout' });

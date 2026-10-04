@@ -67,6 +67,8 @@ const DEFAULT_STATES = [
   { name: 'tour',           viewports: ['phone', 'desktop'], welcome: true, act: tourScene(2) },
   { name: 'tour-later',     viewports: ['phone'], welcome: true, act: tourScene(6) },
   { name: 'tour-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(2) },
+  // Scene 7 opens Irenaeus: on a phone, a short card above the sheet.
+  { name: 'tour-later-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(6) },
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
 ];
 

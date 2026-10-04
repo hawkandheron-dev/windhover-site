@@ -68,6 +68,9 @@ export const churchHistory2Config = {
   /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
    *  timeline). */
   touchGestures: true,
+  /** On a phone, a figure a tour step opens shows as a short card above the
+   *  tour sheet: no map or pictures, the rest one tap away (round 6c). */
+  tourDetailOnPhone: 'brief',
   /** Opening the panel moves focus to its title; closing returns it
    *  (DESIGN.md §8). */
   manageFocus: true,

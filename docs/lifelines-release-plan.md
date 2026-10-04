@@ -2,6 +2,31 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M3 round 6c: the tour's detail on phones (2026-10-04)
+
+**Context.** Some tour steps open a figure's detail (step 7 opens Irenaeus). On a phone that detail is the full centred modal, with a large map, and it covers the whole timeline and half the tour sheet.
+
+Matthew: "I think it's just a shorter panel on mobile, maybe with no images."
+
+**Change** (Lifelines only; phones, ≤768px; only while the tour is running):
+- The detail the tour opens becomes a **short card** in the top part of the screen, above the tour sheet:
+  - at most about 40% of the height, scrolling inside;
+  - the timeline stays visible between the card and the sheet.
+- It shows the name, dates, place and description. It drops the map and other pictures (and, later, portraits), along with the long works and sources list, which stays one tap away through "open full details" in the card.
+- **How:**
+  - `TimelineModal` gains an opt-in `variant="brief"`. It hides the map block and the works/sources section and adds a "More" link that switches to the full layout. Other apps never pass it.
+  - The tour passes it on phones: `MobileTimeline` and the horizontal phone layout open the modal with `brief` when `isTourMode` is set.
+  - Lifelines CSS places the brief card at the top, with `max-height: 40%` and a white surface (DESIGN §4).
+- Outside the tour, a tapped figure still opens the full detail.
+
+**Verification**
+- E2E at 390×844, in the vertical and horizontal layouts:
+  - a tour step that opens a figure shows the brief card with no map, at most 45% of the height and above the sheet;
+  - "More" opens the full detail;
+  - a figure tapped outside the tour still opens the full modal with its map.
+- Shots: the phone tour state (`tour-later`) before and after.
+- DESIGN.md §6 Tour row: on phones a step's figure detail is a brief card.
+
 ## M3 round 6b: strip default, no title ring, apply the migration (2026-10-04)
 
 **Context.** Matthew:

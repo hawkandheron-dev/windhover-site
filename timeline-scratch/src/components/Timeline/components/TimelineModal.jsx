@@ -141,9 +141,17 @@ function linkifyDescription(description, itemIndex, currentItemId) {
  *   'panel' docks the same content down the right-hand side as a flex sibling
  *   of the timeline, leaving it live — which is what CH Timeline 2.0 needs, so
  *   a figure's background stays in focus while you read about them.
+ * @param {boolean} [brief] - A short card instead of the full detail: name,
+ *   dates, place and description, with no map, pictures or works list, and a
+ *   "More" button that opens the rest. No backdrop, so what is behind stays
+ *   visible. Lifelines uses it for the figure a tour step opens on a phone.
  */
-export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal' }) {
+export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false }) {
   const isPanel = variant === 'panel';
+  // "More" lifts a brief card to the full detail, until another item opens.
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => { setExpanded(false); }, [item?.id]);
+  const isBrief = brief && !expanded && !isPanel;
 
   // One binding for every pencil in this panel. Built here rather than inside
   // EditableText because only the caller knows which table an item came from:
@@ -237,19 +245,21 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     // Only the centred variant takes the page hostage. The docked panel has
     // its own scroll container and sits beside a timeline that must stay
     // pannable, so it leaves the body alone.
-    if (!isPanel) {
+    // A brief card leaves the page alone too: it covers only the top of it.
+    const holdsPage = !isPanel && !isBrief;
+    if (holdsPage) {
       document.body.style.overflow = 'hidden';
       document.body.classList.add('modal-open');
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      if (!isPanel) {
+      if (holdsPage) {
         document.body.style.overflow = '';
         document.body.classList.remove('modal-open');
       }
     };
-  }, [isOpen, onClose, deleteConfirm, editSection, isPanel]);
+  }, [isOpen, onClose, deleteConfirm, editSection, isPanel, isBrief]);
 
   const connections = useMemo(() => {
     if (itemType !== 'person' || !item?.connections?.length || !itemIndex) return [];
@@ -548,21 +558,22 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   return (
     <div
-      className={isPanel ? 'timeline-modal timeline-modal--panel' : 'timeline-modal'}
+      className={isPanel ? 'timeline-modal timeline-modal--panel' : isBrief ? 'timeline-modal timeline-modal--brief' : 'timeline-modal'}
       // Clicking outside dismisses the centred dialog. The docked panel has no
-      // "outside" — it is part of the layout — so it closes from its own button.
-      onClick={isPanel ? undefined : onClose}
+      // "outside" — it is part of the layout — so it closes from its own button,
+      // and so does the brief card, whose "outside" is the live page.
+      onClick={isPanel || isBrief ? undefined : onClose}
       onMouseDown={handleModalWheel}
       onMouseUp={handleModalWheel}
       onWheel={handleModalWheel}
       onTouchStart={handleModalWheel}
       onTouchMove={handleModalWheel}
     >
-      {!isPanel && <div className="modal-backdrop" />}
+      {!isPanel && !isBrief && <div className="modal-backdrop" />}
       <div
         className="modal-content"
         onClick={e => e.stopPropagation()}
-        {...(manageFocus && (isPanel
+        {...(manageFocus && (isPanel || isBrief
           ? { role: 'region', 'aria-labelledby': 'timeline-detail-title' }
           : { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'timeline-detail-title' }))}
       >
@@ -574,7 +585,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           &times;
         </button>
 
-        {item.image && (
+        {item.image && !isBrief && (
           <img
             src={item.image}
             alt={item.name}
@@ -635,9 +646,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </p>
         )}
 
-        {!compactLayout && mapBlock}
+        {!compactLayout && !isBrief && mapBlock}
 
-        {item.periodName && (
+        {item.periodName && !isBrief && (
           <p className="modal-period">
             Era:{' '}
             {periodEntry ? (
@@ -703,6 +714,15 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </div>
         )}
 
+        {isBrief ? (
+          <button
+            type="button"
+            className="modal-brief-more"
+            onClick={() => setExpanded(true)}
+          >
+            More about {item.name}
+          </button>
+        ) : (<>
         {compactLayout && mapBlock}
 
         {/* Works / Texts — comma-separated hyperlinks (not a list).
@@ -1122,6 +1142,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
             )}
           </div>
         )}
+        </>)}
       </div>
     </div>
   );

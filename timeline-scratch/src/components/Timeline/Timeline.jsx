@@ -54,11 +54,16 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
   // phone opens its detail as a modal rather than a side panel.
   const vertical = layout ? layout === 'vertical' : isMobile;
   const horizontalOnPhone = isMobile && !vertical;
+  // config.tourDetailOnPhone === 'brief' (Lifelines): a figure a tour step
+  // opens shows as a short card above the tour sheet, not the full dialog,
+  // so the timeline stays in view (owner's call, M3 round 6c).
+  const detailBrief = isMobile && isTourMode && config?.tourDetailOnPhone === 'brief';
   if (vertical) {
     return (
       <MobileTimeline
         ref={ref}
         layoutToggle={layoutToggle}
+        detailBrief={detailBrief}
         data={data}
         config={config}
         onItemClick={onItemClick}
@@ -101,6 +106,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       depthMode={depthMode}
       isFocusPreview={isFocusPreview}
       detailVariant={horizontalOnPhone ? 'modal' : detailVariant}
+      detailBrief={detailBrief}
       onPersonHover={onPersonHover}
       onPersonSelect={onPersonSelect}
       onDepthModeChange={onDepthModeChange}
@@ -112,7 +118,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
 // trackpad). Checked per event: an iPad gains hover when a trackpad connects.
 const noHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave }, ref) {
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -986,6 +992,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     <TimelineModal
       isOpen={selectedItem !== null}
       variant={detailVariant}
+      brief={detailBrief}
       item={selectedItem?.item}
       itemType={selectedItem?.type}
       config={defaultConfig}
