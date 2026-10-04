@@ -15,7 +15,7 @@ const reignOf = (p) => ({
 export function packRulerRows(people, yearsPerPixel) {
   const sorted = [...people].sort((a, b) => reignOf(a).start - reignOf(b).start || a.name.localeCompare(b.name));
   const rowEnds = [];
-  return sorted.map(person => {
+  const packed = sorted.map(person => {
     const { start, end } = reignOf(person);
     const nameYears = (measureLabel(person.name, '600 11px') + 24) * yearsPerPixel;
     const reach = Math.max(end, start + nameYears);
@@ -27,6 +27,16 @@ export function packRulerRows(people, yearsPerPixel) {
     rowEnds[row] = Math.max(rowEnds[row] ?? -Infinity, reach);
     return { person, row, start, end };
   });
+  // Room for each name: up to the next reign that starts in its row. A
+  // shared row (all five full) cuts the name there rather than writing it
+  // over the next one (DESIGN §7: labels never overlap).
+  const nextStart = new Map();
+  for (let i = packed.length - 1; i >= 0; i--) {
+    const item = packed[i];
+    item.room = nextStart.has(item.row) ? nextStart.get(item.row) - item.start : Infinity;
+    nextStart.set(item.row, item.start);
+  }
+  return packed;
 }
 
 export function rulerStripHeight(people, yearsPerPixel) {

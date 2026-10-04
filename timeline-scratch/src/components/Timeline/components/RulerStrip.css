@@ -39,6 +39,12 @@
   font-weight: 600;
   line-height: 1.1;
   color: var(--color-ink-faded);
+  min-width: 0;
+}
+
+.ruler-strip-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ruler-strip-item:hover .ruler-strip-bar,

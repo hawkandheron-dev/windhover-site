@@ -25,11 +25,14 @@ export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, co
       style={{ height: rows * RULER_ROW_HEIGHT + PAD * 2, '--ruler-color': color }}
       aria-label="Emperors and monarchs"
     >
-      {packed.map(({ person, row, start, end }) => {
+      {packed.map(({ person, row, start, end, room }) => {
         const x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
         const x1 = yearToPixel(end, viewportStartYear, yearsPerPixel);
         if (x1 < -200 || x0 > width + 10) return null;
         const focused = focusIds?.has(person.id);
+        // Under 28px of room there is no name; hovering still names it.
+        const roomPx = room / yearsPerPixel - 4;
+        const showName = roomPx >= 28;
         return (
           <div
             key={person.id}
@@ -40,10 +43,12 @@ export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, co
             onClick={(e) => { e.stopPropagation(); if (!wasDraggingRef?.current) onItemClick?.('person', person); }}
           >
             <span className="ruler-strip-bar" style={{ width: `${Math.max(x1 - x0, 3)}px` }} />
-            <span className="ruler-strip-name">
-              <Icon name="crown" size={10} color={color} />
-              {person.name}
-            </span>
+            {showName && (
+              <span className="ruler-strip-name" style={Number.isFinite(roomPx) ? { maxWidth: `${roomPx}px` } : undefined}>
+                <Icon name="crown" size={10} color={color} />
+                <span className="ruler-strip-name-text">{person.name}</span>
+              </span>
+            )}
           </div>
         );
       })}

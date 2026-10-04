@@ -274,6 +274,24 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Constantius II');
   });
 
+  for (const viewport of [{ width: 820, height: 1180 }, { width: 1440, height: 900 }]) {
+    test(`ruler names in the strip never overlap one another (${viewport.width}px, real data)`, async ({ page }) => {
+      // With all five rows full a reign shares a row, and its name was
+      // written over the next one ("Decius" over "Valerian"); it is cut now.
+      await loadPage(page, { viewport, realData: true });
+      const overlaps = await page.locator('.ruler-strip').evaluate(strip => {
+        const names = [...strip.querySelectorAll('.ruler-strip-name')].map(el => el.getBoundingClientRect());
+        let n = 0;
+        names.forEach((a, i) => names.slice(i + 1).forEach(b => {
+          if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) n++;
+        }));
+        return { n, count: names.length };
+      });
+      expect(overlaps.count).toBeGreaterThan(20);
+      expect(overlaps.n).toBe(0);
+    });
+  }
+
   test('the timeline starts at 100 BC', async ({ page }) => {
     await loadPage(page);
     // Pan far to the left: the view stops at the floor.
