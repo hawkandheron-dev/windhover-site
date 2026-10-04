@@ -2,6 +2,107 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Added to the plan (2026-10-04): placeholder portraits
+
+**Context.** Matthew: "we need a good placeholder portrait for male and female people who don't have images."
+
+**What the code shows today:**
+- Lifelines shows no portraits anywhere.
+- `CH_People` has no image field and no sex field.
+- The only images are tour pictures, which come from `CH_LinkedMedia` with `entity_type 'tour_scene'`.
+
+So this needs three things: somewhere for real portraits to come from, a placeholder when there is none, and a way to choose the male or female placeholder.
+
+**Steps (a new M3 step, after the open picks; it touches data, so the migration rides the same PR):**
+1. **Where portraits come from.** Reuse `CH_LinkedMedia` with `entity_type 'person'`, the same table and `fetchLinkedMedia` path the tour uses, so no new table is needed. Run the URL through `sizedImageUrl` (thumbnails) as for the tour.
+2. **Male or female.** A migration adds `sex text check (sex in ('male','female'))` to `CH_People`.
+   - I prefill it from the data: names and roles (pope, bishop and emperor are male; abbess, empress and saints like Monica and Macrina are female), so each figure starts with a best guess.
+   - I give Matthew a short list to confirm: the women, plus any figure I'm unsure of.
+   - Unknown falls back to a neutral placeholder.
+3. **The placeholders.** Two (plus a neutral one) hand-drawn inline SVGs in Lifelines' style, not stock silhouettes.
+   - **Style:** a quiet bust in the ink tokens on a soft ground, matching the white UI and the Cormorant/Alegreya feel (DESIGN §4). Late-antique dress cues: a cloak and pallium for men, a veil or palla for women. No halo, so the placeholders don't make sanctity claims.
+   - **Sizing:** the same circle or rounded square as a real portrait, so the layout never changes when a real image arrives.
+   - **Marking:** a placeholder is visibly a placeholder (lighter tone) and has empty alt text; the person's name is already beside it.
+   - **Review:** I'll render 2–3 style options as an Artifact for Matthew to pick from before wiring them in.
+4. **Where portraits show:** the detail panel header beside the name, search results (small), and the hover card. The vertical phone cards stay text-only unless Matthew wants them there.
+5. **DESIGN.md:** a rule for portraits and placeholders (size, shape, the placeholder tone, the alt text). Add the sex field to the M5 data checklist.
+
+**Verification:**
+- Unit: the placeholder choice (male, female, unknown).
+- E2E: a figure with linked media shows its portrait; one without shows the right placeholder at the same size.
+- Shots: the panel and search on desktop and phone, in light and dark.
+
+## M3 round 5: major events, seven councils, string hover (2026-10-04)
+
+**Context.**
+- **Roomy:** Matthew: "Roomy doesn't work." Remove the prototype.
+- **Noise:**
+  - Split events into major and minor. Show the major ones and hide the minor ones for now.
+  - Show only the seven ecumenical councils.
+  - Keep the texts.
+- **String hover:**
+  - The line grows 200% wider and turns a brighter gold.
+  - It comes forward, over every person.
+  - It highlights the people connected to it.
+
+**His answers.**
+- **Major events (16):** his list plus the Decian Persecution.
+  - Crucifixion & Resurrection; Pentecost; Great Fire of Rome; Destruction of the Temple
+  - Decian Persecution; Great Persecution; Edict of Milan; Edict of Thessalonica
+  - Rome sacked by the Visigoths; End of the Western Roman Empire; Coronation of Charlemagne
+  - East/West Schism; First Crusade; Gutenberg's printing press; Fall of Constantinople; Luther at the Diet of Worms
+- **Minor events (9, hidden):**
+  - Hagia Sophia; Iconoclasm; Normans; Investiture Controversy; Hussite Wars
+  - Spanish Inquisition; Peace of Augsburg; Mayflower; Revocation of the Edict of Nantes
+- **Councils:**
+  - Major: Nicaea I, Constantinople I, Ephesus, Chalcedon, Nicaea II.
+  - **Add** Constantinople II (553) and Constantinople III (680–681).
+  - The other 12 councils (Jerusalem, Arles, Antioch ×2, Serdica, Ariminum/Seleucia, Alexandria, Carthage, Ephesus II, Whitby, Frankfurt, Trent) become minor and hidden. They are not deleted.
+
+### Steps
+
+**A. Data: one migration** (`supabase/migrations/2026100412xxxx_ch_event_significance.sql`; CI applies it on merge).
+- Add `significance text not null default 'major' check (significance in ('major','minor'))` to `CH_Events`. Texts stay major.
+- Set the 9 minor events and 12 minor councils to minor, by `event_id`.
+- Set `active = true` on the 16 major events, which are hidden today (DESIGN §9 "plain events" removed; the owner is bringing the major ones back).
+- Insert the two councils:
+  - **Constantinople II:** 553, Constantinople. Condemned the Three Chapters.
+  - **Constantinople III:** 680–681, Constantinople. Condemned Monothelitism.
+  - Each with a one-line description and a Wikipedia `reference_url`, for Matthew to review in the PR. Citations come in M5.
+- Refresh `tests/e2e/data/lifelines-snapshot.json` with the same changes, via a small script that applies them to the JSON. The sandbox can't write to Supabase.
+
+**B. Adapter and config** (Lifelines only).
+- `churchHistory2Adapter.js`:
+  - Drop rows where `significance === 'minor'`, treating a missing value as major so old snapshots still load.
+  - Plain events (`event_type 'event'`) already have a style (`POINT_STYLES.events`, filter key `events`). They sit above the axis with the councils.
+  - Their mark is a **dot** (`markForPoint`), while councils are diamonds and texts are squares.
+- Legend: add an "Events" row with the dot mark (`filterKey: 'events'`); make sure the filter defaults on.
+- DESIGN.md:
+  - §9: plain events are no longer "removed". Major events show; minor events are hidden.
+  - §3: the events colour paired with the dot mark.
+
+**C. String hover.**
+- The hovered line goes from 1px to 3px (+200%) in a brighter gold. Add a new `--color-string-hover` value, brighter than `#c08f12` (e.g. `#e3a92b`) while still reading on white at 3px. It stays in the overlay at z 12, above every person bar and label. Dots and label follow the same gold.
+- **Connected people highlighted:** while a string is hovered, each linked figure's bar (`point.connectedPeople`, front layer) gets a gold outline ring drawn in the overlay (bars' screen rects are already computed there), and its name label gets a gold edge.
+  - It's overlay-only, so no Timeline state is needed.
+  - Rulers linked to the event are skipped for now: there are 4 such links, and they're on another layer.
+
+**D. Remove the roomy prototype.**
+- Remove `?density=roomy`, `stringDotLabels`, the dot labels, `personBarHeight` and `--compare density`, along with its e2e test. Git keeps them.
+
+**Verification**
+- Unit: an adapter test that minor rows are dropped and a missing significance counts as major.
+- E2E:
+  - **Fixture:** add a major event, a minor event and a minor council.
+  - **Visibility:** the major event shows with a dot, the minor ones don't, and the "Events" Key row toggles it.
+  - **Hover:**
+    - the hovered string is 3px and the new gold;
+    - Athanasius's and Eusebius's bars get rings when Nicaea is hovered;
+    - the rings go on mouse leave.
+  - **Real data:** exactly 7 councils render across the full span.
+- Shots: the defaults, read on desktop, laptop and phone.
+- Unit and e2e pass, and lint is unchanged.
+
 ## M3 round 4: rulers lower, full labels, compact vs roomy (2026-10-03)
 
 **Context.** Matthew's notes on round 3:
