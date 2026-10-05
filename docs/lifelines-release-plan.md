@@ -2,6 +2,49 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## After M3 (merged 2026-10-05): what's next
+
+**Context.** M3 ([hawkandheron-dev/windhover-site#160](https://github.com/hawkandheron-dev/windhover-site/pull/160)) is merged. Matthew's latest decisions:
+- **Key:** stays open by default on wide screens. The DESIGN.md Known violations line becomes an accepted rule.
+- **Placeholder portraits:** no mock-ups; he'll find or make his own. The plan step shrinks to wiring in his images when they arrive.
+- **Bottom-left controls:** he'll rework them after his own research. He asked for a research piece comparing navigation options: done as a Claude Doc, https://claude.ai/code/artifact/a804ab62-0287-41a3-a27d-f3a19571a83e (recommends a docked bar now and an overview strip later).
+- "What's next?"
+
+**Housekeeping first.** Restart `claude/clever-curie-0627ec` from the merged `main` (`git fetch origin main && git checkout -B claude/clever-curie-0627ec origin/main`, then a force-with-lease push). The branch holds only merged history, so nothing is lost. The sandbox's safety check blocked this command once, so Matthew will see a permission prompt.
+
+### 1. Navigation research (for Matthew)
+A page comparing how comparable tools handle pan and zoom controls, written as a Claude Doc so he can comment on it. A Claude Doc is a document he can comment on directly.
+- **Tools compared** (6–8):
+  - timelines: TimelineJS, Histography, Our World in Data's time slider, Kronoscope/Timeline Index;
+  - maps: Google Maps, Apple Maps, Mapbox/MapLibre defaults;
+  - design tools: Figma's canvas.
+- **For each tool:** where the controls sit, what they are (zoom ±, reset, a range slider or minimap, a scale or years readout), how they behave on phone versus desktop, and whether they cover the content.
+- **Patterns** distilled from these, with trade-offs for Lifelines (examples: a slim bar docked above the rulers strip, an overview "minimap" of AD 1–1500 that you drag, gesture-only on touch with a single reset button, controls folded into the header).
+- **Fit with our constraints:** DESIGN.md §6 and §8, 44px phone targets, keyboard access, and not covering figures.
+- **Recommendation:** two or three directions. I'll make no code changes.
+- **Sources:** web search, cited inline. The sandbox can't screenshot live sites (network policy), so the doc describes them and links to them.
+
+### 2. Small doc commit
+- **DESIGN.md:** move the "Key covers figures on wide screens" line from Known violations into §6 as the owner's decision (open by default at 1100px and up).
+- **This plan:** drop the portrait mock-up step (Matthew supplies the images); keep the wiring (linked media, the panel slot) for when they arrive.
+- Sync `docs/lifelines-release-plan.md`.
+- Commit and push; no PR until there's code.
+
+### 3. Then: M4, code review and cleanup (Claude-only, no decisions needed)
+This is already in the plan:
+- `/code-review` at high effort on the Lifelines files.
+- Lint to zero in those files.
+- Merge the duplicated header, search and loading/error blocks in `ChurchHistory2App.jsx`.
+- Remove dead code (`churchHistory2Eras.js`).
+- HiDPI canvas scaling, which makes it sharp on Retina.
+- Stop the re-render on every mouse move.
+- A friendly error with a Retry button.
+- E2E for the feedback dialog and the legend toggles.
+- Firefox and WebKit in CI.
+- It ships as one PR, with the usual checks.
+
+**Waiting on Matthew** (no action from me until then): tour copy edits in the doc; portrait images; the controls direction after the research; M5 needs full network access for the data work (dates, links, citations).
+
 ## M3 PR #160: CI red and two bot findings (2026-10-05)
 
 **Context.** Matthew subscribed this session to [hawkandheron-dev/windhover-site#160](https://github.com/hawkandheron-dev/windhover-site/pull/160). Three items are open on it:
@@ -114,6 +157,8 @@ Matthew: "I think it's just a shorter panel on mobile, maybe with no images."
    - The doc's scene ids keep his edits matched to the rows.
 
 ## Added to the plan (2026-10-04): placeholder portraits
+
+> **Update 2026-10-05:** Matthew will find or make the placeholder images himself; no mock-ups from Claude (step 3's style options are dropped). The data and wiring steps stand for when his images arrive.
 
 **Context.** Matthew: "we need a good placeholder portrait for male and female people who don't have images."
 

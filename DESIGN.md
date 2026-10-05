@@ -106,7 +106,7 @@ Every UI change is still checked in the `default-dark` screenshots.
 | Detail panel | Docked right in the horizontal layout on desktop; a modal on phones | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
 | Opening view | 1–500 AD, centred, framed on the measured width (1–160 AD for the horizontal layout on a phone, `config.phone`); nothing before **100 BC** (`minYear`) | The welcome dialog offers the tour on a first visit (remembered under its own key). |
 | Address | Lifelines is the site's front page, `/` | It is the only indexed page. The owner's admin entry is `/?admin`. Lifelines has no link to any other part of the site. |
-| Legend | Floating, top right, just below the header | Slim (`legendLayout: 'slim'`): Lifelines' name, the four show/hide switches (councils and texts with their shapes, reigns with the crown, figures with a neutral bar), Windhover at the foot. No colour key, no section headings. It folds to a "Key" button while the detail panel is open or the timeline is under 1100px wide; a reader's own open/close holds until that changes. |
+| Legend | Floating, top right, just below the header | Slim (`legendLayout: 'slim'`): Lifelines' name, the four show/hide switches (councils and texts with their shapes, reigns with the crown, figures with a neutral bar), Windhover at the foot. No colour key, no section headings. It folds to a "Key" button while the detail panel is open or the timeline is under 1100px wide; a reader's own open/close holds until that changes. At 1100px and wider it opens by default even though it covers a few top-right figures in the opening view (owner's decision, 2026-10-05). |
 | Controls | Bottom left (horizontal); the toolbar (vertical) | Zoom, pan, the year readout and the Layout toggle (Vert / Horiz). No depth control: the rulers stay faint, and lift with a hovered or chosen figure, or while Alt is held. On a phone the arrows go (fingers pan) and the buttons are 44px. |
 
 - The page is sized with `100dvh`, not `100vh`, so iOS Safari's address bar
@@ -215,12 +215,10 @@ the stray hover card, the legend covering figures, the phone's overlapping
 landmark cards and its parchment toolbar in milestone 3 (on screens under
 1100px; see the first line below).
 
-- **§6 Legend (desktop, 1100px and wider):** the open Key still covers the
-  top-right figures in the opening view (Patrick, Pope Celestine, Cyril of
-  Alexandria in `default--desktop.png`). It collapses only on narrower screens
-  or while the panel is open. Found by the M3 ux-review.
 - **§6 Controls with the panel open:** the zoom, readout and layout controls
   float over figure bars at the bottom left (Clement of Rome and Polycarp in
   `panel--laptop.png`), and at 820px their labels wrap to two lines ("Zoom /
-  in", "50–340 / AD" in `panel--tablet.png`). Found by the M3 ux-review.
+  in", "50–340 / AD" in `panel--tablet.png`). Found by the M3 ux-review The owner is
+  researching a rework of the controls (navigation comparison doc,
+  2026-10-05).
 
