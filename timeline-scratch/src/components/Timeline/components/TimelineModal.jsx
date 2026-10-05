@@ -500,6 +500,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
       location={item.location}
       birthYear={getYear(item.startDate || item.date)}
       title={compactLayout ? 'Historical map' : undefined}
+      credit={config?.mapCreditLine === true}
     />
   ) : null;
 
@@ -704,6 +705,15 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
                   className="modal-wiki-text"
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(wikiDesc.text) }}
                 />
+                {/* config.wikiLicenceNote (Lifelines): Wikipedia's text is
+                    CC BY-SA, which asks for the licence beside the reuse. */}
+                {config?.wikiLicenceNote && wikiDesc.source === 'Wikipedia' && wikiDesc.text && (
+                  <p className="modal-wiki-licence">
+                    Text from <a href={wikiDesc.url} target="_blank" rel="noopener noreferrer">Wikipedia</a>,
+                    {' '}available under{' '}
+                    <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer license">CC BY-SA 4.0</a>.
+                  </p>
+                )}
               </>
             )}
           </div>

@@ -74,6 +74,7 @@ const DEFAULT_STATES = [
   { name: 'tour-later-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(6) },
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
   // The data fails to load: a plain sentence and "Try again" (M4).
+  { name: 'about',         viewports: ['phone', 'desktop'], act: openAbout },
   { name: 'error',         viewports: ['phone', 'desktop'], failData: true },
 ];
 
@@ -182,6 +183,10 @@ function tourExit(afterMs) {
     await page.locator('[title="Exit tour"]').click();
     await page.waitForTimeout(afterMs);
   };
+}
+async function openAbout(page) {
+  await page.getByRole('button', { name: 'About' }).click();
+  await page.waitForTimeout(200);
 }
 async function tabThrough(page) {
   for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');

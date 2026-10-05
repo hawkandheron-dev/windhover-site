@@ -1,9 +1,9 @@
-import { sizedImageUrl, TOUR_IMAGE_WIDTH } from './sizedImageUrl.js';
+import { sizedImageUrl, commonsFilePage, TOUR_IMAGE_WIDTH } from './sizedImageUrl.js';
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from '../Timeline/components/Icon.jsx';
 import './TourPanel.css';
 
-function TourImage({ media, isAdmin, onCropUpdate }) {
+function TourImage({ media, isAdmin, onCropUpdate, onError, onLoad, overlayCredit = true }) {
   const [imgError, setImgError] = useState(false);
   // The image fades in once decoded, rather than painting in strips.
   const [loaded, setLoaded] = useState(false);
@@ -63,8 +63,8 @@ function TourImage({ media, isAdmin, onCropUpdate }) {
         style={{ objectPosition: `${posX}% ${posY}%` }}
         className={loaded ? 'is-loaded' : undefined}
         decoding="async"
-        onLoad={() => setLoaded(true)}
-        onError={() => setImgError(true)}
+        onLoad={() => { setLoaded(true); onLoad?.(); }}
+        onError={() => { setImgError(true); onError?.(); }}
         draggable={false}
       />
       {isAdmin && !adjusting && (
@@ -85,7 +85,7 @@ function TourImage({ media, isAdmin, onCropUpdate }) {
           <button className="tour-image-cancel-btn" onClick={handleCancel}>Cancel</button>
         </div>
       )}
-      {media.attribution && (
+      {overlayCredit && media.attribution && (
         <span className="tour-image-attribution">{media.attribution}</span>
       )}
     </div>
@@ -103,7 +103,13 @@ export function TourPanel({
   media,
   isAdmin,
   onMediaCropUpdate,
+  // Credit the picture in a line under the text, linked to its Commons page,
+  // instead of the small overlay on the picture (which phones can't read).
+  imageCredit = false,
 }) {
+  const [failedMediaId, setFailedMediaId] = useState(null);
+  const showImage = media && failedMediaId !== media.mediaId;
+  const creditHref = media ? (commonsFilePage(media.mediaUrl) || media.sourcePageUrl) : null;
   const isFirst = sceneIndex === 0;
   const isLast = sceneIndex === totalScenes - 1;
 
@@ -150,6 +156,11 @@ export function TourPanel({
             media={media}
             isAdmin={isAdmin}
             onCropUpdate={onMediaCropUpdate}
+            onError={() => setFailedMediaId(media.mediaId)}
+            // Coming back to a scene retries its picture; if it loads this
+            // time, its credit comes back with it.
+            onLoad={() => setFailedMediaId(id => (id === media.mediaId ? null : id))}
+            overlayCredit={!imageCredit}
           />
         )}
         <h3 className="tour-scene-title">{scene.title}</h3>
@@ -174,6 +185,17 @@ export function TourPanel({
                 )
               : scene.thirdNarrative
             }
+          </p>
+        )}
+        {imageCredit && showImage && (media.attribution || creditHref) && (
+          <p className="tour-image-credit">
+            Picture: {media.attribution || 'Wikimedia Commons'}
+            {creditHref && (
+              <>
+                {' · '}
+                <a href={creditHref} target="_blank" rel="noopener noreferrer">Source</a>
+              </>
+            )}
           </p>
         )}
       </div>

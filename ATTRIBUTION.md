@@ -44,7 +44,30 @@ MapLibre GL JS:
 
 Attribution is rendered at runtime by MapLibre's default
 `AttributionControl` using the attribution declared in the OpenHistoricalMap
-style JSON.
+style JSON. On Lifelines that control is collapsed to an (i) button, so a
+plain credit line is also printed under each map (`mapCreditLine`).
+
+## Text
+
+### Wikipedia
+
+Lifelines' detail panel shows the lead summary of a figure's Wikipedia
+article, fetched live from the Wikipedia REST API.
+
+- **License:** [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+  Each excerpt links to its article and carries a licence line beneath it
+  (`wikiLicenceNote`).
+
+## Tour pictures (Lifelines)
+
+The tour's pictures (`CH_LinkedMedia`, `entity_type = 'tour_scene'`) are
+hot-linked from Wikimedia Commons. Each is credited under the tour text with
+its stored attribution and a link to its Commons file page.
+
+- **To do (needs network access):** every row says "Public domain, Wikimedia
+  Commons". Check each file's actual licence on its Commons page and correct
+  the attribution where it differs (author and licence for anything CC BY or
+  CC BY-SA).
 
 ## Fonts
 
@@ -57,14 +80,25 @@ Used for the Windhover wordmark.
 
 ### Cormorant & Alegreya Sans
 
-Loaded from Google Fonts for body and display type.
+Body and display type. Lifelines serves them itself from the `@fontsource`
+packages (`timeline-scratch/src/fonts-local.css`), so readers' addresses
+aren't shared with Google; the other pages still load them from Google Fonts
+(`fonts-google.css`).
 
 - **License:** SIL Open Font License 1.1.
 
 ## Our content
 
-The prose, data, and code authored for this project are not yet published
-under an explicit open-source license. A `LICENSE` file will be added at the
-repo root once the license choice is finalized. Until then, all of our
-original content is "all rights reserved" by default; please ask before
-redistributing.
+**Lifelines** — the timeline's selection of people, dates and connections
+(the `CH_*` tables) and the tour text — is licensed under
+[Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/):
+anyone may reuse it, with credit to Matt Brown. Most of what a reader sees
+in the detail panel comes from elsewhere (Wikipedia, below); the licence
+covers the work of choosing and connecting it, so others can reuse the
+dataset without asking. This is stated to readers in
+Lifelines' About dialog. Third-party material it shows (Wikipedia text,
+maps, pictures) stays under its own licence, listed above.
+
+The rest of the site's prose and the code are not yet published under an
+explicit license and remain "all rights reserved" by default; please ask
+before redistributing.

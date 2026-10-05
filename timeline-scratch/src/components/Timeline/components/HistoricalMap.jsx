@@ -13,7 +13,11 @@ const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.js
  * Renders an Open Historical Map centered on a person's location,
  * filtered to their birth year, with a marker pin.
  */
-export function HistoricalMap({ location, birthYear, title = 'Historical Map' }) {
+/**
+ * @param {boolean} [credit] - A plain credit line under the map, readable at
+ *   any size; MapLibre's own control folds to an (i) button on narrow maps.
+ */
+export function HistoricalMap({ location, birthYear, title = 'Historical Map', credit = false }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const coords = getCoordinatesForLocation(location);
@@ -91,6 +95,13 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map' })
       {birthYear != null && (
         <p className="historical-map-date">
           Showing borders c. {formatDisplayYear(birthYear)}
+        </p>
+      )}
+      {credit && (
+        <p className="historical-map-credit">
+          Map ©{' '}
+          <a href="https://www.openhistoricalmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenHistoricalMap</a>
+          {' '}contributors (ODbL)
         </p>
       )}
     </div>

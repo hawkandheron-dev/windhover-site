@@ -24,7 +24,7 @@ function boundsFor(peopleWithCoords) {
   );
 }
 
-export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) {
+export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson, credit = false }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef(new Map()); // personId -> { marker, el }
@@ -182,6 +182,13 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) 
       {year != null && (
         <p className="historical-map-date">
           Showing borders c. {formatDisplayYear(year)}
+        </p>
+      )}
+      {credit && (
+        <p className="historical-map-credit">
+          Map ©{' '}
+          <a href="https://www.openhistoricalmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenHistoricalMap</a>
+          {' '}contributors (ODbL)
         </p>
       )}
     </div>

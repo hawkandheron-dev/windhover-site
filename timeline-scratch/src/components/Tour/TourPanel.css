@@ -296,3 +296,15 @@
     font-size: 14px;
   }
 }
+
+/* The picture's credit, under the text (opt-in `imageCredit`). */
+.tour-image-credit {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-ink-faded, #6b6256);
+}
+
+.tour-image-credit a {
+  color: inherit;
+}

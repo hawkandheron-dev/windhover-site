@@ -1,0 +1,23 @@
+/* Lifelines' typefaces, served with the site from @fontsource rather than
+   from Google Fonts: nothing about a reader goes to a third party to draw
+   the text (M7, privacy). Same weights and italics the Google link asked for;
+   each file covers every script with unicode-range, so a browser downloads
+   only the subsets a page actually uses. */
+@import '@fontsource/alegreya-sans/300.css';
+@import '@fontsource/alegreya-sans/300-italic.css';
+@import '@fontsource/alegreya-sans/400.css';
+@import '@fontsource/alegreya-sans/400-italic.css';
+@import '@fontsource/alegreya-sans/500.css';
+@import '@fontsource/alegreya-sans/500-italic.css';
+@import '@fontsource/alegreya-sans/700.css';
+@import '@fontsource/alegreya-sans/700-italic.css';
+@import '@fontsource/cormorant/300.css';
+@import '@fontsource/cormorant/300-italic.css';
+@import '@fontsource/cormorant/400.css';
+@import '@fontsource/cormorant/400-italic.css';
+@import '@fontsource/cormorant/500.css';
+@import '@fontsource/cormorant/500-italic.css';
+@import '@fontsource/cormorant/600.css';
+@import '@fontsource/cormorant/600-italic.css';
+@import '@fontsource/cormorant/700.css';
+@import '@fontsource/cormorant/700-italic.css';

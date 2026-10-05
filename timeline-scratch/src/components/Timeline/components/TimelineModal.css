@@ -1144,3 +1144,24 @@
 .historical-map-container--unavailable p {
   margin: 0;
 }
+
+/* The licence line under a Wikipedia excerpt (config.wikiLicenceNote). */
+.modal-wiki-licence {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: var(--color-ink-faded);
+}
+.modal-wiki-licence a {
+  color: inherit;
+}
+
+/* A plain map credit under the map (config.mapCreditLine), readable on a
+   phone where MapLibre's own credit folds to an (i) button. */
+.historical-map-credit {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-ink-faded);
+}
+.historical-map-credit a {
+  color: inherit;
+}
