@@ -191,6 +191,9 @@ Every UI change is still checked in the `default-dark` screenshots.
 - Every data-dependent area has a loading, empty and error state, including
   when Wikipedia or the map tiles fail. That is what the offline screenshots
   show, so they double as a test of those states.
+  The timeline's own load failing says, in plain words, "Lifelines couldn't
+  load the timeline. Check your connection and try again." with a "Try again"
+  button; the technical message goes to the console, never the page (M4).
 
 ## 9. Deliberately removed — don't bring back without asking
 
