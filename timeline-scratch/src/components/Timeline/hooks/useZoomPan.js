@@ -71,6 +71,10 @@ export function useZoomPan({
 
   // Track if currently panning
   const isPanning = useRef(false);
+  // The same flag as state, for what renders from it (the cursor guide hides
+  // during a drag). The ref stays for the per-move checks, which must not
+  // wait for a render.
+  const [panning, setPanning] = useState(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
 
   // Viewport animation ref (for smooth tour transitions)
@@ -133,6 +137,7 @@ export function useZoomPan({
    */
   const startPan = useCallback((x, y) => {
     isPanning.current = true;
+    setPanning(true);
     lastMousePos.current = { x, y };
   }, []);
 
@@ -156,6 +161,7 @@ export function useZoomPan({
    */
   const endPan = useCallback(() => {
     isPanning.current = false;
+    setPanning(false);
   }, []);
 
   /**
@@ -256,6 +262,6 @@ export function useZoomPan({
     setYearsPerPixel,
     setViewportStartYear,
     animateViewport,
-    isPanning: isPanning.current
+    isPanning: panning
   };
 }

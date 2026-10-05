@@ -1,10 +1,11 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { filterByDate } from '@openhistoricalmap/maplibre-gl-dates';
 import MaplibreLanguage from '@openhistoricalmap/maplibre-gl-language';
 import { getCoordinatesForLocation } from '../../../data/locationCoordinates.js';
 import { formatYear } from '../utils/dateUtils.js';
+import { canUseWebGL } from '../utils/webgl.js';
 
 const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.json';
 
@@ -12,47 +13,67 @@ const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.js
  * Renders an Open Historical Map with pins for all people alive in a given year,
  * supporting bidirectional hover highlighting with external pill list.
  */
+/** Bounds that fit every pin; none for zero or one pin (a single pin is centred). */
+function boundsFor(peopleWithCoords) {
+  if (peopleWithCoords.length < 2) return null;
+  const lngs = peopleWithCoords.map(p => p.coords[1]);
+  const lats = peopleWithCoords.map(p => p.coords[0]);
+  return new maplibregl.LngLatBounds(
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)]
+  );
+}
+
 export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef(new Map()); // personId -> { marker, el }
 
   // Resolve people to those with valid coordinates
-  const peopleWithCoords = people
+  const peopleWithCoords = useMemo(() => people
     .map(p => {
       const coords = getCoordinatesForLocation(p.location);
       if (!coords) return null;
       return { ...p, coords };
     })
-    .filter(Boolean);
+    .filter(Boolean), [people]);
 
-  // Compute bounds that fit all pins
-  const getBounds = useCallback(() => {
-    if (peopleWithCoords.length === 0) return null;
-    if (peopleWithCoords.length === 1) return null; // single point — just center on it
-    const lngs = peopleWithCoords.map(p => p.coords[1]);
-    const lats = peopleWithCoords.map(p => p.coords[0]);
-    return new maplibregl.LngLatBounds(
-      [Math.min(...lngs) , Math.min(...lats)],
-      [Math.max(...lngs), Math.max(...lats)]
-    );
-  }, [peopleWithCoords.length]);
+  // The map is rebuilt only when the set of pins changes, not every time the
+  // parent hands over a new array of the same people. The latest people and
+  // hover callback are read through refs when it is.
+  const pinsKey = peopleWithCoords.map(p => `${p.id}@${p.coords.join(',')}`).join('|');
+  const peopleRef = useRef(peopleWithCoords);
+  const onHoverRef = useRef(onHoverPerson);
+  useEffect(() => {
+    peopleRef.current = peopleWithCoords;
+    onHoverRef.current = onHoverPerson;
+  });
+
+  const mapsWork = canUseWebGL();
 
   useEffect(() => {
-    if (peopleWithCoords.length === 0 || !mapContainerRef.current) return;
+    const peopleWithCoords = peopleRef.current;
+    if (!mapsWork || peopleWithCoords.length === 0 || !mapContainerRef.current) return;
 
-    const bounds = getBounds();
+    const bounds = boundsFor(peopleWithCoords);
     const firstPerson = peopleWithCoords[0];
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: OHM_STYLE_URL,
-      center: bounds
-        ? bounds.getCenter().toArray()
-        : [firstPerson.coords[1], firstPerson.coords[0]],
-      zoom: 5,
-      attributionControl: true,
-    });
+    let map;
+    try {
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: OHM_STYLE_URL,
+        center: bounds
+          ? bounds.getCenter().toArray()
+          : [firstPerson.coords[1], firstPerson.coords[0]],
+        zoom: 5,
+        attributionControl: true,
+      });
+    } catch (err) {
+      // Never let the map take the year summary (or the page) down with it.
+      console.warn('Year map could not start:', err);
+      return;
+    }
 
     mapRef.current = map;
 
@@ -84,11 +105,11 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) 
       // Hover events on the pin
       el.addEventListener('mouseenter', () => {
         popup.setLngLat([lng, lat]).addTo(map);
-        onHoverPerson?.(person.id, 'map');
+        onHoverRef.current?.(person.id, 'map');
       });
       el.addEventListener('mouseleave', () => {
         popup.remove();
-        onHoverPerson?.(null);
+        onHoverRef.current?.(null);
       });
 
       const marker = new maplibregl.Marker({ element: el })
@@ -115,12 +136,13 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) 
       }
     });
 
+    const markers = markersRef.current;
     return () => {
-      markersRef.current.clear();
+      markers.clear();
       mapRef.current = null;
       map.remove();
     };
-  }, [peopleWithCoords.length, year]);
+  }, [mapsWork, pinsKey, year]);
 
   // Update highlight state on markers when hoveredPersonId changes
   useEffect(() => {
@@ -150,7 +172,13 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) 
   return (
     <div className="historical-map-section">
       <h3>Historical Map</h3>
-      <div className="historical-map-container year-detail-map-container" ref={mapContainerRef} />
+      {mapsWork ? (
+        <div className="historical-map-container year-detail-map-container" ref={mapContainerRef} />
+      ) : (
+        <div className="historical-map-container year-detail-map-container historical-map-container--unavailable">
+          <p>The map can't be shown in this browser.</p>
+        </div>
+      )}
       {year != null && (
         <p className="historical-map-date">
           Showing borders c. {formatDisplayYear(year)}

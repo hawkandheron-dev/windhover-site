@@ -10,6 +10,7 @@ import './TimelineOverlay.css';
 import { placeStringDots } from '../utils/stringDots.js';
 import { StringMark } from './StringMark.jsx';
 import { markForPoint } from '../utils/stringMark.js';
+import { usePointer } from '../hooks/usePointer.js';
 import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
 
 export function TimelineOverlay({
@@ -21,6 +22,8 @@ export function TimelineOverlay({
   layout,
   config,
   hoveredItem,
+  /** Pointer store (utils/pointerStore.js): the hover card follows it. */
+  pointer,
   hoveredPeriod,
   onItemHover,
   onItemClick,
@@ -163,7 +166,9 @@ export function TimelineOverlay({
       {config.pointStyle === 'string' ? renderPointStrings() : renderPointCallouts()}
 
       {/* Render hover preview */}
-      {hoveredItem && renderHoverPreview()}
+      {hoveredItem?.item && (
+        <HoverPreview item={hoveredItem.item} pointer={pointer} width={width} eraLabels={config.eraLabels} />
+      )}
     </div>
   );
 
@@ -180,8 +185,6 @@ export function TimelineOverlay({
 
       const startX = yearToPixel(start, viewportStartYear, yearsPerPixel);
       const endX = yearToPixel(end, viewportStartYear, yearsPerPixel);
-      const boxWidth = Math.max(endX - startX, 60); // Min width for readability
-      const boxHeight = person.height - 6;
       const boxY = person.y - panOffsetY;
 
       // Position label at left of the box, vertically centered
@@ -274,7 +277,6 @@ export function TimelineOverlay({
       const endX = yearToPixel(end, viewportStartYear, yearsPerPixel);
       const centerX = (startX + endX) / 2;
       const bracketY = period.y - panOffsetY;
-      const bracketWidth = endX - startX;
       const bracketHeight = period.bracketHeight ?? period.height;
 
       // Hide if completely off screen
@@ -552,64 +554,60 @@ export function TimelineOverlay({
       );
     });
   }
+}
 
-  function renderHoverPreview() {
-    const { type, item, mouseX, mouseY } = hoveredItem;
+/** The card beside the pointer while it rests on an item; it follows the
+ *  pointer without the overlay re-rendering. */
+function HoverPreview({ item, pointer, width, eraLabels }) {
+  const { x: mouseX, y: mouseY } = usePointer(pointer);
 
-    if (!item) return null;
+  // Position preview near mouse
+  const previewX = Math.min(mouseX + 15, width - 250);
+  const previewY = mouseY + 15;
 
-    // Position preview near mouse
-    const previewX = Math.min(mouseX + 15, width - 250);
-    const previewY = mouseY + 15;
-
-    return (
-      <div
-        className="hover-preview"
-        style={{
-          position: 'absolute',
-          left: `${previewX}px`,
-          top: `${previewY}px`,
-          width: '240px',
-          backgroundColor: '#fff',
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          padding: '12px',
-          pointerEvents: 'none',
-          zIndex: 10000,
-          fontSize: '13px',
-          lineHeight: '1.5'
-        }}
-      >
-        {item.image && (
-          <img
-            src={item.image}
-            alt={item.name}
-            style={{
-              width: '100%',
-              height: '120px',
-              objectFit: 'cover',
-              borderRadius: '4px',
-              marginBottom: '8px'
-            }}
-          />
-        )}
-        <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>
-          {item.name}
-        </div>
-        {(item.date || item.location) && (
-          <div style={{ fontSize: '12px', color: '#666' }}>
-            {(() => {
-              const parts = [];
-              if (item.date) {
-                parts.push(formatYear(getYear(item.date), config.eraLabels));
-              }
-              if (item.location) parts.push(item.location);
-              return parts.join(' · ');
-            })()}
-          </div>
-        )}
+  return (
+    <div
+      className="hover-preview"
+      style={{
+        position: 'absolute',
+        left: `${previewX}px`,
+        top: `${previewY}px`,
+        width: '240px',
+        backgroundColor: '#fff',
+        border: '1px solid #ccc',
+        borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        padding: '12px',
+        pointerEvents: 'none',
+        zIndex: 10000,
+        fontSize: '13px',
+        lineHeight: '1.5'
+      }}
+    >
+      {item.image && (
+        <img
+          src={item.image}
+          alt={item.name}
+          style={{
+            width: '100%',
+            height: '120px',
+            objectFit: 'cover',
+            borderRadius: '4px',
+            marginBottom: '8px'
+          }}
+        />
+      )}
+      <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>
+        {item.name}
       </div>
-    );
-  }
+      {(item.date || item.location) && (
+        <div style={{ fontSize: '12px', color: '#666' }}>
+          {[
+            item.date ? formatYear(getYear(item.date), eraLabels) : null,
+            item.location || null,
+          ].filter(Boolean).join(' · ')}
+        </div>
+      )}
+    </div>
+  );
 }

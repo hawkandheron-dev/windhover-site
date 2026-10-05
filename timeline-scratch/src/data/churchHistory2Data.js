@@ -65,6 +65,9 @@ export const churchHistory2Config = {
   /** Landmarks as harp strings: a line through the timeline at each year,
    *  with a dot on a linked figure or in open space (owner's pick, M3). */
   pointStyle: 'string',
+  /** Draw the canvas at the screen's pixel density, so names and lines are
+   *  sharp on Retina screens (M4). */
+  hiDpiCanvas: true,
   /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
    *  timeline). */
   touchGestures: true,

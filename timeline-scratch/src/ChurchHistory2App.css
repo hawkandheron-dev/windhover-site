@@ -595,3 +595,43 @@ body:has(.ch2-app) {
 .ch2-app #timeline-detail-title:focus {
   outline: none;
 }
+
+/* Loading and error states for the timeline (DESIGN.md §8). Quiet type in
+   the middle of the page; the error offers one way out. */
+.ch2-app .ch2-status {
+  margin: 0;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--color-ink-faded);
+  font-size: 1rem;
+}
+
+/* Wide screens: clear of the header, which floats over the page there. */
+@media (min-width: 769px) {
+  .ch2-app .ch2-status {
+    padding-top: calc(var(--ch2-header-height, 56px) + 3rem);
+  }
+}
+
+.ch2-app .ch2-status--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--color-ink);
+}
+
+.ch2-app .ch2-status--error p {
+  margin: 0;
+  max-width: 32rem;
+}
+
+/* "Lifelines" in the Key is set in Alegreya Sans, the UI face, not the
+   Cormorant display face: in Cormorant it read like a genealogy site
+   (owner's call, 2026-10-05). */
+.ch2-app .timeline-legend--slim .legend-site-title {
+  font-family: var(--font-body, 'Alegreya Sans', sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}

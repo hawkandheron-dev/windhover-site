@@ -75,3 +75,37 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  e2e-browsers:
+    # Lifelines in Firefox and Safari's engine. CI only tested Chromium, and
+    # Safari treats BC dates and canvas differently (release plan, M4).
+    name: E2E (Firefox, WebKit)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            timeline-scratch/package-lock.json
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: built-site
+          path: apps/
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps firefox webkit
+      - run: npx playwright test --project=firefox --project=webkit
+        env:
+          PW_ALL_BROWSERS: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-browsers
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

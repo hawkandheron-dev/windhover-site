@@ -18,8 +18,10 @@ import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
 import { RulerStrip } from './components/RulerStrip.jsx';
 import { rulerStripHeight } from './utils/rulerStrip.js';
-import { getYear, formatYear, formatYearSpan } from './utils/dateUtils.js';
+import { getYear, formatYearSpan } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
+import { createPointerStore } from './utils/pointerStore.js';
+import { CursorLine, CursorYearChip } from './components/CursorGuide.jsx';
 import bgManuscript from '../../assets/bg-manuscript.jpg';
 import './Timeline.css';
 
@@ -115,9 +117,20 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
   );
 });
 
-// True on a screen with no hover-capable pointer (a phone, an iPad without a
-// trackpad). Checked per event: an iPad gains hover when a trackpad connects.
-const noHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
+// True when the mouse event in hand came from a finger: a tap makes the
+// browser synthesise mouse events, which would leave the cursor line, year
+// chip and hover card stuck where the finger was. Judged by a touch in the
+// last moment, not by the (hover: none) media query, which some desktops
+// report with a perfectly good mouse attached (headless Firefox, some touch
+// laptops) and which then lost hover entirely.
+const TOUCH_ECHO_MS = 800;
+let lastTouchAt = -Infinity;
+if (typeof window !== 'undefined') {
+  const markTouch = () => { lastTouchAt = Date.now(); };
+  window.addEventListener('touchstart', markTouch, { capture: true, passive: true });
+  window.addEventListener('touchend', markTouch, { capture: true, passive: true });
+}
+const noHover = () => Date.now() - lastTouchAt < TOUCH_ECHO_MS;
 
 const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false }, ref) {
   const containerRef = useRef(null);
@@ -127,8 +140,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // initial vertical placement waits for it (see below).
   const [measured, setMeasured] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [selection, setSelectedItem] = useState(null);
+  // The pointer's position lives outside React state (utils/pointerStore.js):
+  // only the cursor guide and hover card follow it, not the whole timeline.
+  const [pointer] = useState(createPointerStore);
   // The cursor line and year chip follow the pointer only while it is over the
   // timeline; otherwise they froze at the last position, often under the header.
   const [pointerInside, setPointerInside] = useState(false);
@@ -261,15 +276,13 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     return map;
   }, [data, backData]);
 
-  // Re-select the current item from fresh data after a refetch
-  useEffect(() => {
-    if (selectedItem && itemIndex) {
-      const fresh = itemIndex.get(selectedItem.item?.id);
-      if (fresh) {
-        setSelectedItem({ type: fresh.type, item: fresh.item });
-      }
-    }
-  }, [itemIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The open item, read through the index so a refetch shows fresh data
+  // (an edit, say) without re-selecting it.
+  const selectedItem = useMemo(() => {
+    if (!selection) return null;
+    const fresh = itemIndex?.get(selection.item?.id);
+    return fresh && fresh.item !== selection.item ? { type: fresh.type, item: fresh.item } : selection;
+  }, [selection, itemIndex]);
 
   // Landmarks carry their full pin-and-flag card when there is room for it,
   // and collapse to a bare pin when zoomed out. Without this the sixty
@@ -595,7 +608,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    setMousePos({ x, y });
+    pointer.set(x, y);
     // A touch screen has no hover: the mouse events a tap synthesises would
     // leave the cursor line, year chip and hover card stuck where the finger was.
     if (!(defaultConfig.touchGestures && noHover())) setPointerInside(true);
@@ -604,12 +617,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       const maxOffsetY = Math.max(0, layout.totalHeight - dimensions.height);
       updatePan(x, y, dimensions.width, maxOffsetY);
     }
-  }, [isModalOpen, isPanning, updatePan, dimensions, layout.totalHeight, defaultConfig.touchGestures]);
-
-  // Calculate cursor year from mouse X position (needs to be before handleMouseUp)
-  const cursorYear = useMemo(() => {
-    return Math.round(viewportStartYear + mousePos.x * yearsPerPixel);
-  }, [viewportStartYear, mousePos.x, yearsPerPixel]);
+  }, [isModalOpen, isPanning, updatePan, dimensions, layout.totalHeight, defaultConfig.touchGestures, pointer]);
 
   const pendingYearSummaryRef = useRef(null);
 
@@ -619,14 +627,14 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     if (!container) return;
     if (isModalOpen) return;
 
-    // Where the pointer was released, from the event itself. mousePos is
-    // state, as fresh as the last render; mousedown already reads the event,
-    // so comparing the two called a stale mousePos a drag. A tap (no move
+    // Where the pointer was released, from the event itself. A stored
+    // position can lag the event (it once lived in state, as fresh as the
+    // last render), and comparing the two called a stale position a drag. A tap (no move
     // before it, as on a touch screen) or a quick click after a move was
     // then swallowed as a drag, and a landmark card's click opened nothing.
     const rect = container.getBoundingClientRect();
-    const upX = e?.clientX != null ? e.clientX - rect.left : mousePos.x;
-    const upY = e?.clientY != null ? e.clientY - rect.top : mousePos.y;
+    const upX = e?.clientX != null ? e.clientX - rect.left : pointer.get().x;
+    const upY = e?.clientY != null ? e.clientY - rect.top : pointer.get().y;
 
     // A click on empty timeline opens that year's summary. "Empty" is judged
     // from the event, not from hover state, which has the same freshness
@@ -671,18 +679,27 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         requestAnimationFrame(() => { wasDraggingRef.current = false; });
       }
     }
-  }, [endPan, isModalOpen, mousePos, viewportStartYear, yearsPerPixel, selectedItem, yearSummaryOpen]);
+  }, [endPan, isModalOpen, pointer, viewportStartYear, yearsPerPixel, selectedItem, yearSummaryOpen]);
 
-  // Handle item hover
+  // Handle item hover. The canvas reports on every mouse move; state changes
+  // only when the item under the pointer does, so the canvases redraw on
+  // entering or leaving a figure, not on each pixel in between.
+  const lastHoverRef = useRef(null);
+  // Any other place that ends a hover must forget the last item too, or the
+  // same item would not register when the pointer comes back onto it.
+  const clearHover = useCallback(() => {
+    lastHoverRef.current = null;
+    setHoveredItem(null);
+  }, []);
   const handleItemHover = useCallback((type, item) => {
-    if (type && item && !(defaultConfig.touchGestures && noHover())) {
-      setHoveredItem({ type, item, mouseX: mousePos.x, mouseY: mousePos.y });
-    } else {
-      setHoveredItem(null);
-    }
+    const hovering = type && item && !(defaultConfig.touchGestures && noHover());
+    const key = hovering ? `${type}:${item.id}` : null;
+    if (key === lastHoverRef.current) return;
+    lastHoverRef.current = key;
+    setHoveredItem(hovering ? { type, item } : null);
     // Depth preview: hovering a figure lifts their background, and only theirs.
     onPersonHover?.(type === 'person' ? item?.id ?? null : null);
-  }, [mousePos, onPersonHover, defaultConfig.touchGestures]);
+  }, [onPersonHover, defaultConfig.touchGestures]);
 
   // The legend gives way when space is short (config.legendCollapsible): it
   // folds to a "Key" button while the detail panel is open or the timeline is
@@ -691,32 +708,39 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // closes, and then the automatic choice applies again.
   const legendAutoCollapsed = !!defaultConfig.legendCollapsible
     && (!!selectedItem || (measured && dimensions.width < 1100));
-  const [legendChoice, setLegendChoice] = useState(null);
-  useEffect(() => { setLegendChoice(null); }, [legendAutoCollapsed]);
-  const legendCollapsed = legendChoice ?? legendAutoCollapsed;
-  const toggleLegend = useCallback(() => setLegendChoice(!legendCollapsed), [legendCollapsed]);
+  // The reader's choice is kept with the automatic state it was made under,
+  // so a change of situation clears it (adjusting state during render, as
+  // React recommends, rather than in an effect a frame later).
+  const [legendChoice, setLegendChoice] = useState({ auto: legendAutoCollapsed, collapsed: null });
+  if (legendChoice.auto !== legendAutoCollapsed) setLegendChoice({ auto: legendAutoCollapsed, collapsed: null });
+  const legendCollapsed = legendChoice.auto === legendAutoCollapsed && legendChoice.collapsed !== null
+    ? legendChoice.collapsed : legendAutoCollapsed;
+  const toggleLegend = useCallback(
+    () => setLegendChoice({ auto: legendAutoCollapsed, collapsed: !legendCollapsed }),
+    [legendAutoCollapsed, legendCollapsed]
+  );
 
   // Leaving the timeline ends any hover as well as any drag. Canvas items only
   // clear their hover on a mousemove over empty canvas, so a pointer that left
   // straight into the header kept the last hover card on screen indefinitely.
   const handleContainerLeave = useCallback((e) => {
     handleMouseUp(e);
-    setHoveredItem(null);
+    clearHover();
     setPointerInside(false);
     onPersonHover?.(null);
-  }, [handleMouseUp, onPersonHover]);
+  }, [handleMouseUp, onPersonHover, clearHover]);
 
   // Handle item click
   const handleItemClickInternal = useCallback((type, item) => {
     // This click opened an item, so it was not a click on empty timeline.
     pendingYearSummaryRef.current = null;
-    setHoveredItem(null);
+    clearHover();
     if (!suppressModal) {
       setSelectedItem({ type, item });
     }
     onPersonSelect?.(type === 'person' ? item?.id ?? null : null, type, item);
     onItemClick?.(type, item);
-  }, [onItemClick, suppressModal, onPersonSelect]);
+  }, [onItemClick, suppressModal, onPersonSelect, clearHover]);
 
   const handleModalItemSelect = useCallback((type, item) => {
     setSelectedItem({ type, item });
@@ -810,6 +834,22 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   }, []);
 
   // Expose search methods to parent via ref
+  // A reset aims at the opening view for the width the timeline has now. When
+  // the tour ends, the tour panel closes at the same moment and the timeline
+  // widens a frame or two later (later still in WebKit), so a reset aimed
+  // before that showed 650 years instead of 500. If the opening view changes
+  // shortly after a reset, aim again.
+  const resetRequestRef = useRef(null);
+  useEffect(() => {
+    const req = resetRequestRef.current;
+    if (!req || Date.now() - req.at > 1500) return;
+    const fraction = defaultConfig.initialAxisFraction ?? 0.5;
+    const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
+    const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
+    const remaining = req.animate ? Math.max(200, req.duration - (Date.now() - req.at)) : 1;
+    animateViewport(centeredViewportStart, initialYearsPerPixel, offset, remaining);
+  }, [centeredViewportStart, initialYearsPerPixel]); // eslint-disable-line react-hooks/exhaustive-deps -- re-aims only when the target moves
+
   useImperativeHandle(ref, () => ({
     selectItem: handleSearchSelect,
     highlight: handleSearchHighlight,
@@ -823,6 +863,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     // Back to the opening view: its span, centre and axis height, framed on
     // the real width. Animated, it glides there (Lifelines' tour exit).
     resetView: ({ animate = false, duration = 1000 } = {}) => {
+      resetRequestRef.current = { at: Date.now(), animate, duration };
       const fraction = defaultConfig.initialAxisFraction ?? 0.5;
       const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
       const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
@@ -910,15 +951,6 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
     return { year, activePeriods, alivePeople, yearPoints, nearbyPoints };
   }, [filteredData]);
-
-  // Handle click on blank space (for year summary)
-  const handleBlankClick = useCallback((e) => {
-    // Only handle if not over an item and not panning
-    if (!hoveredItem && !isPanning) {
-      setPinnedYear(cursorYear);
-      setYearSummaryOpen(true);
-    }
-  }, [hoveredItem, isPanning, cursorYear]);
 
   // Close year summary modal
   const handleYearSummaryClose = useCallback(() => {
@@ -1041,19 +1073,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
       {/* Cursor year line - behind all elements */}
       {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
-        <div
-          className="cursor-year-line"
-          style={{
-            position: 'absolute',
-            left: `${mousePos.x}px`,
-            top: 0,
-            width: '1px',
-            height: '100%',
-            backgroundColor: 'rgba(100, 100, 100, 0.5)',
-            pointerEvents: 'none',
-            zIndex: 1
-          }}
-        />
+        <CursorLine store={pointer} />
       )}
 
       {/* Pinned year line - stays visible when modal open */}
@@ -1122,6 +1142,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         layout={layout}
         config={defaultConfig}
         hoveredItem={hoveredItem}
+        pointer={pointer}
         hoveredPeriod={hoveredPeriod}
         highlightedItemIds={highlightedItemIds}
         currentHighlightId={currentHighlightId}
@@ -1158,25 +1179,12 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
       {/* Cursor year display - follows cursor */}
       {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
-        <div
-          className="cursor-year-display"
-          style={{
-            position: 'absolute',
-            left: `${mousePos.x + 12}px`,
-            top: `${mousePos.y - 10}px`,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            color: '#fff',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            fontWeight: '500',
-            pointerEvents: 'none',
-            zIndex: 200,
-            whiteSpace: 'nowrap'
-          }}
-        >
-          {formatYear(cursorYear, defaultConfig.eraLabels)}
-        </div>
+        <CursorYearChip
+          store={pointer}
+          viewportStartYear={viewportStartYear}
+          yearsPerPixel={yearsPerPixel}
+          eraLabels={defaultConfig.eraLabels}
+        />
       )}
 
       {!hideLegend && (

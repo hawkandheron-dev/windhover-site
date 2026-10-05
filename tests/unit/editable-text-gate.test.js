@@ -6,7 +6,7 @@
  * is worse than both.
  */
 import { describe, it, expect } from 'vitest';
-import { canEditField } from '../../timeline-scratch/src/components/Timeline/components/EditableText.jsx';
+import { canEditField } from '../../timeline-scratch/src/components/Timeline/components/editableTextGate.js';
 import { getTableConfig } from '../../timeline-scratch/src/components/EditEntityForm/EditEntityForm.jsx';
 
 const admin = { isAdmin: true, getToken: () => 'token', pkValue: 'athanasius', itemType: 'person' };

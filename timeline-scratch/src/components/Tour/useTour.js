@@ -154,7 +154,7 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
     const currIds = currentScene.personIds || [];
     const added = new Set(currIds.filter(id => !prevIds.has(id)));
     setNewlyAddedIds(added);
-  }, [tourActive, sceneIndex, currentScene]);
+  }, [tourActive, sceneIndex, currentScene, TOUR_SCENES]);
 
   // Compute newly added point IDs when scene changes (for pop-in animation)
   // Scenes with staggerPointIds are handled by the stagger effect below
@@ -170,7 +170,7 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
     const currPointIds = currentScene.pointIds || [];
     const added = new Set(currPointIds.filter(id => !prevPointIds.has(id)));
     setNewlyAddedPointIds(added);
-  }, [tourActive, sceneIndex, currentScene]);
+  }, [tourActive, sceneIndex, currentScene, TOUR_SCENES]);
 
   // Stagger effect: reveal people then points with separate intervals
   useEffect(() => {
@@ -382,7 +382,7 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
 
     buildOutTimerRef.current = interval;
     return () => clearInterval(interval);
-  }, [tourActive, sceneIndex, currentScene, fullData]);
+  }, [tourActive, sceneIndex, currentScene, fullData, tourPersonIds]);
 
   // ── Compute filtered data for the timeline ───────────────────────────
   const tourData = useMemo(() => {
@@ -459,7 +459,7 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
     if (sceneIndex < TOUR_SCENES.length - 1) {
       setSceneIndex(i => i + 1);
     }
-  }, [sceneIndex, timelineRef]);
+  }, [sceneIndex, timelineRef, TOUR_SCENES]);
 
   const prevScene = useCallback(() => {
     timelineRef?.current?.closeModal?.();

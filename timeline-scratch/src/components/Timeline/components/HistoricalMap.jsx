@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { filterByDate } from '@openhistoricalmap/maplibre-gl-dates';
 import MaplibreLanguage from '@openhistoricalmap/maplibre-gl-language';
 import { getCoordinatesForLocation } from '../../../data/locationCoordinates.js';
 import { formatYear } from '../utils/dateUtils.js';
+import { canUseWebGL } from '../utils/webgl.js';
 
 const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.json';
 
@@ -15,27 +16,29 @@ const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.js
 export function HistoricalMap({ location, birthYear, title = 'Historical Map' }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const [noCoords, setNoCoords] = useState(false);
-
   const coords = getCoordinatesForLocation(location);
+  const noCoords = !coords;
+  const lat = coords?.[0];
+  const lng = coords?.[1];
+  const mapsWork = canUseWebGL();
 
   useEffect(() => {
-    if (!coords || !mapContainerRef.current) {
-      setNoCoords(!coords);
+    if (!mapsWork || lat == null || lng == null || !mapContainerRef.current) return;
+
+    let map;
+    try {
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: OHM_STYLE_URL,
+        center: [lng, lat],
+        zoom: 6,
+        attributionControl: true,
+      });
+    } catch (err) {
+      // Never let the map take the panel (or the page) down with it.
+      console.warn('Historical map could not start:', err);
       return;
     }
-
-    setNoCoords(false);
-
-    const [lat, lng] = coords;
-
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: OHM_STYLE_URL,
-      center: [lng, lat],
-      zoom: 6,
-      attributionControl: true,
-    });
 
     mapRef.current = map;
 
@@ -67,7 +70,7 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map' })
       mapRef.current = null;
       map.remove();
     };
-  }, [coords?.[0], coords?.[1], birthYear]);
+  }, [mapsWork, lat, lng, birthYear]);
 
   if (!location) return null;
 
@@ -78,7 +81,13 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map' })
   return (
     <div className="historical-map-section">
       <h3>{title}</h3>
-      <div className="historical-map-container" ref={mapContainerRef} />
+      {mapsWork ? (
+        <div className="historical-map-container" ref={mapContainerRef} />
+      ) : (
+        <div className="historical-map-container historical-map-container--unavailable">
+          <p>The map can't be shown in this browser.</p>
+        </div>
+      )}
       {birthYear != null && (
         <p className="historical-map-date">
           Showing borders c. {formatDisplayYear(birthYear)}

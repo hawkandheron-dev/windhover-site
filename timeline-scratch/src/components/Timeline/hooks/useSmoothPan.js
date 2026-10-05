@@ -51,21 +51,24 @@ export function useSmoothPan({ handlePanX, handlePanY, dimensions, layoutTotalHe
 
   const tick = useCallback((direction) => {
     const d = dirs.current[direction];
-    if (!d.active || !d.continuous) return;
+    // One frame of continuous scrolling; it schedules the next itself.
+    const frame = () => {
+      if (!d.active || !d.continuous) return;
 
-    const now = performance.now();
-    const dt = (now - d.lastFrame) / 1000; // seconds
-    d.lastFrame = now;
+      const now = performance.now();
+      const dt = (now - d.lastFrame) / 1000; // seconds
+      d.lastFrame = now;
 
-    // Accelerate linearly from BASE_SPEED to MAX_SPEED over ACCEL_TIME
-    const elapsed = now - d.startTime;
-    const t = Math.min(elapsed / ACCEL_TIME, 1);
-    const speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) * t;
+      // Accelerate linearly from BASE_SPEED to MAX_SPEED over ACCEL_TIME
+      const elapsed = now - d.startTime;
+      const t = Math.min(elapsed / ACCEL_TIME, 1);
+      const speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) * t;
 
-    const px = speed * dt;
-    applyPan(direction, px);
+      applyPan(direction, speed * dt);
 
-    d.raf = requestAnimationFrame(() => tick(direction));
+      d.raf = requestAnimationFrame(frame);
+    };
+    frame();
   }, [applyPan]);
 
   const startDirection = useCallback((direction) => {
@@ -111,9 +114,10 @@ export function useSmoothPan({ handlePanX, handlePanY, dimensions, layoutTotalHe
 
   // Clean up all on unmount
   useEffect(() => {
+    const all = dirs.current;
     return () => {
-      for (const dir of Object.keys(dirs.current)) {
-        const d = dirs.current[dir];
+      for (const dir of Object.keys(all)) {
+        const d = all[dir];
         clearTimeout(d.holdTimer);
         if (d.raf) cancelAnimationFrame(d.raf);
       }

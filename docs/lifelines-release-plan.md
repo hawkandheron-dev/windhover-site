@@ -2,6 +2,126 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M4: code review and cleanup (started 2026-10-05)
+
+**Context.** Matthew: "Start on M4. Data checks and copy will probably be the last thing. Need to get all the mechanics and moving parts clean and ready first." So M4 is about mechanics. No visible design change is intended, apart from sharper canvas text on Retina screens and a friendly error state.
+
+What a read-only survey found:
+- **Lint:** 44 problems (26 errors, 18 warnings) across the files Lifelines runs.
+  - 11 unused variables;
+  - 8 setState-in-effect;
+  - 2 ref reads during render (`useZoomPan.js:259`);
+  - 2 used-before-declared (`useSmoothPan.js:68`, `EditableText.jsx:124`);
+  - 18 exhaustive-deps warnings.
+  - The data files are clean.
+- **`ChurchHistory2App.jsx` has two near-copies.** `AuthenticatedApp` and `UnauthenticatedApp` duplicate:
+  - the search handlers (470–480 and 648–658);
+  - the header (527–569 and 662–704, differing only in the right slot);
+  - loading/error/timeline (571–596 and 705–727);
+  - the welcome dialog (598–605 and 729–736);
+  - the hook setup.
+- **Error state:** a raw `Error: {err.message}` in an inline style; loading is a plain grey div. Neither has a role or a retry.
+- **Dead code:** `data/churchHistory2Eras.js`, imported only by its own test; `Timeline.jsx:915` `handleBlankClick`; two outdated comments.
+- **Blurry canvas:** no `devicePixelRatio` anywhere. The canvases render at CSS size (`TimelineCanvas.jsx:665`), and `DepthLayers` has two of them. Hit-testing is in CSS pixels, so `ctx.scale(dpr)` keeps it correct.
+- **Mousemove:**
+  - `setMousePos({x,y})` re-renders all of Timeline on every move;
+  - `handleItemHover` depends on `mousePos`;
+  - `setHoveredItem` gets a new object every move;
+  - `hoveredItem` is in the canvas draw effect's dependencies, so hovering a figure redraws both canvases on every mouse move.
+- **CI:** chromium only; Node 20.
+- **E2E gaps:** the feedback dialog has no test at all (the gate doc's top outstanding item); the Lifelines legend filtering isn't tested; welcome Skip is used but never asserted.
+
+### Steps (one branch, small commits, one PR; render with shots after any visible change)
+1. **Lint to zero** in the Lifelines files above. These are behaviour-preserving fixes only:
+   - remove unused variables and the dead `handleBlankClick`;
+   - reorder declarations that are used before they're declared;
+   - replace the ref read in `useZoomPan` with state, or drop it from the return if nobody reads it;
+   - setState-in-effect: change each to derived state, an event handler, or a lazy initial state, case by case. Where an effect genuinely syncs from outside (`useMobileDetect`'s `matchMedia`), use `useSyncExternalStore`;
+   - exhaustive-deps: add the real dependencies, or stabilise them with `useCallback`/`useMemo`/refs. Never silence one with a disable comment unless it's justified in a line.
+   - These files are shared, so each fix must leave the other apps unchanged. Verify with the full e2e suite and the other-apps screenshot diff (as in M3).
+2. **`ChurchHistory2App.jsx`:** one `LifelinesShell` component. It renders the header, body and welcome dialog, takes the right-hand header slot and the extra timeline props as props, and is used by both Auth and Unauth. One `useSearchHandlers(timelineRef)` hook. Hook setup is shared through a single `useLifelinesData()`.
+3. **Loading and error states** (DESIGN §8: every data area has loading/empty/error):
+   - **Loading:** a `role="status"` line in ink-faded type with the same text.
+   - **Error:** a `role="alert"` panel: "Lifelines couldn't load the timeline. Check your connection and try again." with a Retry button (`.btn`) that re-runs the fetch. The raw message goes to the console, not the page.
+   - Add a shots state `error` (data mock returns 500) and an e2e test: the error shows, Retry works once the mock recovers.
+4. **Dead code:**
+   - delete `churchHistory2Eras.js` and `tests/unit/church-history-2-eras.test.js`; the commit says why, per CLAUDE.md rule 5: the module has no live caller;
+   - fix the two outdated comments.
+5. **Sharp canvas on Retina:**
+   - In `TimelineCanvas`, set the backing store to `width × dpr` / `height × dpr`, set CSS size to width/height, and `ctx.setTransform(dpr,0,0,dpr,0,0)` before drawing.
+   - Re-run when `devicePixelRatio` changes (a `matchMedia('(resolution: …)')` listener).
+   - Opt-in through `config.hiDpiCanvas` (Lifelines on) per CLAUDE.md rule 2. Other apps can turn it on later with one line.
+   - Shots at `deviceScaleFactor: 2` to compare before and after; hit-tests unchanged (existing hover and click tests).
+6. **No re-render on every mouse move:**
+   - Keep the pointer position in a ref.
+   - Move the cursor line and year chip into a small `CursorGuide` child that owns its own state, so only it re-renders.
+   - `setHoveredItem` only when the hovered item's id changes. The hover card's position goes through a ref/CSS variable.
+   - The canvas draw effect depends on the hovered id, not the object.
+   - Behaviour is identical, in shared code, and invisible.
+   - Verify with the existing hover/cursor tests, plus a Playwright check that 50 mouse moves over one figure cause ≤ 2 canvas redraws (count via a `data-draws` debug attribute behind `?debug`, or a performance mark).
+7. **E2E coverage:**
+   - **Feedback dialog:** both flows, gated (stored token, captcha condition) and ungated, mocking `/api/feedback`. Read `FeedbackButton.jsx` and `functions/api/feedback.js` first, and mirror the conditions the gate doc lists.
+   - **Legend toggles on Lifelines:** unchecking Councils removes the council strings and labels; re-checking restores them. The same for Emperors and the rulers strip.
+   - **Welcome dialog:** Skip closes it and focus goes where §8 says.
+8. **Firefox and WebKit in CI:**
+   - Add the `firefox` and `webkit` projects in `playwright.config.js`, scoped by `testMatch` to the Lifelines spec, so CI time stays reasonable.
+   - In CI, install with `npx playwright install --with-deps chromium firefox webkit`.
+   - The sandbox only has Chromium (and CLAUDE.md forbids `playwright install`), so these two only run in CI. Expect a round or two of fixes on the PR. Each real browser difference is fixed in code; a test that relies on Chromium-only behaviour is reworked, never skipped (CLAUDE.md rule 5).
+9. **Code review:**
+   - run `/code-review` at high effort over the M4 diff;
+   - fix what it finds;
+   - then `ux-review` on the shots, since states and canvas sharpness are visible changes.
+
+**Verification (each commit, and before the PR)**
+- `npm run test:unit`; `npm run build`; the full e2e under Node 20 (`npx -y node@20 node_modules/@playwright/test/cli.js test`, as CI runs).
+- Lint is zero errors and zero warnings in the Lifelines file list.
+- Shots read, including the new `error` state.
+- Other apps: compare screenshots against `main` built in a worktree (pixel-identical expected; HiDPI is opt-in).
+- One PR (M4) with the usual body; watch it to green, including the new Firefox and WebKit jobs.
+
+## After M3 (merged 2026-10-05): what's next
+
+**Context.** M3 ([hawkandheron-dev/windhover-site#160](https://github.com/hawkandheron-dev/windhover-site/pull/160)) is merged. Matthew's latest decisions:
+- **Key:** stays open by default on wide screens. The DESIGN.md Known violations line becomes an accepted rule.
+- **Placeholder portraits:** no mock-ups; he'll find or make his own. The plan step shrinks to wiring in his images when they arrive.
+- **Bottom-left controls:** he'll rework them after his own research. He asked for a research piece comparing navigation options: done as a Claude Doc, https://claude.ai/code/artifact/a804ab62-0287-41a3-a27d-f3a19571a83e (recommends a docked bar now and an overview strip later).
+- "What's next?"
+
+**Housekeeping first.** Restart `claude/clever-curie-0627ec` from the merged `main` (`git fetch origin main && git checkout -B claude/clever-curie-0627ec origin/main`, then a force-with-lease push). The branch holds only merged history, so nothing is lost. The sandbox's safety check blocked this command once, so Matthew will see a permission prompt.
+
+### 1. Navigation research (for Matthew)
+A page comparing how comparable tools handle pan and zoom controls, written as a Claude Doc so he can comment on it. A Claude Doc is a document he can comment on directly.
+- **Tools compared** (6–8):
+  - timelines: TimelineJS, Histography, Our World in Data's time slider, Kronoscope/Timeline Index;
+  - maps: Google Maps, Apple Maps, Mapbox/MapLibre defaults;
+  - design tools: Figma's canvas.
+- **For each tool:** where the controls sit, what they are (zoom ±, reset, a range slider or minimap, a scale or years readout), how they behave on phone versus desktop, and whether they cover the content.
+- **Patterns** distilled from these, with trade-offs for Lifelines (examples: a slim bar docked above the rulers strip, an overview "minimap" of AD 1–1500 that you drag, gesture-only on touch with a single reset button, controls folded into the header).
+- **Fit with our constraints:** DESIGN.md §6 and §8, 44px phone targets, keyboard access, and not covering figures.
+- **Recommendation:** two or three directions. I'll make no code changes.
+- **Sources:** web search, cited inline. The sandbox can't screenshot live sites (network policy), so the doc describes them and links to them.
+
+### 2. Small doc commit
+- **DESIGN.md:** move the "Key covers figures on wide screens" line from Known violations into §6 as the owner's decision (open by default at 1100px and up).
+- **This plan:** drop the portrait mock-up step (Matthew supplies the images); keep the wiring (linked media, the panel slot) for when they arrive.
+- Sync `docs/lifelines-release-plan.md`.
+- Commit and push; no PR until there's code.
+
+### 3. Then: M4, code review and cleanup (Claude-only, no decisions needed)
+This is already in the plan:
+- `/code-review` at high effort on the Lifelines files.
+- Lint to zero in those files.
+- Merge the duplicated header, search and loading/error blocks in `ChurchHistory2App.jsx`.
+- Remove dead code (`churchHistory2Eras.js`).
+- HiDPI canvas scaling, which makes it sharp on Retina.
+- Stop the re-render on every mouse move.
+- A friendly error with a Retry button.
+- E2E for the feedback dialog and the legend toggles.
+- Firefox and WebKit in CI.
+- It ships as one PR, with the usual checks.
+
+**Waiting on Matthew** (no action from me until then): tour copy edits in the doc; portrait images; the controls direction after the research; M5 needs full network access for the data work (dates, links, citations).
+
 ## M3 PR #160: CI red and two bot findings (2026-10-05)
 
 **Context.** Matthew subscribed this session to [hawkandheron-dev/windhover-site#160](https://github.com/hawkandheron-dev/windhover-site/pull/160). Three items are open on it:
@@ -114,6 +234,8 @@ Matthew: "I think it's just a shorter panel on mobile, maybe with no images."
    - The doc's scene ids keep his edits matched to the rows.
 
 ## Added to the plan (2026-10-04): placeholder portraits
+
+> **Update 2026-10-05:** Matthew will find or make the placeholder images himself; no mock-ups from Claude (step 3's style options are dropped). The data and wiring steps stand for when his images arrive.
 
 **Context.** Matthew: "we need a good placeholder portrait for male and female people who don't have images."
 

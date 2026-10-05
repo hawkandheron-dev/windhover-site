@@ -327,6 +327,19 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
   });
 
+  test('the glide back from the tour lands on the opening view even if the timeline widens late', async ({ page }) => {
+    // In WebKit the tour panel sometimes finished closing after the glide had
+    // been aimed, so the view settled on "1–650 AD" (CI, M4). Widening the
+    // window just after leaving the tour reproduces the same race here.
+    await loadPage(page, { dismissWelcome: false, realData: true });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await expect(page.locator('[title="Exit tour"]')).toBeVisible();
+    await page.locator('[title="Exit tour"]').click();
+    await page.waitForTimeout(150);
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD', { timeout: 4000 });
+  });
+
   test('a trackpad pinch over the timeline zooms the timeline', async ({ page }) => {
     await loadPage(page);
     const before = await page.locator('.zoom-info').textContent();
@@ -825,6 +838,267 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
   });
 });
 
+test.describe('Code cleanup (milestone 4)', () => {
+  // Prints what this browser offers, so a failure in Firefox or WebKit CI can
+  // be read against it (hover, pointer, WebGL, pixel ratio). It only asserts
+  // that the page loads.
+  test('browser capabilities (logged)', async ({ page, browserName }) => {
+    await loadPage(page);
+    const caps = await page.evaluate(() => {
+      const c = document.createElement('canvas');
+      return {
+        hover: matchMedia('(hover: hover)').matches,
+        hoverNone: matchMedia('(hover: none)').matches,
+        finePointer: matchMedia('(pointer: fine)').matches,
+        webgl: Boolean(c.getContext('webgl2') || c.getContext('webgl')),
+        dpr: devicePixelRatio,
+      };
+    });
+    console.log(`[capabilities] ${browserName}: ${JSON.stringify(caps)}`);
+    await expect(page.locator('canvas').first()).toBeVisible();
+  });
+
+  test('without WebGL the panel still opens, with a note where the map would be', async ({ page }) => {
+    // MapLibre throws without WebGL; inside an effect with no error boundary
+    // that took the whole page down (found in Firefox CI, M4).
+    await page.addInitScript(() => {
+      const get = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (type, ...rest) {
+        return /webgl/i.test(type) ? null : get.call(this, type, ...rest);
+      };
+    });
+    await loadPage(page);
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    const panel = page.locator('.timeline-modal--panel');
+    await expect(panel.locator('.modal-title')).toContainText('Athanasius');
+    await expect(panel.locator('.historical-map-container--unavailable')).toContainText("can't be shown");
+    await expect(page.locator('canvas').first()).toBeVisible();
+  });
+
+  test('a mouse shows hover even where the browser reports (hover: none)', async ({ page }) => {
+    // Hover was gated on the media query, which some desktops report with a
+    // mouse attached (headless Firefox, some touch laptops): no year chip, no
+    // hover card at all. It now follows the pointer that actually moved.
+    await page.addInitScript(() => {
+      const mm = window.matchMedia.bind(window);
+      window.matchMedia = (q) => (/hover:\s*none/.test(q) ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : mm(q));
+    });
+    await loadPage(page);
+    await page.mouse.move(300, 450);
+    await page.mouse.move(310, 455);
+    await expect(page.locator('.cursor-year-display')).toBeVisible();
+  });
+
+  test('the Key switches hide and show their layer: councils, and the rulers strip', async ({ page }) => {
+    // Only Heresies tested filtering; on Lifelines the switches were only
+    // checked for being there.
+    await loadPage(page);
+    const legend = page.locator('.timeline-legend--slim');
+    const nicaea = page.locator('.point-string-label', { hasText: 'Council of Nicaea' });
+    await expect(nicaea).toBeVisible();
+    await legend.getByRole('checkbox', { name: 'Councils' }).uncheck();
+    await expect(nicaea).toHaveCount(0);
+    await legend.getByRole('checkbox', { name: 'Councils' }).check();
+    await expect(nicaea).toBeVisible();
+
+    await expect(page.locator('.ruler-strip')).toBeVisible();
+    await legend.getByRole('checkbox', { name: 'Emperors & monarchs' }).uncheck();
+    await expect(page.locator('.ruler-strip')).toHaveCount(0);
+    await legend.getByRole('checkbox', { name: 'Emperors & monarchs' }).check();
+    await expect(page.locator('.ruler-strip')).toBeVisible();
+  });
+
+  test('the welcome dialog: focus on its main button; Skip closes it for good and returns to the top', async ({ page }) => {
+    await loadPage(page, { dismissWelcome: false });
+    await expect(page.getByRole('button', { name: 'Take the Tour' })).toBeFocused();
+    await page.locator('.welcome-btn-secondary').click();
+    await expect(page.locator('.welcome-overlay')).toHaveCount(0);
+    // DESIGN §8: the keyboard goes back to the top of the page.
+    await expect(page.locator('.ch2-skip-link')).toBeFocused();
+    await page.reload();
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('.welcome-overlay')).toHaveCount(0);
+  });
+
+  // The feedback dialog had no test at all (docs/lifelines-feedback-gate.md,
+  // "highest-value next thing"). These mock the three endpoints and walk the
+  // gated and ungated flows, including the captcha condition that has to
+  // agree with functions/api/feedback.js.
+  async function mockFeedbackApi(page, { submitStatus = 200, submitError = '' } = {}) {
+    const calls = [];
+    await page.route('**/api/feedback**', async (route) => {
+      const req = route.request();
+      const path = new URL(req.url()).pathname;
+      const body = req.postDataJSON();
+      calls.push({ path, body });
+      if (path.endsWith('/request-code')) return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+      if (path.endsWith('/verify')) {
+        const ok = body.code === '123456';
+        return route.fulfill({
+          status: ok ? 200 : 400, contentType: 'application/json',
+          body: JSON.stringify(ok ? { token: `${Date.now() + 3_600_000}.signed` } : { error: 'That code did not work.' }),
+        });
+      }
+      return route.fulfill({
+        status: submitStatus, contentType: 'application/json',
+        body: JSON.stringify(submitStatus === 200 ? { ok: true } : { error: submitError }),
+      });
+    });
+    return calls;
+  }
+  // A stand-in Turnstile: renders a box and hands back a token at once.
+  async function mockTurnstile(page) {
+    await page.route('**/challenges.cloudflare.com/**', route => route.fulfill({
+      status: 200, contentType: 'application/javascript',
+      body: `window.turnstile = {
+        render(el, opts) { el.textContent = 'captcha'; setTimeout(() => opts.callback('ts-token'), 50); return 1; },
+        reset() {}, remove() {},
+      };`,
+    }));
+  }
+  const setFlags = (page, flags) => page.addInitScript(f => Object.assign(window, f), flags);
+
+  test('feedback, ungated and no captcha: one box, and a thank-you once it is sent', async ({ page }) => {
+    const calls = await mockFeedbackApi(page);
+    await loadPage(page);
+    await page.getByRole('button', { name: 'Feedback' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Feedback' });
+    const send = dialog.getByRole('button', { name: 'Send feedback' });
+    await expect(send).toBeDisabled();
+    await dialog.getByLabel('Your feedback').fill('Augustine is missing his mother.');
+    await send.click();
+    await expect(page.getByRole('dialog', { name: 'Thank you' })).toBeVisible();
+    const submit = calls.find(c => c.path === '/api/feedback');
+    expect(submit.body).toMatchObject({ message: 'Augustine is missing his mother.', token: '', accessToken: '' });
+  });
+
+  test('feedback, ungated with a captcha: sending waits for the challenge and carries its token', async ({ page }) => {
+    await setFlags(page, { TURNSTILE_SITE_KEY: 'site-key' });
+    await mockTurnstile(page);
+    const calls = await mockFeedbackApi(page);
+    await loadPage(page);
+    await page.getByRole('button', { name: 'Feedback' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Feedback' });
+    await dialog.getByLabel('Your feedback').fill('A note.');
+    await expect(dialog.locator('.feedback-turnstile')).toContainText('captcha');
+    await dialog.getByRole('button', { name: 'Send feedback' }).click();
+    await expect(page.getByRole('dialog', { name: 'Thank you' })).toBeVisible();
+    expect(calls.find(c => c.path === '/api/feedback').body.token).toBe('ts-token');
+  });
+
+  test('feedback, gated: email, then code, then the note; a stored pass skips straight to the note', async ({ page }) => {
+    await setFlags(page, { FEEDBACK_GATE_ENABLED: true, TURNSTILE_SITE_KEY: 'site-key' });
+    await mockTurnstile(page);
+    const calls = await mockFeedbackApi(page);
+    await loadPage(page);
+    await page.getByRole('button', { name: 'Feedback' }).click();
+
+    // Step 1: the subscriber's email, with the captcha.
+    let dialog = page.getByRole('dialog', { name: 'Feedback' });
+    await dialog.getByLabel('Your subscriber email').fill('reader@example.com');
+    await expect(dialog.locator('.feedback-turnstile')).toContainText('captcha');
+    await dialog.getByRole('button', { name: 'Send me a code' }).click();
+    expect(calls.find(c => c.path.endsWith('/request-code')).body).toEqual({ email: 'reader@example.com', token: 'ts-token' });
+
+    // Step 2: a wrong code is refused; the right one goes through.
+    dialog = page.getByRole('dialog', { name: 'Check your email' });
+    await dialog.getByLabel('Your six-digit code').fill('000000');
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    await expect(dialog.getByRole('alert')).toContainText('That code did not work');
+    await dialog.getByLabel('Your six-digit code').fill('123456');
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+
+    // Step 3: no second captcha (the pass is the stronger claim), and the
+    // note carries the pass.
+    dialog = page.getByRole('dialog', { name: 'Feedback' });
+    await expect(dialog.locator('.feedback-turnstile')).toHaveCount(0);
+    await dialog.getByLabel('Your feedback').fill('Gated note.');
+    await dialog.getByRole('button', { name: 'Send feedback' }).click();
+    await expect(page.getByRole('dialog', { name: 'Thank you' })).toBeVisible();
+    expect(calls.find(c => c.path === '/api/feedback').body.accessToken).toMatch(/\.signed$/);
+
+    // Coming back later: straight to the note.
+    await page.getByRole('button', { name: 'Close' }).click();
+    await page.getByRole('button', { name: 'Feedback' }).click();
+    await expect(page.getByRole('dialog', { name: 'Feedback' }).getByLabel('Your feedback')).toBeVisible();
+  });
+
+  test('feedback, gated: a lapsed pass sends the reader back to the email step', async ({ page }) => {
+    await setFlags(page, { FEEDBACK_GATE_ENABLED: true });
+    await page.addInitScript(() => localStorage.setItem('lifelines.feedback.access', `${Date.now() + 3_600_000}.old`));
+    await mockFeedbackApi(page, { submitStatus: 401, submitError: 'Please confirm your subscriber email before sending feedback.' });
+    await loadPage(page);
+    await page.getByRole('button', { name: 'Feedback' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Feedback' });
+    await dialog.getByLabel('Your feedback').fill('Note.');
+    await dialog.getByRole('button', { name: 'Send feedback' }).click();
+    await expect(dialog.getByLabel('Your subscriber email')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('lifelines.feedback.access'))).toBeNull();
+  });
+
+  test('a figure hovered again after leaving the timeline shows its hover card again', async ({ page }) => {
+    // Hover only changes when the item under the pointer does; leaving the
+    // timeline cleared the card without forgetting the item, so coming
+    // straight back onto the same figure showed nothing (code review, M4).
+    await loadPage(page);
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    const onBar = { x: label.x + label.width + 6, y: label.y + label.height / 2 };
+    await page.mouse.move(onBar.x, onBar.y);
+    await expect(page.locator('.hover-preview')).toBeVisible();
+    await page.mouse.move(onBar.x, 4); // up into the header
+    await expect(page.locator('.hover-preview')).toHaveCount(0);
+    await page.mouse.move(onBar.x, onBar.y);
+    await expect(page.locator('.hover-preview')).toBeVisible();
+  });
+
+  test('moving over a figure redraws the canvas on entering it, not on every move', async ({ page }) => {
+    // Every mouse move used to re-render the whole timeline, and while over a
+    // figure redraw both canvases: dozens of full redraws a second.
+    await page.addInitScript(() => {
+      window.__clears = 0;
+      const clear = CanvasRenderingContext2D.prototype.clearRect;
+      CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+        if (args[0] === 0 && args[1] === 0) window.__clears++;
+        return clear.apply(this, args);
+      };
+    });
+    await loadPage(page);
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    const y = label.y + label.height / 2;
+    await page.mouse.move(label.x + label.width + 4, y);
+    await page.waitForTimeout(200);
+    const before = await page.evaluate(() => window.__clears);
+    const card = page.locator('.hover-preview');
+    // Read only if the card is up: evaluate() on a missing element waits out
+    // the whole test timeout (what Firefox CI hit).
+    const left0 = (await card.count()) ? await card.evaluate(el => el.style.left) : null;
+    for (let i = 1; i <= 30; i++) await page.mouse.move(label.x + label.width + 4 + i, y);
+    await page.waitForTimeout(200);
+    const redraws = (await page.evaluate(() => window.__clears)) - before;
+    expect(redraws).toBeLessThanOrEqual(4);
+    // The hover card still follows the pointer.
+    if (left0 !== null) await expect(card).not.toHaveCSS('left', left0);
+  });
+
+  test('a failed load says so in plain words, and "Try again" recovers', async ({ page }) => {
+    // It used to print the raw exception ("Error: …") with no way out.
+    await loadPage(page, { dismissWelcome: false }).catch(() => {});
+    const failing = (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' });
+    await page.route('**/*.supabase.co/**', failing);
+    await page.reload();
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText("Lifelines couldn't load the timeline");
+    await expect(alert).not.toContainText('boom');
+
+    await page.unroute('**/*.supabase.co/**', failing);
+    await alert.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+});
+
 test.describe('Lifelines as the front page (milestone 2)', () => {
   test.beforeEach(() => {
     const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
@@ -1087,8 +1361,10 @@ test.describe('Review round fixes (milestone 3)', () => {
 // Milestone 3, step 9: the desktop's horizontal timeline on a phone, chosen
 // with the layout toggle (remembered under lifelines-layout).
 // The timeline had no touch handling at all, so these drive real touch
-// events through the DevTools protocol (Chromium only, like the suite).
-test.describe('Horizontal phone prototype (milestone 3)', () => {
+// events (see touch() below).
+// Tagged @phone: Playwright cannot emulate a phone in Firefox (no isMobile),
+// so the Firefox project leaves this block out; Chromium and WebKit run it.
+test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
   test.use({ hasTouch: true, isMobile: true });
   const PHONE = { viewport: { width: 390, height: 844 }, realData: true };
 
@@ -1098,24 +1374,41 @@ test.describe('Horizontal phone prototype (milestone 3)', () => {
     test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
   });
 
+  // Touches are dispatched as touch events inside the page, so the same
+  // helper drives Chromium and WebKit (Safari's engine, which phones run).
+  // It used to go through Chrome's DevTools protocol, which exists only in
+  // Chromium (Firefox/WebKit CI, M4).
   async function touch(page) {
-    const cdp = await page.context().newCDPSession(page);
-    const send = (type, points) => cdp.send('Input.dispatchTouchEvent', {
-      type, touchPoints: points.map(([x, y], id) => ({ x, y, id })),
-    });
+    const send = (type, points) => page.evaluate(({ type, points }) => {
+      const at = points[0] || window.__lastTouchPoint || [0, 0];
+      const target = document.elementFromPoint(at[0], at[1]) || document.body;
+      if (points.length) window.__lastTouchPoint = points[0];
+      // Plain touch points on a plain event: desktop WebKit refuses
+      // `new Touch()` ("Illegal constructor"), and the timeline only reads
+      // identifier and clientX/Y from each point.
+      const point = ([x, y], i) => ({ identifier: i, target, clientX: x, clientY: y, pageX: x, pageY: y });
+      const touches = points.map(point);
+      const ev = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(ev, {
+        touches: { value: type === 'touchend' ? [] : touches },
+        targetTouches: { value: type === 'touchend' ? [] : touches },
+        changedTouches: { value: touches.length ? touches : [point(at, 0)] },
+      });
+      target.dispatchEvent(ev);
+    }, { type, points });
     return {
       async drag(from, to, steps = 8) {
-        await send('touchStart', [from]);
+        await send('touchstart', [from]);
         for (let i = 1; i <= steps; i++) {
-          await send('touchMove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
+          await send('touchmove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
         }
-        await send('touchEnd', []);
+        await send('touchend', []);
       },
       async pinch(center, fromGap, toGap, steps = 8) {
         const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
-        await send('touchStart', at(fromGap));
-        for (let i = 1; i <= steps; i++) await send('touchMove', at(fromGap + (toGap - fromGap) * i / steps));
-        await send('touchEnd', []);
+        await send('touchstart', at(fromGap));
+        for (let i = 1; i <= steps; i++) await send('touchmove', at(fromGap + (toGap - fromGap) * i / steps));
+        await send('touchend', []);
       },
     };
   }

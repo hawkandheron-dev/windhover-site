@@ -41,33 +41,38 @@ const iconMap = {
 // Cache for loaded SVG content
 const svgCache = new Map();
 
-export function Icon({ name, size = 24, color = 'currentColor', className = '' }) {
-  const [svgContent, setSvgContent] = useState(null);
+/**
+ * An icon's SVG text: straight from the cache when it has been loaded
+ * before, otherwise fetched once and kept. Only the fetch's reply sets
+ * state, so a cached icon draws on the first render.
+ */
+function useIconSvg(iconInfo, label) {
+  const cacheKey = iconInfo ? `${iconInfo.collection}/${iconInfo.id}` : null;
+  const [loaded, setLoaded] = useState({ key: null, text: null });
 
   useEffect(() => {
-    const iconInfo = iconMap[name];
-    if (!iconInfo) {
-      console.warn(`Icon "${name}" not found in icon map`);
-      return;
-    }
-
-    const cacheKey = `${iconInfo.collection}/${iconInfo.id}`;
-
-    // Check cache first
-    if (svgCache.has(cacheKey)) {
-      setSvgContent(svgCache.get(cacheKey));
-      return;
-    }
-
-    // Fetch the SVG
-    fetch(`/icons/${iconInfo.collection}/${iconInfo.id}.svg`)
+    if (!cacheKey || svgCache.has(cacheKey)) return;
+    let cancelled = false;
+    fetch(`/icons/${cacheKey}.svg`)
       .then(res => res.text())
       .then(text => {
         svgCache.set(cacheKey, text);
-        setSvgContent(text);
+        if (!cancelled) setLoaded({ key: cacheKey, text });
       })
-      .catch(err => console.error(`Failed to load icon: ${name}`, err));
-  }, [name]);
+      .catch(err => console.error(`Failed to load icon: ${label}`, err));
+    return () => { cancelled = true; };
+  }, [cacheKey, label]);
+
+  if (!cacheKey) return null;
+  return svgCache.get(cacheKey) ?? (loaded.key === cacheKey ? loaded.text : null);
+}
+
+export function Icon({ name, size = 24, color = 'currentColor', className = '' }) {
+  const iconInfo = iconMap[name];
+  useEffect(() => {
+    if (!iconInfo) console.warn(`Icon "${name}" not found in icon map`);
+  }, [iconInfo, name]);
+  const svgContent = useIconSvg(iconInfo, name);
 
   if (!svgContent) {
     return <span className={`icon icon-placeholder ${className}`} style={{ width: size, height: size }} />;
@@ -90,27 +95,8 @@ export function Icon({ name, size = 24, color = 'currentColor', className = '' }
 
 // Render an icon for legend shapes with proper fill
 export function ShapeIcon({ shape, color, size = 18 }) {
-  const [svgContent, setSvgContent] = useState(null);
   const iconInfo = iconMap[shape];
-
-  useEffect(() => {
-    if (!iconInfo) return;
-
-    const cacheKey = `${iconInfo.collection}/${iconInfo.id}`;
-
-    if (svgCache.has(cacheKey)) {
-      setSvgContent(svgCache.get(cacheKey));
-      return;
-    }
-
-    fetch(`/icons/${iconInfo.collection}/${iconInfo.id}.svg`)
-      .then(res => res.text())
-      .then(text => {
-        svgCache.set(cacheKey, text);
-        setSvgContent(text);
-      })
-      .catch(err => console.error(`Failed to load shape icon: ${shape}`, err));
-  }, [shape, iconInfo]);
+  const svgContent = useIconSvg(iconInfo, shape);
 
   if (!svgContent || !iconInfo) {
     // Fallback to simple colored shape

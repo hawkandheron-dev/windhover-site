@@ -2,7 +2,7 @@
  * Canvas layer for timeline rendering
  */
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useEffectEvent, useState } from 'react';
 import { yearToPixel, getYearLabelInterval } from '../utils/coordinates.js';
 import { getYearRange } from '../utils/dateUtils.js';
 import {
@@ -16,6 +16,7 @@ import {
   drawPointMarker,
   drawChainLink
 } from '../utils/rendering.js';
+import { useDevicePixelRatio } from '../hooks/useDevicePixelRatio.js';
 
 export function TimelineCanvas({
   width,
@@ -113,13 +114,21 @@ export function TimelineCanvas({
     return startYear <= hoveredPeriodRange.end && endYear >= hoveredPeriodRange.start;
   };
 
-  // Render canvas
-  useEffect(() => {
+  // config.hiDpiCanvas (Lifelines): the backing store is sized in device
+  // pixels and drawing is scaled to match, so lines and names are sharp on a
+  // Retina screen. Everything else (layout, hit-testing) stays in CSS pixels.
+  const pixelRatio = useDevicePixelRatio(config?.hiDpiCanvas === true);
+
+  // Render canvas. The drawing reads every prop through the render helpers
+  // below; it is an effect event, so the effect re-runs only when one of the
+  // values listed after it changes, and always draws with the latest ones.
+  const draw = useEffectEvent(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
     // Clear canvas
     clearCanvas(ctx, width, height);
@@ -170,7 +179,8 @@ export function TimelineCanvas({
 
     // Draw search highlights on top
     renderSearchHighlights(ctx, layout);
-  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringFocusIds, palette, yOffset, onlyIds, layerMode]);
+  });
+  useEffect(() => { draw(); }, [pixelRatio, width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringFocusIds, palette, yOffset, onlyIds, layerMode]);
 
   /** The focus layer draws a subset; every other layer draws everything. */
   function visible(items) {
@@ -599,7 +609,7 @@ export function TimelineCanvas({
     const hoverPriority = { point: 0, person: 1, period: 2 };
     let foundItem = null;
 
-    for (const [id, hitData] of hitMapRef.current) {
+    for (const hitData of hitMapRef.current.values()) {
       const { bounds } = hitData;
 
       if (
@@ -639,7 +649,7 @@ export function TimelineCanvas({
     const typePriority = { point: 0, person: 1, period: 2 };
     let bestMatch = null;
 
-    for (const [id, hitData] of hitMapRef.current) {
+    for (const hitData of hitMapRef.current.values()) {
       const { bounds } = hitData;
 
       if (
@@ -662,11 +672,13 @@ export function TimelineCanvas({
   return (
     <canvas
       ref={canvasRef}
-      width={width}
-      height={height}
+      width={Math.round(width * pixelRatio)}
+      height={Math.round(height * pixelRatio)}
       onMouseMove={interactive ? handleMouseMove : undefined}
       onClick={interactive ? handleClick : undefined}
       style={{
+        width: `${width}px`,
+        height: `${height}px`,
         display: 'block',
         position: 'absolute',
         top: 0,

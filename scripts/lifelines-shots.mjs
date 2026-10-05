@@ -46,6 +46,9 @@ const VIEWPORTS = {
   tablet:  { width: 820,  height: 1180, mobile: false },
   laptop:  { width: 1280, height: 720,  mobile: false },
   desktop: { width: 1440, height: 900,  mobile: false },
+  // A Retina laptop: the same CSS size as laptop at twice the pixels, to see
+  // the canvas drawn at full density (hiDpiCanvas, M4).
+  retina:  { width: 1280, height: 720,  mobile: false, scale: 2 },
 };
 
 // A figure with connections, works and a long description: the panel at its fullest.
@@ -53,7 +56,7 @@ const PANEL_QUERY = 'Athanasius';
 
 const DEFAULT_STATES = [
   { name: 'first-visit',   viewports: ['phone', 'laptop', 'desktop'], welcome: true },
-  { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop'] },
+  { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop', 'retina'] },
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
@@ -70,6 +73,8 @@ const DEFAULT_STATES = [
   // Scene 7 opens Irenaeus: on a phone, a short card above the sheet.
   { name: 'tour-later-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(6) },
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
+  // The data fails to load: a plain sentence and "Try again" (M4).
+  { name: 'error',         viewports: ['phone', 'desktop'], failData: true },
 ];
 
 // Zoom with the named buttons (the horizontal timeline's controls).
@@ -187,7 +192,7 @@ async function shoot(browser, base, tables, state, vpName) {
   const vp = VIEWPORTS[vpName];
   const context = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
-    deviceScaleFactor: vp.mobile ? 2 : 1,
+    deviceScaleFactor: vp.scale ?? (vp.mobile ? 2 : 1),
     isMobile: vp.mobile, hasTouch: vp.mobile,
     colorScheme: state.colorScheme || 'light',
   });
@@ -213,14 +218,18 @@ async function shoot(browser, base, tables, state, vpName) {
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
   await installSupabaseTableMock(page, tables);
+  // A state may make the data fail, to show the error screen.
+  if (state.failData) {
+    await page.route('**/*.supabase.co/**', r => r.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
+  }
 
   // A state may preset the reader's remembered layout (the layout toggle).
   if (state.layout) {
     await page.addInitScript(l => { try { localStorage.setItem('lifelines-layout', l); } catch { /* none */ } }, state.layout);
   }
   await page.goto(base + PAGE + (state.query || ''));
-  await page.locator('.mobile-timeline, canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
-    errors.push('timeline did not render within 15s');
+  await page.locator(state.failData ? '[role="alert"]' : '.mobile-timeline, canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
+    errors.push(state.failData ? 'error screen did not render within 15s' : 'timeline did not render within 15s');
   });
   await page.evaluate(() => document.fonts.ready);
 
