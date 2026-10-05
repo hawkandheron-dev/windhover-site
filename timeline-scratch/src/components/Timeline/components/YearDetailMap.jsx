@@ -5,6 +5,7 @@ import { filterByDate } from '@openhistoricalmap/maplibre-gl-dates';
 import MaplibreLanguage from '@openhistoricalmap/maplibre-gl-language';
 import { getCoordinatesForLocation } from '../../../data/locationCoordinates.js';
 import { formatYear } from '../utils/dateUtils.js';
+import { canUseWebGL } from '../utils/webgl.js';
 
 const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.json';
 
@@ -48,22 +49,31 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) 
     onHoverRef.current = onHoverPerson;
   });
 
+  const mapsWork = canUseWebGL();
+
   useEffect(() => {
     const peopleWithCoords = peopleRef.current;
-    if (peopleWithCoords.length === 0 || !mapContainerRef.current) return;
+    if (!mapsWork || peopleWithCoords.length === 0 || !mapContainerRef.current) return;
 
     const bounds = boundsFor(peopleWithCoords);
     const firstPerson = peopleWithCoords[0];
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: OHM_STYLE_URL,
-      center: bounds
-        ? bounds.getCenter().toArray()
-        : [firstPerson.coords[1], firstPerson.coords[0]],
-      zoom: 5,
-      attributionControl: true,
-    });
+    let map;
+    try {
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: OHM_STYLE_URL,
+        center: bounds
+          ? bounds.getCenter().toArray()
+          : [firstPerson.coords[1], firstPerson.coords[0]],
+        zoom: 5,
+        attributionControl: true,
+      });
+    } catch (err) {
+      // Never let the map take the year summary (or the page) down with it.
+      console.warn('Year map could not start:', err);
+      return;
+    }
 
     mapRef.current = map;
 
@@ -132,7 +142,7 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) 
       mapRef.current = null;
       map.remove();
     };
-  }, [pinsKey, year]);
+  }, [mapsWork, pinsKey, year]);
 
   // Update highlight state on markers when hoveredPersonId changes
   useEffect(() => {
@@ -162,7 +172,13 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson }) 
   return (
     <div className="historical-map-section">
       <h3>Historical Map</h3>
-      <div className="historical-map-container year-detail-map-container" ref={mapContainerRef} />
+      {mapsWork ? (
+        <div className="historical-map-container year-detail-map-container" ref={mapContainerRef} />
+      ) : (
+        <div className="historical-map-container year-detail-map-container historical-map-container--unavailable">
+          <p>The map can't be shown in this browser.</p>
+        </div>
+      )}
       {year != null && (
         <p className="historical-map-date">
           Showing borders c. {formatDisplayYear(year)}

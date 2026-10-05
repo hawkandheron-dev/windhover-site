@@ -7,7 +7,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [['github'], ['list']] : 'list',
+  // On CI also write the HTML report, which the workflow uploads when a job fails.
+  reporter: process.env.CI ? [['github'], ['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
@@ -21,7 +22,9 @@ export default defineConfig({
     // CI job (PW_ALL_BROWSERS=1). Off by default: the cloud sandbox has only
     // Chromium, and `npm run test:e2e` should not ask for browsers it lacks.
     ...(process.env.PW_ALL_BROWSERS ? [
-      { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /church-history-2\.spec\.js/ },
+      // Firefox has no phone emulation in Playwright (no isMobile), so it leaves
+      // out the @phone block; Chromium and WebKit run it.
+      { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /church-history-2\.spec\.js/, grepInvert: /@phone/ },
       { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /church-history-2\.spec\.js/ },
     ] : []),
   ],

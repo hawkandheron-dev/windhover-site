@@ -179,6 +179,12 @@ Every UI change is still checked in the `default-dark` screenshots.
   A test walks this route. Full arrow-key navigation of the canvas is out of
   scope for launch.
 - Touch targets are at least 44×44px on phone layouts.
+- Hover (cursor line, year chip, hover card) follows the pointer that
+  actually moved: a mouse always gets it, a finger never does. It is not
+  decided by the `(hover: none)` media query, which some desktops report with
+  a mouse attached (M4).
+- Without WebGL the maps can't draw; the panel and year summary still open,
+  with "The map can't be shown in this browser." in the map's place (M4).
 - Leaving the tour, the figures and landmarks it wasn't showing **sweep in**:
   bars grow from their birth years in a left-to-right wave (0.8s across the
   screen), names and strings fading in behind. Nothing else on the page moves.

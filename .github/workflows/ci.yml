@@ -105,5 +105,7 @@ jobs:
         if: failure()
         with:
           name: playwright-report-browsers
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7

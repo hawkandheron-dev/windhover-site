@@ -1129,3 +1129,18 @@
     color: #d8d0c4;
   }
 }
+
+/* No WebGL, no map: a quiet note in the map's place, so the panel keeps its
+   shape and nothing else on the page is lost (utils/webgl.js). */
+.historical-map-container--unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  min-height: 72px;
+  color: var(--color-ink-faded);
+  font-size: 0.9rem;
+}
+.historical-map-container--unavailable p {
+  margin: 0;
+}

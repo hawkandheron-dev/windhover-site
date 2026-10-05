@@ -327,6 +327,19 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
   });
 
+  test('the glide back from the tour lands on the opening view even if the timeline widens late', async ({ page }) => {
+    // In WebKit the tour panel sometimes finished closing after the glide had
+    // been aimed, so the view settled on "1–650 AD" (CI, M4). Widening the
+    // window just after leaving the tour reproduces the same race here.
+    await loadPage(page, { dismissWelcome: false, realData: true });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await expect(page.locator('[title="Exit tour"]')).toBeVisible();
+    await page.locator('[title="Exit tour"]').click();
+    await page.waitForTimeout(150);
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD', { timeout: 4000 });
+  });
+
   test('a trackpad pinch over the timeline zooms the timeline', async ({ page }) => {
     await loadPage(page);
     const before = await page.locator('.zoom-info').textContent();
@@ -826,6 +839,58 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
 });
 
 test.describe('Code cleanup (milestone 4)', () => {
+  // Prints what this browser offers, so a failure in Firefox or WebKit CI can
+  // be read against it (hover, pointer, WebGL, pixel ratio). It only asserts
+  // that the page loads.
+  test('browser capabilities (logged)', async ({ page, browserName }) => {
+    await loadPage(page);
+    const caps = await page.evaluate(() => {
+      const c = document.createElement('canvas');
+      return {
+        hover: matchMedia('(hover: hover)').matches,
+        hoverNone: matchMedia('(hover: none)').matches,
+        finePointer: matchMedia('(pointer: fine)').matches,
+        webgl: Boolean(c.getContext('webgl2') || c.getContext('webgl')),
+        dpr: devicePixelRatio,
+      };
+    });
+    console.log(`[capabilities] ${browserName}: ${JSON.stringify(caps)}`);
+    await expect(page.locator('canvas').first()).toBeVisible();
+  });
+
+  test('without WebGL the panel still opens, with a note where the map would be', async ({ page }) => {
+    // MapLibre throws without WebGL; inside an effect with no error boundary
+    // that took the whole page down (found in Firefox CI, M4).
+    await page.addInitScript(() => {
+      const get = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (type, ...rest) {
+        return /webgl/i.test(type) ? null : get.call(this, type, ...rest);
+      };
+    });
+    await loadPage(page);
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    const panel = page.locator('.timeline-modal--panel');
+    await expect(panel.locator('.modal-title')).toContainText('Athanasius');
+    await expect(panel.locator('.historical-map-container--unavailable')).toContainText("can't be shown");
+    await expect(page.locator('canvas').first()).toBeVisible();
+  });
+
+  test('a mouse shows hover even where the browser reports (hover: none)', async ({ page }) => {
+    // Hover was gated on the media query, which some desktops report with a
+    // mouse attached (headless Firefox, some touch laptops): no year chip, no
+    // hover card at all. It now follows the pointer that actually moved.
+    await page.addInitScript(() => {
+      const mm = window.matchMedia.bind(window);
+      window.matchMedia = (q) => (/hover:\s*none/.test(q) ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : mm(q));
+    });
+    await loadPage(page);
+    await page.mouse.move(300, 450);
+    await page.mouse.move(310, 455);
+    await expect(page.locator('.cursor-year-display')).toBeVisible();
+  });
+
   test('the Key switches hide and show their layer: councils, and the rulers strip', async ({ page }) => {
     // Only Heresies tested filtering; on Lifelines the switches were only
     // checked for being there.
@@ -1006,7 +1071,9 @@ test.describe('Code cleanup (milestone 4)', () => {
     await page.waitForTimeout(200);
     const before = await page.evaluate(() => window.__clears);
     const card = page.locator('.hover-preview');
-    const left0 = await card.evaluate(el => el.style.left).catch(() => null);
+    // Read only if the card is up: evaluate() on a missing element waits out
+    // the whole test timeout (what Firefox CI hit).
+    const left0 = (await card.count()) ? await card.evaluate(el => el.style.left) : null;
     for (let i = 1; i <= 30; i++) await page.mouse.move(label.x + label.width + 4 + i, y);
     await page.waitForTimeout(200);
     const redraws = (await page.evaluate(() => window.__clears)) - before;
@@ -1294,8 +1361,10 @@ test.describe('Review round fixes (milestone 3)', () => {
 // Milestone 3, step 9: the desktop's horizontal timeline on a phone, chosen
 // with the layout toggle (remembered under lifelines-layout).
 // The timeline had no touch handling at all, so these drive real touch
-// events through the DevTools protocol (Chromium only, like the suite).
-test.describe('Horizontal phone prototype (milestone 3)', () => {
+// events (see touch() below).
+// Tagged @phone: Playwright cannot emulate a phone in Firefox (no isMobile),
+// so the Firefox project leaves this block out; Chromium and WebKit run it.
+test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
   test.use({ hasTouch: true, isMobile: true });
   const PHONE = { viewport: { width: 390, height: 844 }, realData: true };
 
@@ -1305,24 +1374,36 @@ test.describe('Horizontal phone prototype (milestone 3)', () => {
     test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
   });
 
+  // Touches are dispatched as real TouchEvents inside the page, so the same
+  // helper drives Chromium and WebKit (Safari's engine, which phones run).
+  // It used to go through Chrome's DevTools protocol, which exists only in
+  // Chromium (Firefox/WebKit CI, M4).
   async function touch(page) {
-    const cdp = await page.context().newCDPSession(page);
-    const send = (type, points) => cdp.send('Input.dispatchTouchEvent', {
-      type, touchPoints: points.map(([x, y], id) => ({ x, y, id })),
-    });
+    const send = (type, points) => page.evaluate(({ type, points }) => {
+      const at = points[0] || window.__lastTouchPoint || [0, 0];
+      const target = document.elementFromPoint(at[0], at[1]) || document.body;
+      const touches = points.map(([x, y], i) => new Touch({ identifier: i, target, clientX: x, clientY: y }));
+      if (points.length) window.__lastTouchPoint = points[0];
+      target.dispatchEvent(new TouchEvent(type, {
+        bubbles: true, cancelable: true,
+        touches: type === 'touchend' ? [] : touches,
+        targetTouches: type === 'touchend' ? [] : touches,
+        changedTouches: touches.length ? touches : [new Touch({ identifier: 0, target, clientX: at[0], clientY: at[1] })],
+      }));
+    }, { type, points });
     return {
       async drag(from, to, steps = 8) {
-        await send('touchStart', [from]);
+        await send('touchstart', [from]);
         for (let i = 1; i <= steps; i++) {
-          await send('touchMove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
+          await send('touchmove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
         }
-        await send('touchEnd', []);
+        await send('touchend', []);
       },
       async pinch(center, fromGap, toGap, steps = 8) {
         const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
-        await send('touchStart', at(fromGap));
-        for (let i = 1; i <= steps; i++) await send('touchMove', at(fromGap + (toGap - fromGap) * i / steps));
-        await send('touchEnd', []);
+        await send('touchstart', at(fromGap));
+        for (let i = 1; i <= steps; i++) await send('touchmove', at(fromGap + (toGap - fromGap) * i / steps));
+        await send('touchend', []);
       },
     };
   }

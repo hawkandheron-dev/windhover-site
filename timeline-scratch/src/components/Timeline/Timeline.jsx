@@ -117,9 +117,20 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
   );
 });
 
-// True on a screen with no hover-capable pointer (a phone, an iPad without a
-// trackpad). Checked per event: an iPad gains hover when a trackpad connects.
-const noHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
+// True when the mouse event in hand came from a finger: a tap makes the
+// browser synthesise mouse events, which would leave the cursor line, year
+// chip and hover card stuck where the finger was. Judged by a touch in the
+// last moment, not by the (hover: none) media query, which some desktops
+// report with a perfectly good mouse attached (headless Firefox, some touch
+// laptops) and which then lost hover entirely.
+const TOUCH_ECHO_MS = 800;
+let lastTouchAt = -Infinity;
+if (typeof window !== 'undefined') {
+  const markTouch = () => { lastTouchAt = Date.now(); };
+  window.addEventListener('touchstart', markTouch, { capture: true, passive: true });
+  window.addEventListener('touchend', markTouch, { capture: true, passive: true });
+}
+const noHover = () => Date.now() - lastTouchAt < TOUCH_ECHO_MS;
 
 const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false }, ref) {
   const containerRef = useRef(null);
@@ -823,6 +834,22 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   }, []);
 
   // Expose search methods to parent via ref
+  // A reset aims at the opening view for the width the timeline has now. When
+  // the tour ends, the tour panel closes at the same moment and the timeline
+  // widens a frame or two later (later still in WebKit), so a reset aimed
+  // before that showed 650 years instead of 500. If the opening view changes
+  // shortly after a reset, aim again.
+  const resetRequestRef = useRef(null);
+  useEffect(() => {
+    const req = resetRequestRef.current;
+    if (!req || Date.now() - req.at > 1500) return;
+    const fraction = defaultConfig.initialAxisFraction ?? 0.5;
+    const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
+    const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
+    const remaining = req.animate ? Math.max(200, req.duration - (Date.now() - req.at)) : 1;
+    animateViewport(centeredViewportStart, initialYearsPerPixel, offset, remaining);
+  }, [centeredViewportStart, initialYearsPerPixel]); // eslint-disable-line react-hooks/exhaustive-deps -- re-aims only when the target moves
+
   useImperativeHandle(ref, () => ({
     selectItem: handleSearchSelect,
     highlight: handleSearchHighlight,
@@ -836,6 +863,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     // Back to the opening view: its span, centre and axis height, framed on
     // the real width. Animated, it glides there (Lifelines' tour exit).
     resetView: ({ animate = false, duration = 1000 } = {}) => {
+      resetRequestRef.current = { at: Date.now(), animate, duration };
       const fraction = defaultConfig.initialAxisFraction ?? 0.5;
       const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
       const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
