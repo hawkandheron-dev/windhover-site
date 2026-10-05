@@ -90,13 +90,14 @@ the edge function can, with a key the client never sees.
 
 ## Outstanding
 
-**1. No e2e coverage of the feedback dialog.** The endpoints are well covered
-by unit tests, but nothing exercises the three-step dialog in a browser. The
-captcha condition is mirrored in `feedback.js` and `FeedbackButton.jsx`, held
-together by a comment on each. If they drift, submissions break and nothing
-catches it until a reader complains. A spec covering gated and ungated flows —
-email → code → write, the stored token skipping both steps, and no captcha on
-the write step while gated — would close it. **Highest-value next thing.**
+**1. ~~No e2e coverage of the feedback dialog.~~ Done in M4 (2026-10-05).**
+`tests/e2e/church-history-2.spec.js` ("feedback, …") walks the ungated flow
+with and without a captcha, the gated flow (email → code, a wrong code
+refused, → write with no second captcha, the pass sent with the note), the
+stored pass skipping straight to the note, and a lapsed pass (401) sending the
+reader back to the email step. The endpoints are mocked, so the server side
+of the captcha condition is still held by `feedback.js`'s unit tests; if the
+two drift, one suite or the other goes red.
 
 **2. Cloudflare rate-limiting rule on `/api/feedback`.** The per-subscriber cap
 is in code; an edge rule would also bound unauthenticated hammering before it
