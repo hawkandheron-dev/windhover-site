@@ -46,6 +46,9 @@ const VIEWPORTS = {
   tablet:  { width: 820,  height: 1180, mobile: false },
   laptop:  { width: 1280, height: 720,  mobile: false },
   desktop: { width: 1440, height: 900,  mobile: false },
+  // A Retina laptop: the same CSS size as laptop at twice the pixels, to see
+  // the canvas drawn at full density (hiDpiCanvas, M4).
+  retina:  { width: 1280, height: 720,  mobile: false, scale: 2 },
 };
 
 // A figure with connections, works and a long description: the panel at its fullest.
@@ -53,7 +56,7 @@ const PANEL_QUERY = 'Athanasius';
 
 const DEFAULT_STATES = [
   { name: 'first-visit',   viewports: ['phone', 'laptop', 'desktop'], welcome: true },
-  { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop'] },
+  { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop', 'retina'] },
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
@@ -189,7 +192,7 @@ async function shoot(browser, base, tables, state, vpName) {
   const vp = VIEWPORTS[vpName];
   const context = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
-    deviceScaleFactor: vp.mobile ? 2 : 1,
+    deviceScaleFactor: vp.scale ?? (vp.mobile ? 2 : 1),
     isMobile: vp.mobile, hasTouch: vp.mobile,
     colorScheme: state.colorScheme || 'light',
   });

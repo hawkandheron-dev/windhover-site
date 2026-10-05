@@ -826,6 +826,33 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
 });
 
 test.describe('Code cleanup (milestone 4)', () => {
+  test('moving over a figure redraws the canvas on entering it, not on every move', async ({ page }) => {
+    // Every mouse move used to re-render the whole timeline, and while over a
+    // figure redraw both canvases: dozens of full redraws a second.
+    await page.addInitScript(() => {
+      window.__clears = 0;
+      const clear = CanvasRenderingContext2D.prototype.clearRect;
+      CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+        if (args[0] === 0 && args[1] === 0) window.__clears++;
+        return clear.apply(this, args);
+      };
+    });
+    await loadPage(page);
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    const y = label.y + label.height / 2;
+    await page.mouse.move(label.x + label.width + 4, y);
+    await page.waitForTimeout(200);
+    const before = await page.evaluate(() => window.__clears);
+    const card = page.locator('.hover-preview');
+    const left0 = await card.evaluate(el => el.style.left).catch(() => null);
+    for (let i = 1; i <= 30; i++) await page.mouse.move(label.x + label.width + 4 + i, y);
+    await page.waitForTimeout(200);
+    const redraws = (await page.evaluate(() => window.__clears)) - before;
+    expect(redraws).toBeLessThanOrEqual(4);
+    // The hover card still follows the pointer.
+    if (left0 !== null) await expect(card).not.toHaveCSS('left', left0);
+  });
+
   test('a failed load says so in plain words, and "Try again" recovers', async ({ page }) => {
     // It used to print the raw exception ("Error: …") with no way out.
     await loadPage(page, { dismissWelcome: false }).catch(() => {});
