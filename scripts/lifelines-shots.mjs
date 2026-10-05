@@ -72,9 +72,7 @@ const DEFAULT_STATES = [
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
 ];
 
-// --compare points: the harp-strings prototype against today's pins and
-// flags, at three zoom levels and with a figure focused. Desktop only; the
-// phone comparison is --compare mobile (milestone 3, step 9).
+// Zoom with the named buttons (the horizontal timeline's controls).
 const zoom = (label, times) => async (page) => {
   for (let i = 0; i < times; i++) {
     await page.getByRole('button', { name: label }).click();
@@ -82,13 +80,6 @@ const zoom = (label, times) => async (page) => {
   }
   await page.waitForTimeout(300);
 };
-const POINT_STYLES = [['flags', ''], ['strings', '?points=strings']];
-const COMPARE_POINTS = POINT_STYLES.flatMap(([style, query]) => [
-  { name: `points-${style}-opening`,    viewports: ['desktop', 'laptop'], query },
-  { name: `points-${style}-zoomed-in`,  viewports: ['desktop'], query, act: zoom('Zoom in', 2) },
-  { name: `points-${style}-zoomed-out`, viewports: ['desktop'], query, act: zoom('Zoom out', 2) },
-  { name: `points-${style}-focused`,    viewports: ['desktop'], query, act: openPanel },
-]);
 
 // --compare mobile: today's vertical phone timeline against the desktop's
 // horizontal one on a phone (chosen with the layout toggle; detail as a modal).
@@ -110,9 +101,9 @@ const COMPARE_MOBILE = PHONE_LAYOUTS.flatMap(layout => [
 ]);
 
 const COMPARE = opt('compare');
-const STATES = COMPARE === 'points' ? COMPARE_POINTS
-  : COMPARE === 'mobile' ? COMPARE_MOBILE
-  : DEFAULT_STATES;
+// --compare points (flags against strings) went when strings became the
+// config default and ?points=strings stopped meaning anything (PR #160).
+const STATES = COMPARE === 'mobile' ? COMPARE_MOBILE : DEFAULT_STATES;
 
 // ── tiny static server over the repo root (apps/ plus node_modules fonts) ──
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',

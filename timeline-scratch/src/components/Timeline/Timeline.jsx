@@ -65,6 +65,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
         layoutToggle={layoutToggle}
         detailBrief={detailBrief}
         data={data}
+        backData={backData}
         config={config}
         onItemClick={onItemClick}
         authContext={authContext}

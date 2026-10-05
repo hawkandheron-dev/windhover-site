@@ -14,6 +14,7 @@ import { applyFilters, buildInitialFilters } from '../utils/filters.js';
 import { StringMark } from './StringMark.jsx';
 import { markForPoint } from '../utils/stringMark.js';
 import { placeVerticalLabels } from '../utils/verticalStrings.js';
+import { packRulerRows } from '../utils/rulerStrip.js';
 import './MobileTimeline.css';
 
 const DEFAULT_PIXELS_PER_YEAR = 8;
@@ -26,6 +27,12 @@ const GUTTER_WIDTH = 60;
 // column of their own between the year axis and the lanes, so they never sit
 // on a figure's bar.
 const STRING_LABEL_COLUMN = 116;
+// Rulers (config.rulerStyle === 'strip'): the bottom strip's vertical twin, a
+// column pinned to the right edge. Each sub-column holds a thin reign bar
+// with the name running down beside it.
+const RULER_SUBCOLUMN = 16;
+const RULER_SUBCOLUMNS = 4;
+const RULER_COLUMN = RULER_SUBCOLUMN * RULER_SUBCOLUMNS + 8;
 
 /** Lighten a hex color for readability on dark backgrounds */
 function lightenColor(hex, floor = 160) {
@@ -40,7 +47,7 @@ function lightenColor(hex, floor = 160) {
   return `rgb(${lr}, ${lg}, ${lb})`;
 }
 
-export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false }, ref) {
+export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false, backData }, ref) {
   const scrollRef = useRef(null);
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR);
   // The years currently on screen, for the 'years' zoom readout. Read from the
@@ -117,6 +124,11 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
   // No landmarks on screen (early tour scenes, or all filtered out): no column.
   const labelColumn = stringStyle && filteredData.points.length ? STRING_LABEL_COLUMN : 0;
   const lanesLeft = GUTTER_WIDTH + labelColumn;
+  const rulerPeople = useMemo(
+    () => (defaultConfig.rulerStyle === 'strip' && backData ? applyFilters(backData, filters).people || [] : []),
+    [defaultConfig.rulerStyle, backData, filters]
+  );
+  const rulerColumn = rulerPeople.length ? RULER_COLUMN : 0;
 
   const itemIndex = useMemo(() => {
     const map = new Map();
@@ -380,6 +392,39 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     return '#5b7ee8';
   }, [defaultConfig.legend]);
 
+  // The rulers' column sits outside the scroller (so it stays pinned right
+  // while the lanes scroll sideways) and follows its vertical scroll.
+  const rulerInnerRef = useRef(null);
+  const [scrollBox, setScrollBox] = useState({ top: 0, scrollbar: 0, height: 0 });
+  const syncRulers = useCallback(() => {
+    const el = scrollRef.current;
+    if (el && rulerInnerRef.current) rulerInnerRef.current.style.transform = `translateY(${-el.scrollTop}px)`;
+  }, []);
+  const handleScroll = useCallback(() => { updateVisibleYears(); syncRulers(); }, [updateVisibleYears, syncRulers]);
+  // Where the scroller sits, so the column lines up with it: re-measured
+  // when the filter drawer opens or the window resizes.
+  const measureScrollBox = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const next = { top: el.offsetTop, scrollbar: el.offsetWidth - el.clientWidth, height: el.clientHeight };
+    setScrollBox(prev => (prev.top === next.top && prev.scrollbar === next.scrollbar && prev.height === next.height ? prev : next));
+  }, []);
+  useLayoutEffect(() => {
+    measureScrollBox();
+    syncRulers();
+  }, [measureScrollBox, syncRulers, filtersOpen, pixelsPerYear, rulerColumn]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measureScrollBox);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measureScrollBox]);
+  const packedRulers = useMemo(
+    () => (rulerPeople.length ? packRulerRows(rulerPeople, 1 / pixelsPerYear, RULER_SUBCOLUMNS) : []),
+    [rulerPeople, pixelsPerYear]
+  );
+
   // Harp strings: where each landmark's line, label and mark go.
   const stringLayout = useMemo(() => {
     if (!stringStyle) return [];
@@ -500,14 +545,14 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
       <div
         ref={scrollRef}
         className="mobile-timeline-scroll"
-        onScroll={updateVisibleYears}
+        onScroll={handleScroll}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         <div
           className="mobile-timeline-content"
-          style={{ height: `${totalHeight + 80}px`, width: `${contentWidth + lanesLeft}px` }}
+          style={{ height: `${totalHeight + 80}px`, width: `${contentWidth + lanesLeft + rulerColumn}px` }}
           onClick={handleBackgroundClick}
         >
           {/* Horizontal gridlines (behind everything) */}
@@ -645,6 +690,41 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
           })}
         </div>
       </div>
+
+      {rulerColumn > 0 && (
+        <div
+          className="mobile-ruler-column"
+          style={{ width: `${RULER_COLUMN}px`, top: `${scrollBox.top}px`, height: `${scrollBox.height}px`, right: `${scrollBox.scrollbar}px`, '--ruler-color': defaultConfig.rulerColor }}
+          aria-label="Emperors and monarchs"
+        >
+          <div ref={rulerInnerRef} className="mobile-ruler-column-inner" style={{ height: `${totalHeight + 80}px` }}>
+            {packedRulers.map(({ person, row, start, end, room }) => {
+              const top = yearToY(start);
+              const height = Math.max(yearToY(end) - top, 3);
+              // The name runs down beside the bar, until the next reign in
+              // its sub-column; under 28px of room it is left off.
+              const roomPx = room * pixelsPerYear - 4;
+              return (
+                <button
+                  key={person.id}
+                  type="button"
+                  className="mobile-ruler"
+                  style={{ top: `${top}px`, left: `${4 + row * RULER_SUBCOLUMN}px`, width: `${RULER_SUBCOLUMN}px` }}
+                  aria-label={`${person.name}, ${formatEraYear(start)} – ${formatEraYear(end)}`}
+                  onClick={() => handleItemClick('person', person)}
+                >
+                  <span className="mobile-ruler-bar" style={{ height: `${height}px` }} />
+                  {roomPx >= 28 && (
+                    <span className="mobile-ruler-name" style={Number.isFinite(roomPx) ? { maxHeight: `${roomPx}px` } : undefined}>
+                      {person.name}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <TimelineModal

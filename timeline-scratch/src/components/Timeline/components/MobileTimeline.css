@@ -347,6 +347,58 @@
   padding: 6px;
 }
 
+/* ── Rulers column (config.rulerStyle === 'strip') ──
+   Pinned to the right edge, outside the scroller; its inner track follows
+   the scroller's vertical offset. Names run down beside their reign bars. */
+.mobile-ruler-column {
+  position: absolute;
+  z-index: 15;
+  overflow: hidden;
+  background: #ffffff;
+  border-left: 1px solid var(--color-border-hover, rgba(30, 28, 24, 0.24));
+}
+
+.mobile-ruler-column-inner {
+  position: relative;
+  will-change: transform;
+}
+
+.mobile-ruler {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  text-align: left;
+}
+
+.mobile-ruler-bar {
+  flex: 0 0 3px;
+  border-radius: 2px;
+  background: var(--ruler-color, #6d4c41);
+  opacity: 0.45;
+}
+
+.mobile-ruler-name {
+  writing-mode: vertical-rl;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 11px;
+  color: var(--color-ink-faded, #6e6e66);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-ruler:focus-visible .mobile-ruler-bar,
+.mobile-ruler:active .mobile-ruler-bar {
+  opacity: 1;
+}
+
 /* ── Year gutter (z-index 10, dark overlay, sticky left) ── */
 /* Sits IN FRONT of lanes and points to mask content scrolling behind it */
 .mobile-year-gutter {

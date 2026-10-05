@@ -778,6 +778,44 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     await expect(page.locator('.timeline-modal .modal-title')).toBeVisible();
   });
 
+  test('on a phone, the vertical timeline keeps the rulers, in a column at the right edge', async ({ page }) => {
+    // The vertical layout dropped every emperor and monarch while the Key
+    // still offered their switch (Codex review on PR #160). They now sit in
+    // the bottom strip's vertical twin.
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, realData: true });
+    const column = page.locator('.mobile-ruler-column');
+    await expect(column).toBeVisible();
+    const box = await column.boundingBox();
+    expect(box.x + box.width).toBeGreaterThan(388);
+    const tiberius = column.getByRole('button', { name: /^Tiberius,/ });
+    await expect(tiberius).toBeVisible();
+
+    // It scrolls with the years: Tiberius moves as far as the 25 AD gridline.
+    const yOf = () => tiberius.evaluate(el => el.getBoundingClientRect().top);
+    const before = await yOf();
+    await page.locator('.mobile-timeline-scroll').evaluate(el => { el.scrollTop += 200; });
+    await expect.poll(yOf).toBeCloseTo(before - 200, 0);
+
+    // Names never overlap one another.
+    const clashes = await column.evaluate(el => {
+      const r = [...el.querySelectorAll('.mobile-ruler-name')].map(n => n.getBoundingClientRect());
+      let n = 0;
+      r.forEach((a, i) => r.slice(i + 1).forEach(b => {
+        if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) n++;
+      }));
+      return n;
+    });
+    expect(clashes).toBe(0);
+
+    // A tap opens the ruler; the Key's switch hides the column.
+    await tiberius.click();
+    await expect(page.locator('.timeline-modal .modal-title')).toContainText('Tiberius');
+    await page.locator('.timeline-modal .modal-close').click();
+    await page.locator('.mobile-toolbar-btn', { hasText: 'Filter' }).click();
+    await page.locator('.mobile-filter-item', { hasText: 'Emperors' }).locator('input').uncheck();
+    await expect(column).toHaveCount(0);
+  });
+
   test('on a phone, the vertical timeline is on white: toolbar and year gutter', async ({ page }) => {
     await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
     const bg = (sel) => page.locator(sel).evaluate(el => getComputedStyle(el).backgroundColor);
@@ -845,7 +883,9 @@ test.describe('Review round fixes (milestone 3)', () => {
       }));
       expect(boxes.length).toBeGreaterThan(20);
       const overlaps = [];
-      const rows = Map.groupBy(boxes, b => b.top);
+      // Grouped by hand: CI runs Node 20, which has no Map.groupBy.
+      const rows = new Map();
+      for (const b of boxes) rows.set(b.top, [...(rows.get(b.top) || []), b]);
       for (const row of rows.values()) {
         row.sort((a, b) => a.left - b.left);
         for (let i = 1; i < row.length; i++) {

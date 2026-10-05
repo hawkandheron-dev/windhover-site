@@ -2,6 +2,26 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M3 PR #160: CI red and two bot findings (2026-10-05)
+
+**Context.** Matthew subscribed this session to [hawkandheron-dev/windhover-site#160](https://github.com/hawkandheron-dev/windhover-site/pull/160). Three items are open on it:
+- **E2E failed in CI.** One test fails twice: "no figure label runs into the next one in its row (real data)" (`tests/e2e/church-history-2.spec.js:848`), with `TypeError: Map.groupBy is not a function`. CI runs Node 20, which lacks `Map.groupBy` (Node 21+), and the sandbox's newer Node hid it. The cause is in the test, not the app. The other 65 tests pass in CI, including the three auth smoke tests that only fail in the sandbox.
+- **Codex P2 on `scripts/lifelines-shots.mjs:85`:** `--compare points` still switches on `?points=strings`, which nothing reads any more since strings became the config default, so both arms render strings. The prototype is retired.
+- **Codex P2 on `Timeline.jsx:63-68`:** the vertical layout gets only `data`, never `backData`, so choosing Vertical drops every emperor and monarch while the Key still offers an "Emperors & monarchs" switch. This was already true on phones before M3 (vertical was the only phone layout); the toggle makes it reachable on desktop too.
+
+**Steps**
+1. **Fix the test:** replace `Map.groupBy` with a plain grouping (a `Map` filled in a loop), no change to what it asserts. Reproduce the failure first by running that test under Node 20 (`npx -y node@20`), then show it passing.
+2. **Retire `--compare points`:** delete `POINT_STYLES`/`COMPARE_POINTS` and the `points` option; update the script's usage comment. Reply on the thread with the commit and resolve it.
+3. **Rulers in the vertical layout:** Matthew picked (2026-10-05) a **rulers column pinned to the right edge**, the vertical twin of the bottom strip:
+   - about 90px wide, sticky right, white with a left rule;
+   - thin vertical reign bars packed into up to three sub-columns, each with a small crown and the name, cut with "…" at the next reign (reuse `packRulerRows` logic, rotated);
+   - tap opens the ruler; the Emperors switch hides it;
+   - opt-in via `rulerStyle: 'strip'` passed to `MobileTimeline` with `backData`, so other apps are unchanged.
+   - Tests: e2e that the vertical layout shows Constantine in the column and the Key switch hides it; ruler names don't overlap.
+   - Shots: default--phone, vertical--tablet/desktop.
+   - DESIGN.md §6: rulers sit in a strip at the foot (horizontal) or a column at the right edge (vertical).
+4. **Push once**, after unit, build, full e2e, lint and shots are clean. Reply on both Codex threads with the commit, resolve them, and update the PR body's Checks section.
+
 ## M3 round 6c: the tour's detail on phones (2026-10-04)
 
 **Context.** Some tour steps open a figure's detail (step 7 opens Irenaeus). On a phone that detail is the full centred modal, with a large map, and it covers the whole timeline and half the tour sheet.
