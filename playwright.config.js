@@ -17,6 +17,13 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Firefox and WebKit (Safari's engine) run the Lifelines spec in their own
+    // CI job (PW_ALL_BROWSERS=1). Off by default: the cloud sandbox has only
+    // Chromium, and `npm run test:e2e` should not ask for browsers it lacks.
+    ...(process.env.PW_ALL_BROWSERS ? [
+      { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /church-history-2\.spec\.js/ },
+      { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /church-history-2\.spec\.js/ },
+    ] : []),
   ],
   webServer: {
     // Serve the repo root so both the static pages (index.html, about.html,
