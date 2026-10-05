@@ -674,6 +674,12 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // only when the item under the pointer does, so the canvases redraw on
   // entering or leaving a figure, not on each pixel in between.
   const lastHoverRef = useRef(null);
+  // Any other place that ends a hover must forget the last item too, or the
+  // same item would not register when the pointer comes back onto it.
+  const clearHover = useCallback(() => {
+    lastHoverRef.current = null;
+    setHoveredItem(null);
+  }, []);
   const handleItemHover = useCallback((type, item) => {
     const hovering = type && item && !(defaultConfig.touchGestures && noHover());
     const key = hovering ? `${type}:${item.id}` : null;
@@ -708,22 +714,22 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // straight into the header kept the last hover card on screen indefinitely.
   const handleContainerLeave = useCallback((e) => {
     handleMouseUp(e);
-    setHoveredItem(null);
+    clearHover();
     setPointerInside(false);
     onPersonHover?.(null);
-  }, [handleMouseUp, onPersonHover]);
+  }, [handleMouseUp, onPersonHover, clearHover]);
 
   // Handle item click
   const handleItemClickInternal = useCallback((type, item) => {
     // This click opened an item, so it was not a click on empty timeline.
     pendingYearSummaryRef.current = null;
-    setHoveredItem(null);
+    clearHover();
     if (!suppressModal) {
       setSelectedItem({ type, item });
     }
     onPersonSelect?.(type === 'person' ? item?.id ?? null : null, type, item);
     onItemClick?.(type, item);
-  }, [onItemClick, suppressModal, onPersonSelect]);
+  }, [onItemClick, suppressModal, onPersonSelect, clearHover]);
 
   const handleModalItemSelect = useCallback((type, item) => {
     setSelectedItem({ type, item });

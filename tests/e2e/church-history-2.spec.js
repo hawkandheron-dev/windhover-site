@@ -973,6 +973,21 @@ test.describe('Code cleanup (milestone 4)', () => {
     expect(await page.evaluate(() => localStorage.getItem('lifelines.feedback.access'))).toBeNull();
   });
 
+  test('a figure hovered again after leaving the timeline shows its hover card again', async ({ page }) => {
+    // Hover only changes when the item under the pointer does; leaving the
+    // timeline cleared the card without forgetting the item, so coming
+    // straight back onto the same figure showed nothing (code review, M4).
+    await loadPage(page);
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    const onBar = { x: label.x + label.width + 6, y: label.y + label.height / 2 };
+    await page.mouse.move(onBar.x, onBar.y);
+    await expect(page.locator('.hover-preview')).toBeVisible();
+    await page.mouse.move(onBar.x, 4); // up into the header
+    await expect(page.locator('.hover-preview')).toHaveCount(0);
+    await page.mouse.move(onBar.x, onBar.y);
+    await expect(page.locator('.hover-preview')).toBeVisible();
+  });
+
   test('moving over a figure redraws the canvas on entering it, not on every move', async ({ page }) => {
     // Every mouse move used to re-render the whole timeline, and while over a
     // figure redraw both canvases: dozens of full redraws a second.
