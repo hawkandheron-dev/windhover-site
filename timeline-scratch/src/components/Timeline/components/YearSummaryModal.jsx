@@ -8,7 +8,7 @@ import { YearDetailMap } from './LazyMaps.jsx';
 import './TimelineModal.css';
 import { formatYear as formatEraYear } from '../utils/dateUtils.js';
 
-export function YearSummaryModal({ year, summary, config, onClose, itemIndex, onSelectItem }) {
+export function YearSummaryModal({ year, summary, onClose, itemIndex, onSelectItem }) {
   // Handle escape key
   useEffect(() => {
     function handleEscape(e) {

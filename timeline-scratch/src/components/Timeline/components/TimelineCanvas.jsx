@@ -2,7 +2,7 @@
  * Canvas layer for timeline rendering
  */
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useEffectEvent, useState } from 'react';
 import { yearToPixel, getYearLabelInterval } from '../utils/coordinates.js';
 import { getYearRange } from '../utils/dateUtils.js';
 import {
@@ -113,8 +113,10 @@ export function TimelineCanvas({
     return startYear <= hoveredPeriodRange.end && endYear >= hoveredPeriodRange.start;
   };
 
-  // Render canvas
-  useEffect(() => {
+  // Render canvas. The drawing reads every prop through the render helpers
+  // below; it is an effect event, so the effect re-runs only when one of the
+  // values listed after it changes, and always draws with the latest ones.
+  const draw = useEffectEvent(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -170,7 +172,8 @@ export function TimelineCanvas({
 
     // Draw search highlights on top
     renderSearchHighlights(ctx, layout);
-  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringFocusIds, palette, yOffset, onlyIds, layerMode]);
+  });
+  useEffect(() => { draw(); }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringFocusIds, palette, yOffset, onlyIds, layerMode]);
 
   /** The focus layer draws a subset; every other layer draws everything. */
   function visible(items) {
@@ -599,7 +602,7 @@ export function TimelineCanvas({
     const hoverPriority = { point: 0, person: 1, period: 2 };
     let foundItem = null;
 
-    for (const [id, hitData] of hitMapRef.current) {
+    for (const hitData of hitMapRef.current.values()) {
       const { bounds } = hitData;
 
       if (
@@ -639,7 +642,7 @@ export function TimelineCanvas({
     const typePriority = { point: 0, person: 1, period: 2 };
     let bestMatch = null;
 
-    for (const [id, hitData] of hitMapRef.current) {
+    for (const hitData of hitMapRef.current.values()) {
       const { bounds } = hitData;
 
       if (

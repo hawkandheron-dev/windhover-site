@@ -62,7 +62,9 @@ const TYPE_LABELS = { person: 'Person', point: 'Event', period: 'Period' };
 export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink, ranked = false, describeKind, inputId, inputLabel = 'Search the timeline' }) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(-1);
+  // The highlighted row belongs to one list of results; a new list starts
+  // with none highlighted (kept with its list rather than reset in an effect).
+  const [active, setActive] = useState({ list: null, idx: -1 });
   // Free-text find state
   const [findResults, setFindResults] = useState(null); // { matches[], currentIdx }
   const inputRef = useRef(null);
@@ -79,10 +81,11 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
     return matches.slice(0, 12);
   }, [query, index, ranked]);
 
-  // Keep activeIdx in bounds when results change
-  useEffect(() => {
-    setActiveIdx(-1);
-  }, [filtered]);
+  const activeIdx = active.list === filtered ? active.idx : -1;
+  const setActiveIdx = useCallback((update) => setActive(prev => {
+    const current = prev.list === filtered ? prev.idx : -1;
+    return { list: filtered, idx: typeof update === 'function' ? update(current) : update };
+  }), [filtered]);
 
   // Scroll active item into view inside the dropdown
   useEffect(() => {
@@ -178,7 +181,7 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
         performFind(query);
       }
     }
-  }, [isOpen, filtered, activeIdx, query, findResults, selectEntry, performFind, navigateFind, clearFind]);
+  }, [isOpen, filtered, activeIdx, setActiveIdx, query, findResults, selectEntry, performFind, navigateFind, clearFind]);
 
   const handleChange = useCallback((e) => {
     const val = e.target.value;
@@ -195,7 +198,7 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
     if (query.trim()) setIsOpen(true);
   }, [query]);
 
-  const handleBlur = useCallback((e) => {
+  const handleBlur = useCallback(() => {
     // Delay close so click on dropdown item registers first
     setTimeout(() => setIsOpen(false), 180);
   }, []);

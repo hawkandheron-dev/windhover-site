@@ -127,7 +127,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // initial vertical placement waits for it (see below).
   const [measured, setMeasured] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selection, setSelectedItem] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   // The cursor line and year chip follow the pointer only while it is over the
   // timeline; otherwise they froze at the last position, often under the header.
@@ -261,15 +261,13 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     return map;
   }, [data, backData]);
 
-  // Re-select the current item from fresh data after a refetch
-  useEffect(() => {
-    if (selectedItem && itemIndex) {
-      const fresh = itemIndex.get(selectedItem.item?.id);
-      if (fresh) {
-        setSelectedItem({ type: fresh.type, item: fresh.item });
-      }
-    }
-  }, [itemIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The open item, read through the index so a refetch shows fresh data
+  // (an edit, say) without re-selecting it.
+  const selectedItem = useMemo(() => {
+    if (!selection) return null;
+    const fresh = itemIndex?.get(selection.item?.id);
+    return fresh && fresh.item !== selection.item ? { type: fresh.type, item: fresh.item } : selection;
+  }, [selection, itemIndex]);
 
   // Landmarks carry their full pin-and-flag card when there is room for it,
   // and collapse to a bare pin when zoomed out. Without this the sixty
@@ -691,10 +689,17 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // closes, and then the automatic choice applies again.
   const legendAutoCollapsed = !!defaultConfig.legendCollapsible
     && (!!selectedItem || (measured && dimensions.width < 1100));
-  const [legendChoice, setLegendChoice] = useState(null);
-  useEffect(() => { setLegendChoice(null); }, [legendAutoCollapsed]);
-  const legendCollapsed = legendChoice ?? legendAutoCollapsed;
-  const toggleLegend = useCallback(() => setLegendChoice(!legendCollapsed), [legendCollapsed]);
+  // The reader's choice is kept with the automatic state it was made under,
+  // so a change of situation clears it (adjusting state during render, as
+  // React recommends, rather than in an effect a frame later).
+  const [legendChoice, setLegendChoice] = useState({ auto: legendAutoCollapsed, collapsed: null });
+  if (legendChoice.auto !== legendAutoCollapsed) setLegendChoice({ auto: legendAutoCollapsed, collapsed: null });
+  const legendCollapsed = legendChoice.auto === legendAutoCollapsed && legendChoice.collapsed !== null
+    ? legendChoice.collapsed : legendAutoCollapsed;
+  const toggleLegend = useCallback(
+    () => setLegendChoice({ auto: legendAutoCollapsed, collapsed: !legendCollapsed }),
+    [legendAutoCollapsed, legendCollapsed]
+  );
 
   // Leaving the timeline ends any hover as well as any drag. Canvas items only
   // clear their hover on a mousemove over empty canvas, so a pointer that left
@@ -910,15 +915,6 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
     return { year, activePeriods, alivePeople, yearPoints, nearbyPoints };
   }, [filteredData]);
-
-  // Handle click on blank space (for year summary)
-  const handleBlankClick = useCallback((e) => {
-    // Only handle if not over an item and not panning
-    if (!hoveredItem && !isPanning) {
-      setPinnedYear(cursorYear);
-      setYearSummaryOpen(true);
-    }
-  }, [hoveredItem, isPanning, cursorYear]);
 
   // Close year summary modal
   const handleYearSummaryClose = useCallback(() => {

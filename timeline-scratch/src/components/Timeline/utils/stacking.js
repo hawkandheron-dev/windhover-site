@@ -156,7 +156,7 @@ function estimatePointCalloutWidth(point, fontSize = 14) {
  *   background layer passes the marker's own width instead.
  * @returns {Array} Points with row assignments
  */
-export function stackPoints(points, pointWidth = 150, yearsPerPixel = 1, markerWidth = null) {
+export function stackPoints(points, _pointWidth, yearsPerPixel = 1, markerWidth = null) {
   if (!points || points.length === 0) return [];
 
   // Sort by date, then alphabetically

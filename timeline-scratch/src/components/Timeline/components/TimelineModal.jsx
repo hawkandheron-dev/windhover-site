@@ -474,28 +474,23 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   }, []);
 
   // ── Wikipedia description for People & Points (not Periods) ──────────
-  const [wikiDesc, setWikiDesc] = useState(null);
-  const [wikiLoading, setWikiLoading] = useState(false);
+  // The result is kept with the item it describes, so opening another item
+  // shows "loading" until its own description arrives, with no reset effect.
+  const wikiKey = isOpen && item && itemType !== 'period' ? item.id : null;
+  const wikiName = item?.name;
+  const wikiUrl = item?.referenceUrl;
+  const [wiki, setWiki] = useState({ key: null, desc: null });
+  const wikiDesc = wikiKey != null && wiki.key === wikiKey ? wiki.desc : null;
+  const wikiLoading = wikiKey != null && wiki.key !== wikiKey;
 
   useEffect(() => {
-    if (!isOpen || !item || itemType === 'period') {
-      setWikiDesc(null);
-      return;
-    }
-
+    if (wikiKey == null) return;
     let cancelled = false;
-    setWikiLoading(true);
-    setWikiDesc(null);
-
-    fetchDescription(item.name, item.referenceUrl).then(result => {
-      if (!cancelled) {
-        setWikiDesc(result);
-        setWikiLoading(false);
-      }
+    fetchDescription(wikiName, wikiUrl).then(result => {
+      if (!cancelled) setWiki({ key: wikiKey, desc: result });
     });
-
     return () => { cancelled = true; };
-  }, [isOpen, item?.id, item?.name, item?.referenceUrl, itemType]);
+  }, [wikiKey, wikiName, wikiUrl]);
 
   if (!isOpen || !item) return null;
 

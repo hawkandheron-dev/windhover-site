@@ -13,14 +13,6 @@ function TourImage({ media, isAdmin, onCropUpdate }) {
   const containerRef = useRef(null);
   const dragRef = useRef(null);
 
-  // Reset position when media changes
-  useEffect(() => {
-    setPosX(media.cropPositionX ?? 50);
-    setPosY(media.cropPositionY ?? 50);
-    setImgError(false);
-    setAdjusting(false);
-  }, [media.mediaId]);
-
   const handleMouseDown = useCallback((e) => {
     if (!adjusting) return;
     e.preventDefault();
@@ -153,6 +145,8 @@ export function TourPanel({
       <div className="tour-panel-body" key={scene.id}>
         {media && (
           <TourImage
+            // A new picture starts afresh: its own crop, no error, not adjusting.
+            key={media.mediaId}
             media={media}
             isAdmin={isAdmin}
             onCropUpdate={onMediaCropUpdate}

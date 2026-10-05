@@ -18,8 +18,9 @@
  *   displayed would feed markup back into the database a round at a time.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { getUpdateFn } from '../../EditEntityForm/EditEntityForm.jsx';
+import { canEditField } from './editableTextGate.js';
 import './EditableText.css';
 
 /** Inline rather than from the icon set, which has no pencil. */
@@ -30,19 +31,6 @@ function PencilIcon() {
       <path d="M8.5 1.5l2 2-6 6-2.5.5.5-2.5 6-6z" />
     </svg>
   );
-}
-
-/**
- * Whether a pencil may be offered for this binding.
- *
- * Pulled out as a plain function so the gate can be tested without a DOM: it
- * decides who gets a write affordance, and every clause is load-bearing.
- * RLS would refuse an unauthorised write anyway, but a pencil that always
- * fails is worse than no pencil, and a pencil bound to the wrong table is
- * worse than both.
- */
-export function canEditField({ isAdmin, getToken, pkValue, itemType }) {
-  return Boolean(isAdmin) && Boolean(getToken) && Boolean(pkValue) && Boolean(getUpdateFn(itemType));
 }
 
 export function EditableText({
@@ -112,18 +100,6 @@ function EditPopover({
     inputRef.current?.select?.();
   }, []);
 
-  // Every keystroke stops here. With the detail docked as a side panel the
-  // timeline still listens for arrow keys, so typing in this box would
-  // otherwise pan the canvas behind it.
-  const handleKeyDown = useCallback((e) => {
-    e.stopPropagation();
-    if (e.key === 'Escape') { onClose(); return; }
-    // Enter saves a single-line field; a textarea keeps Enter for newlines and
-    // takes Cmd/Ctrl+Enter instead, matching the full edit form.
-    const submits = multiline ? (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) : e.key === 'Enter';
-    if (submits) { e.preventDefault(); save(); }
-  }, [multiline, draft, onClose]);   // eslint-disable-line react-hooks/exhaustive-deps
-
   async function save() {
     if (saving) return;
     const next = draft.trim();
@@ -144,6 +120,18 @@ function EditPopover({
       setError(err?.message || 'Could not save. Please try again.');
       setSaving(false);
     }
+  }
+
+  // Every keystroke stops here. With the detail docked as a side panel the
+  // timeline still listens for arrow keys, so typing in this box would
+  // otherwise pan the canvas behind it.
+  function handleKeyDown(e) {
+    e.stopPropagation();
+    if (e.key === 'Escape') { onClose(); return; }
+    // Enter saves a single-line field; a textarea keeps Enter for newlines and
+    // takes Cmd/Ctrl+Enter instead, matching the full edit form.
+    const submits = multiline ? (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) : e.key === 'Enter';
+    if (submits) { e.preventDefault(); save(); }
   }
 
   return (

@@ -395,8 +395,12 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
   const [addNoteOpen, setAddNoteOpen] = useState(false);
   const [viewNotesOpen, setViewNotesOpen] = useState(false);
   const [suggestNewOpen, setSuggestNewOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isContributor, setIsContributor] = useState(false);
+  // The signed-in user's roles, tagged with whose they are: signing out (or
+  // switching account) makes them stale at once, without an effect to reset.
+  const [roles, setRoles] = useState(null);
+  const rolesCurrent = Boolean(isSignedIn && roles && roles.userId === userId);
+  const isAdmin = rolesCurrent && roles.isAdmin;
+  const isContributor = rolesCurrent && roles.isContributor;
   const [view, setView] = useState('timeline'); // 'timeline' | 'suggestions'
   const timelineRef = useRef(null);
 
@@ -406,48 +410,39 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
   // Auto-register user on sign-in, then check their role.
   const clerkUserLoaded = clerkUser && clerkUser.id;
 
+  const email = clerkUser?.primaryEmailAddress?.emailAddress;
+  const displayName = clerkUser?.fullName || clerkUser?.firstName || null;
+
   useEffect(() => {
-    if (!isSignedIn || !userId || !clerkUserLoaded) {
-      if (!isSignedIn) {
-        setIsAdmin(false);
-        setIsContributor(false);
-      }
-      return;
-    }
+    if (!isSignedIn || !userId || !clerkUserLoaded) return;
 
     let cancelled = false;
     const getTokenForSupabase = () => getToken({ template: 'supabase' });
 
-    const email = clerkUser?.primaryEmailAddress?.emailAddress;
-    const displayName = clerkUser?.fullName || clerkUser?.firstName || null;
-
     ensureUserExists(getTokenForSupabase, userId, email, displayName)
       .then(() => checkUserRole(getTokenForSupabase, userId))
       .then(result => {
-        if (!cancelled) {
-          setIsAdmin(result.isAdmin);
-          setIsContributor(result.isContributor);
-        }
+        if (!cancelled) setRoles({ userId, isAdmin: result.isAdmin, isContributor: result.isContributor });
       });
 
     return () => { cancelled = true; };
-  }, [isSignedIn, userId, getToken, clerkUserLoaded]);
+  }, [isSignedIn, userId, getToken, clerkUserLoaded, email, displayName]);
 
   const handleAddNoteClose = useCallback(() => {
     setAddNoteOpen(false);
   }, []);
 
-  const authContext = isSignedIn
+  const authContext = useMemo(() => (isSignedIn
     ? { getToken, clerkUserId: userId, isSignedIn: true }
-    : null;
+    : null), [isSignedIn, getToken, userId]);
 
-  const adminContext = isAdmin
+  const adminContext = useMemo(() => (isAdmin
     ? { isAdmin: true, getToken: () => getToken({ template: 'supabase' }) }
-    : null;
+    : null), [isAdmin, getToken]);
 
-  const contributorContext = isContributor
+  const contributorContext = useMemo(() => (isContributor
     ? { isContributor: true, getToken: () => getToken({ template: 'supabase' }), clerkUserId: userId }
-    : null;
+    : null), [isContributor, getToken, userId]);
 
   const getPageContext = useCallback(() => ({
     app: 'ch-timeline-2',

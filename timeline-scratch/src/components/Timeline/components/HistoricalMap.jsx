@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { filterByDate } from '@openhistoricalmap/maplibre-gl-dates';
@@ -15,19 +15,13 @@ const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.js
 export function HistoricalMap({ location, birthYear, title = 'Historical Map' }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const [noCoords, setNoCoords] = useState(false);
-
   const coords = getCoordinatesForLocation(location);
+  const noCoords = !coords;
+  const lat = coords?.[0];
+  const lng = coords?.[1];
 
   useEffect(() => {
-    if (!coords || !mapContainerRef.current) {
-      setNoCoords(!coords);
-      return;
-    }
-
-    setNoCoords(false);
-
-    const [lat, lng] = coords;
+    if (lat == null || lng == null || !mapContainerRef.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
@@ -67,7 +61,7 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map' })
       mapRef.current = null;
       map.remove();
     };
-  }, [coords?.[0], coords?.[1], birthYear]);
+  }, [lat, lng, birthYear]);
 
   if (!location) return null;
 

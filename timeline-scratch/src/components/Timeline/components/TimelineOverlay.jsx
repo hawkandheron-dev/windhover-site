@@ -180,8 +180,6 @@ export function TimelineOverlay({
 
       const startX = yearToPixel(start, viewportStartYear, yearsPerPixel);
       const endX = yearToPixel(end, viewportStartYear, yearsPerPixel);
-      const boxWidth = Math.max(endX - startX, 60); // Min width for readability
-      const boxHeight = person.height - 6;
       const boxY = person.y - panOffsetY;
 
       // Position label at left of the box, vertically centered
@@ -274,7 +272,6 @@ export function TimelineOverlay({
       const endX = yearToPixel(end, viewportStartYear, yearsPerPixel);
       const centerX = (startX + endX) / 2;
       const bracketY = period.y - panOffsetY;
-      const bracketWidth = endX - startX;
       const bracketHeight = period.bracketHeight ?? period.height;
 
       // Hide if completely off screen
@@ -554,7 +551,7 @@ export function TimelineOverlay({
   }
 
   function renderHoverPreview() {
-    const { type, item, mouseX, mouseY } = hoveredItem;
+    const { item, mouseX, mouseY } = hoveredItem;
 
     if (!item) return null;
 
