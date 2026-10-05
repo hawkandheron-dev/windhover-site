@@ -1,11 +1,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import process from 'node:process'
 import lightThemeOptOut from './postcss-light-theme-optout.js'
+
+// Lifelines' share card (church-history-2.html: Open Graph tags, canonical
+// link) needs absolute URLs. Until the site has its own domain this is the
+// Cloudflare Pages production address. When it moves, change it here, or set
+// LIFELINES_SITE_URL in the Pages build settings and redeploy.
+const LIFELINES_SITE_URL = (process.env.LIFELINES_SITE_URL || 'https://profile-site-bgf.pages.dev').replace(/\/$/, '')
+
+function lifelinesSiteUrl() {
+  return {
+    name: 'lifelines-site-url',
+    transformIndexHtml: html => html.replaceAll('%LIFELINES_SITE_URL%', LIFELINES_SITE_URL),
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), lifelinesSiteUrl()],
   css: {
     // Lets a page hold its light palette under a dark OS; see the plugin.
     postcss: { plugins: [lightThemeOptOut()] },

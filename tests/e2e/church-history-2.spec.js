@@ -15,7 +15,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { installConfigMock, installClerkMock, installSupabaseTableMock } from './fixtures.js';
+import { installConfigMock, installClerkMock, installSupabaseTableMock, TEST_CLERK_KEY } from './fixtures.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SNAPSHOT = (() => {
@@ -138,8 +138,8 @@ const TABLES = {
   ],
 };
 
-async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false, tables } = {}) {
-  await installConfigMock(page, { clerkKey: '' });
+async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false, tables, clerkKey = '' } = {}) {
+  await installConfigMock(page, { clerkKey });
   await installClerkMock(page);
   // realData: the snapshot of the live tables, for checks that only mean
   // something at real density (the fixture has seven people).
@@ -537,12 +537,15 @@ test.describe('CH Timeline 2.0', () => {
     const pageErrors = [];
     page.on('pageerror', (e) => pageErrors.push(e.message));
 
-    await installConfigMock(page); // default fixture key — the shipping branch
+    await installConfigMock(page); // default fixture key
     await installClerkMock(page);
     await installSupabaseTableMock(page, TABLES);
     await page.setViewportSize({ width: 1400, height: 900 });
 
-    const response = await page.goto('/apps/church-history-2.html');
+    // Since M9 the Clerk branch is the owner's (?admin, or already signed in);
+    // readers get the other one even with a key. Ask for it explicitly, or
+    // this would quietly test the reader's branch twice.
+    const response = await page.goto('/apps/church-history-2?admin');
     expect(response?.status()).toBe(200);
 
     // Renders at all, and specifically not with a missing-provider throw.
@@ -1204,6 +1207,21 @@ test.describe('Credits, licences and privacy (milestone 7)', () => {
     await expect(about).toBeFocused();
   });
 
+  test("readers never load Clerk; the owner's ?admin does", async ({ page }) => {
+    // Mounting Clerk downloads its browser script from Clerk's servers on
+    // every visit. Readers never sign in, so it's left out unless the owner
+    // asks for it (or is already signed in: tests/unit/lifelines-auth.test.js).
+    const clerk = [];
+    page.on('request', req => { if (/clerk/i.test(req.url())) clerk.push(req.url()); });
+    const key = TEST_CLERK_KEY;
+    await loadPage(page, { clerkKey: key });
+    await page.waitForLoadState('networkidle');
+    expect(clerk).toEqual([]);
+
+    await loadPage(page, { clerkKey: key, query: '?admin' });
+    await expect.poll(() => clerk.length).toBeGreaterThan(0);
+  });
+
   test('Lifelines asks nothing of Google Fonts', async ({ page }) => {
     // Fonts are self-hosted, so a reader's address isn't shared with Google.
     const google = [];
@@ -1211,6 +1229,45 @@ test.describe('Credits, licences and privacy (milestone 7)', () => {
     await loadPage(page);
     await page.waitForLoadState('networkidle');
     expect(google).toEqual([]);
+  });
+});
+
+test.describe('Share card and speed (milestone 9)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  test('the front page carries a share card whose image and icons exist', async ({ page, request }) => {
+    // Link previews (Substack, social sites, messaging apps) read these tags
+    // and need absolute addresses; vite.config.js fills in the site's.
+    await loadPage(page, { at: '/' });
+    const meta = (sel) => page.locator(sel).first().getAttribute('content');
+    expect(await meta('meta[name="description"]')).toMatch(/church history/i);
+    expect(await meta('meta[property="og:title"]')).toContain('Lifelines');
+    expect(await meta('meta[name="twitter:card"]')).toBe('summary_large_image');
+    const image = await meta('meta[property="og:image"]');
+    expect(image).toMatch(/^https:\/\/[^%]+\/apps\/lifelines-share\.png$/);
+    expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toMatch(/^https:\/\/[^%]+\/$/);
+
+    // The same files, served by this build.
+    const png = await request.get(new URL(image).pathname);
+    expect(png.status()).toBe(200);
+    const body = await png.body();
+    expect([body.readUInt32BE(16), body.readUInt32BE(20)]).toEqual([1200, 630]);
+    for (const rel of ['icon', 'apple-touch-icon']) {
+      const href = await page.locator(`link[rel="${rel}"]`).getAttribute('href');
+      expect((await request.get(href)).status(), href).toBe(200);
+    }
+  });
+
+  test('the Windhover mark is the small copy, not the 66 KB original', async ({ page }) => {
+    const logos = [];
+    page.on('request', req => { if (/Windhover_BLK|windhover-logo/.test(req.url())) logos.push(req.url()); });
+    await loadPage(page);
+    await expect(page.locator('.header-bird-logo')).toBeVisible();
+    expect(logos.length).toBeGreaterThan(0);
+    for (const url of logos) expect(url).toMatch(/Windhover_BLK-small/);
   });
 });
 

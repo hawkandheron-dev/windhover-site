@@ -66,12 +66,19 @@ describe('Clerk provider wiring', () => {
   it('gates on the same condition the app does', () => {
     // The entry point decides whether to render a provider; the app decides
     // whether to render the branch that needs one. If those two conditions
-    // disagree the app throws, so both read the same two globals.
+    // disagree the app throws. Since M9 the condition is more than "a key is
+    // configured" (readers don't load Clerk; the owner's ?admin or a signed-in
+    // browser does), so both files call one function rather than each
+    // repeating the globals.
     const entry = fs.readFileSync(path.join(SRC, 'main-church-history-2.jsx'), 'utf8');
     const app = fs.readFileSync(path.join(SRC, 'ChurchHistory2App.jsx'), 'utf8');
     for (const source of [entry, app]) {
-      expect(source).toContain('window.CLERK_PUBLISHABLE_KEY');
-      expect(source).toContain('import.meta.env.VITE_CLERK_PUBLISHABLE_KEY');
+      expect(source).toContain("from './utils/lifelinesAuth.js'");
+      expect(source).toMatch(/lifelinesClerkKey\(\)/);
+      expect(source).not.toContain('window.CLERK_PUBLISHABLE_KEY');
     }
+    const helper = fs.readFileSync(path.join(SRC, 'utils/lifelinesAuth.js'), 'utf8');
+    expect(helper).toContain('window.CLERK_PUBLISHABLE_KEY');
+    expect(helper).toContain('import.meta.env.VITE_CLERK_PUBLISHABLE_KEY');
   });
 });

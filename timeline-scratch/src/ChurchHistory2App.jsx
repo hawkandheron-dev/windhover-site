@@ -27,15 +27,19 @@ import { AboutButton } from './components/About/AboutDialog.jsx';
 import { TourPanel } from './components/Tour/TourPanel.jsx';
 import { useMobileDetect } from './components/Timeline/hooks/useMobileDetect.js';
 import './App.css';
+import { lifelinesClerkKey } from './utils/lifelinesAuth.js';
 import './ChurchHistory2App.css';
 
-const BIRD_LOGO = new URL('../../../resources/logos/Windhover_BLK.png', import.meta.url).href;
+// 96px tall, for a mark drawn at about 28px (the original is 2570px, 66 KB).
+const BIRD_LOGO = new URL('../../../resources/logos/Windhover_BLK-small.png', import.meta.url).href;
 
 // Lifelines remembers its own tour: sharing 1.0's key meant a reader who had
 // seen that tour never got the welcome here.
 const LIFELINES_TOUR_KEY = 'lifelines-tour-completed';
 
-const hasClerk = !!(window.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+// Clerk is mounted only for the owner (see utils/lifelinesAuth.js); must match
+// main-church-history-2.jsx.
+const hasClerk = Boolean(lifelinesClerkKey());
 
 // Readers don't need accounts, so Lifelines shows no sign-in. The owner opens
 // it with ?admin to get the Sign In button; once signed in, the admin tools
