@@ -59,6 +59,14 @@ export function isBackgroundPerson(person) {
  */
 const isActive = (row) => row.active !== false;
 
+/**
+ * Landmarks are major or minor since the 20261004 migration (owner's call, M3
+ * round 5): the seven ecumenical councils and sixteen turning-point events are
+ * major, the rest minor, and minor ones are hidden for now. A row without the
+ * column counts as major, like `active`.
+ */
+export const isShownEvent = (row) => isActive(row) && row.significance !== 'minor';
+
 // ── Presentation ──────────────────────────────────────────────────────────
 
 /** Emperors keep the per-empire colouring from the 1.0 timeline. */
@@ -164,7 +172,7 @@ export function transformToTimelineFormat(db) {
       .filter(p => isActive(p) && !HIDDEN_ROLES.has(p.doctrinal_role))
       .map(p => p.person_id)
   );
-  const keptEventIds = new Set(db.events.filter(isActive).map(e => e.event_id));
+  const keptEventIds = new Set(db.events.filter(isShownEvent).map(e => e.event_id));
 
   const connectionMap = buildConnectionMap(db.connections);
   const sourceMap = buildSourceMap(db.sources, db.sourceFigures);
@@ -284,9 +292,9 @@ export function transformToTimelineFormat(db) {
   // ── Events → foreground points ─────────────────────────────────────────
   // Councils, creeds and texts are landmarks, not background: they belong on
   // the main layer with the pin-and-flag callout the 1.0 timeline used, where
-  // they are always labelled. Plain `event` rows are deactivated for now and
-  // fall out with the `active` filter rather than being special-cased here.
-  const frontPoints = db.events.filter(isActive).map(ev => {
+  // they are always labelled. Minor landmarks and inactive rows fall out here
+  // (isShownEvent) rather than being special-cased.
+  const frontPoints = db.events.filter(isShownEvent).map(ev => {
     const style = EVENT_STYLES[ev.event_type] || EVENT_STYLES.event;
     return {
       id: ev.event_id,

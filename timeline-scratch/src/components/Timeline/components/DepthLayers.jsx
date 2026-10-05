@@ -138,7 +138,7 @@ export function DepthLayers({
 
       {focusIds && focusIds.size > 0 && !forward && (
         <div className="ch2-layer ch2-layer-focus" style={focusStyle}>
-          <TimelineCanvas {...shared} onlyIds={focusIds} />
+          <TimelineCanvas {...shared} onlyIds={focusIds} suppressMonarchNames={showLabels} />
         </div>
       )}
 
@@ -154,6 +154,7 @@ export function DepthLayers({
           yOffset={yOffset}
           width={width}
           height={height}
+          fit={config?.labelFit === 'fit'}
         />
       </div>
       )}

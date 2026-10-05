@@ -7,12 +7,12 @@
  *   palette — canvas colours, so the shared renderer can draw on white instead
  *             of parchment without the other five apps changing
  *   depth   — how far "back" the background layer sits, and how it comes forward
- *   centuryRamp — the legend strip that replaces per-era filter rows
  *
- * Data comes from churchHistory2Adapter.js; the century swatches come from
- * churchHistory2Centuries.js so the legend and the bars can never disagree.
+ * Data comes from churchHistory2Adapter.js; the bars' century colours come
+ * from churchHistory2Centuries.js. The legend no longer explains them: it is
+ * a slim panel of the four things a reader can switch (legendLayout below).
  */
-import { CENTURY_COLORS, centuryLegendTicks, colorForCentury, ordinal } from './churchHistory2Centuries.js';
+import { CENTURY_COLORS } from './churchHistory2Centuries.js';
 
 /**
  * Back-layer colours. The background is reigns only now — heresiarchs are
@@ -42,6 +42,15 @@ export const churchHistory2Config = {
   // Without these the shared defaults centre on AD 1000.
   initialCenterYear: 250,
   fitInitialViewport: true,
+  /** Nothing before 100 BC: the earliest figures are a generation either
+   *  side of Jesus, and panning further only showed empty canvas (round 6). */
+  minYear: -100,
+  /** Overrides on a phone (mobileLayout: 'horizontal'). 500 years in 390px
+   *  leaves every name a stub, so a phone opens on the apostolic age. */
+  phone: {
+    initialViewport: { startDate: '0001-01-01', endDate: '0160-12-31' },
+    initialCenterYear: 80,
+  },
   // The zoom readout names the years on screen ("300–700 AD"), not a ratio.
   zoomReadout: 'years',
   eraLabels: 'BC/AD',
@@ -50,6 +59,21 @@ export const churchHistory2Config = {
 
   /** Detail panel: one "Works & Sources" section rather than two. */
   mergeWorksAndSources: true,
+  /** Detail panel: description first, a smaller map after it, sentence-case
+   *  headings (DESIGN.md §6). */
+  panelLayout: 'compact',
+  /** Landmarks as harp strings: a line through the timeline at each year,
+   *  with a dot on a linked figure or in open space (owner's pick, M3). */
+  pointStyle: 'string',
+  /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
+   *  timeline). */
+  touchGestures: true,
+  /** On a phone, a figure a tour step opens shows as a short card above the
+   *  tour sheet: no map or pictures, the rest one tap away (round 6c). */
+  tourDetailOnPhone: 'brief',
+  /** Opening the panel moves focus to its title; closing returns it
+   *  (DESIGN.md §8). */
+  manageFocus: true,
 
   /**
    * Above this zoom-out level a landmark drops its flag and shows only its
@@ -57,6 +81,12 @@ export const churchHistory2Config = {
    * between the people lane and the axis; past it they cascade.
    */
   pointLabelMaxYearsPerPixel: 1.0,
+
+  /**
+   * Name labels may run into empty space but never into the next bar of their
+   * row: dates drop first, then the name ends in an ellipsis (DESIGN.md §7).
+   */
+  labelFit: 'fit',
 
   /**
    * Canvas colours for a white ground. Passed through Timeline → TimelineCanvas
@@ -82,40 +112,28 @@ export const churchHistory2Config = {
    * sharpens. That same scale is the vertical foreshortening; there is no
    * separate pan multiplier, which would unregister the two axes.
    */
-  depth: {
-    blur: 2.6,
-    opacity: 0.46,
-    saturate: 0.55,
-    scale: 0.965,
-    // Partial lift on hover, full lift on click or Alt-hold.
-    hoverBlur: 1.1,
-    hoverOpacity: 0.8,
-    transitionMs: 220,
-  },
+  /** The rulers live in a strip pinned to the foot of the timeline, not in a
+   *  band below the axis (owner's pick, M3 round 6: "exactly what we need"). */
+  rulerStyle: 'strip',
+  rulerColor: BACK_STYLES.emperors.color,
 
   /**
-   * Centuries are a ramp, not a set of categories: sixteen checkbox rows would
-   * be a worse legend than the nine eras they replace. A strip with a few
-   * labelled ticks says "colour means when" in one glance, and nothing here is
-   * filterable by century.
+   * The legend (DESIGN.md §6): Lifelines' name at the top, the four switches,
+   * and Windhover signing off at the foot. No colour key. It collapses to a
+   * "Key" button while the detail panel is open or the timeline is narrow.
    */
-  centuryRamp: {
-    colors: CENTURY_COLORS,
-    ticks: centuryLegendTicks().map(c => ({ century: c, label: ordinal(c), color: colorForCentury(c) })),
-  },
+  legendLayout: 'slim',
+  legendCollapsible: true,
+  publisherStrapline: "Get a bird's eye view",
 
   legend: [
-    { type: 'heading', id: 'heading-figures', name: 'Figures' },
-    { type: 'century-ramp', id: 'century-ramp', name: 'Coloured by century' },
     { type: 'people', id: 'people', name: 'Church figures', color: CENTURY_COLORS[3], filterKey: 'people' },
 
-    // No row for plain events: they are all deactivated, and a checkbox that
-    // filters nothing is clutter. Restore this line if they come back.
-    { type: 'heading', id: 'heading-landmarks', name: 'Landmarks' },
-    { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross',     filterKey: 'councils' },
-    { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',      filterKey: 'documents' },
+    { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross', mark: 'diamond', filterKey: 'councils' },
+    // The major events, back since M3 round 5; a dot, like their strings.
+    { type: 'point', id: 'events',    name: POINT_STYLES.events.label,    color: POINT_STYLES.events.color,    shape: 'reference', mark: 'dot', filterKey: 'events' },
+    { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',  mark: 'square',  filterKey: 'documents' },
 
-    { type: 'heading', id: 'heading-background', name: 'Background' },
     { type: 'people', id: 'back-emperors', name: BACK_STYLES.emperors.label, color: BACK_STYLES.emperors.color, filterKey: 'emperors', isMonarch: true },
   ],
 };

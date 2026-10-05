@@ -35,7 +35,9 @@ replaces or why the reader needs it.
 ## 2. Naming and copy
 
 - The product is **Lifelines**. Strapline: **A church history timeline by
-  lifespans**. Publisher mark: **Windhover**.
+  lifespans** (upright, not italic). Publisher mark: **Windhover**, with its strapline **Get a
+  bird's eye view**. Lifelines leads (top of the legend); Windhover signs off
+  (foot of the legend).
 - Never show "CH Timeline", "CH Timeline 2.0", "Church History Timeline" or
   "church-history-2" to a reader. Code identifiers and the route keep the old
   names on purpose — renaming the URL needs redirects and is its own decision.
@@ -54,10 +56,12 @@ Colour on the canvas is data, so its meanings are fixed:
 
 | Colour | Means | Rules |
 |---|---|---|
-| **Century ramp** (`CENTURY_COLORS`, `data/churchHistory2Centuries.js`) | *When* a figure lived | Only on figure bars and the legend's ramp strip. Always derived from dates by `colorForLifespan`, never picked per figure. A life spanning centuries is a gradient. Nothing filters by century. Never reuse ramp hues for UI chrome. |
+| **Century ramp** (`CENTURY_COLORS`, `data/churchHistory2Centuries.js`) | *When* a figure lived | Only on figure bars. There is no colour key; the legend does not explain it (owner's decision, M3). Always derived from dates by `colorForLifespan`, never picked per figure. A life spanning centuries is a gradient. Nothing filters by century. Never reuse ramp hues for UI chrome. |
 | **Councils** `#3f7d46` + cross shape | A council | Colour is always paired with its shape — never colour alone. |
 | **Texts & creeds** `#9a7b1f` + book shape | A text | Same: always with the shape. |
-| **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch, background layer | The background layer holds reigns and nothing else. Adding anything to it is a design decision, recorded here first. |
+| **Reigns** `#6d4c41` (`BACK_STYLES.emperors`) | An emperor or monarch | Reigns and nothing else. They live in a **strip pinned to the foot of the timeline** (`rulerStyle: 'strip'`, owner's pick, round 6): a thin reign bar and a small name each, at most five rows, panning sideways with the timeline. The controls sit above it. A figure in focus marks their rulers there. On the vertical layout the same strip turns on its side: a **column pinned to the right edge**, up to four sub-columns of a thin reign bar with the name running down beside it, cut with "…" at the next reign (owner's pick, 2026-10-05). (A blurred band, then a quiet band under the axis, were tried and retired.) |
+| **String gold** `--color-string-hover` `#e3a92b` | "This landmark, under the pointer" | Only for a harp string being hovered: its line (3px, over everything), label and dot, and a ring round each linked figure. Never at rest, never for anything else. |
+| **Events** `#b2622c` + dot | A major event | The dot mark, as on its string. Minor events are hidden for now. |
 | **Action blue** `--color-action` | "Do this" | The only colour for a filled primary button. At most **one** filled primary per region (a dialog, the panel, the header). Never decorative, never a background wash. No other blues in UI chrome. |
 | **Error** `--color-error` | Something failed | The only red for error text and states. |
 
@@ -97,12 +101,16 @@ Every UI change is still checked in the `default-dark` screenshots.
 |---|---|---|
 | Header | Top, 56px (`--ch2-header-height`), above everything; on phones its own row | Search, Tour, Feedback. No site navigation and no sign-in for readers (the owner adds `?admin` to a clean URL). Its controls stay reachable at all times, including while the panel is open. On phones it must not cover the timeline's toolbar. |
 | Timeline | Fills the rest | Figures and councils above the axis; texts and reigns below. The back layer shares the foreground's horizontal pan exactly; it must stay time-true. |
-| Detail panel | Docked right on desktop; a modal below 768px | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
-| Opening view | 1–500 AD, centred, framed on the measured width | The welcome dialog offers the tour on a first visit (remembered under its own key). |
+| Layout | Vertical (lives run down the page) or horizontal | Phones start **vertical**, wider screens **horizontal**; the reader switches with the Layout toggle and the choice is remembered on that device (`lifelines-layout`). Both are kept working. |
+| Tour | Docked right on desktop; a bottom sheet on phones | On a phone the tour sheet is full width and at most 45% of the height, scrolling inside; the timeline keeps the top. The scene's picture is a 64px thumbnail beside the title, and each scene frames its figures in the vertical timeline (`frameYears`). A figure a step opens shows as a short card across the top, above the sheet (at most 40% of the height, no backdrop): name, dates, place and description, with no map, pictures or works; "More about …" opens the full detail. Outside the tour a tapped figure opens the full detail. |
+| Detail panel | Docked right in the horizontal layout on desktop; a modal on phones | On desktop it **narrows** the timeline and never covers it. Nothing floats over it. |
+| Opening view | 1–500 AD, centred, framed on the measured width (1–160 AD for the horizontal layout on a phone, `config.phone`); nothing before **100 BC** (`minYear`) | The welcome dialog offers the tour on a first visit (remembered under its own key). |
 | Address | Lifelines is the site's front page, `/` | It is the only indexed page. The owner's admin entry is `/?admin`. Lifelines has no link to any other part of the site. |
-| Legend | Floating, top right | Must not hide figures a reader is trying to read; it should collapse or move out of the way when space is tight. |
-| Controls | Bottom left | Zoom, pan, depth (Off / Soft / Front). |
+| Legend | Floating, top right, just below the header | Slim (`legendLayout: 'slim'`): Lifelines' name, the four show/hide switches (councils and texts with their shapes, reigns with the crown, figures with a neutral bar), Windhover at the foot. No colour key, no section headings. It folds to a "Key" button while the detail panel is open or the timeline is under 1100px wide; a reader's own open/close holds until that changes. |
+| Controls | Bottom left (horizontal); the toolbar (vertical) | Zoom, pan, the year readout and the Layout toggle (Vert / Horiz). No depth control: the rulers stay faint, and lift with a hovered or chosen figure, or while Alt is held. On a phone the arrows go (fingers pan) and the buttons are 44px. |
 
+- The page is sized with `100dvh`, not `100vh`, so iOS Safari's address bar
+  doesn't hide the bottom of the timeline.
 - **One breakpoint for mobile: 768px** (`useMobileDetect`). Lifelines CSS that
   switches layout for small screens uses `max-width: 768px`, not 600/640/900,
   so the CSS and the JS never disagree about which layout is live.
@@ -112,10 +120,45 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 ## 7. Density and labels
 
-- Past `pointLabelMaxYearsPerPixel` (1.0 year/px), landmarks drop their flags
-  and show only pins. The same applies to monarch labels.
-- A label that doesn't fit should end with an ellipsis or show the name
-  without dates. It should never be cut off mid-word by a neighbouring bar.
+- **Landmarks are harp strings** (`pointStyle: 'string'`, owner's pick, M3):
+  a thin line through the whole timeline at the landmark's year, drawn
+  **behind** every bar and name, with a label in one row beside the axis
+  (councils above, texts below). A label that would collide with the one
+  before it is dropped.
+- Each kind has one **mark**, the same size everywhere (dots, labels, Key,
+  search): a **diamond** for a council, a **square** for a text, a **dot**
+  for anything else (`StringMark.jsx`).
+- Labels give the **full name** and never change under the pointer; hover
+  only lifts the label and turns its string gold. (Short labels that grew on
+  hover were tried in round 3 and withdrawn.)
+- Every string has a **dot**, its handle (`utils/stringDots.js`). A landmark
+  linked to figures alive that year (`CH_EventConnections`) puts a dot on
+  **each** of their bars, on the lower edge, clear of the name. Anything else goes
+  in open space, never on a bar, since a dot on a bar says "this person was
+  involved". It takes the free spot nearest the axis, clear of bars, labels
+  and other dots. A labelled landmark with no living linked figure needs no
+  dot.
+- Line, label and dot hover gold together, and each opens the landmark; the
+  hovered string is redrawn **in front** of everything at three times its
+  width, and every figure linked to it gets a gold ring. The line is a target
+  only between bars: over a bar, the bar keeps the pointer.
+- **On the vertical timeline** the strings run across, at the year, behind
+  the bars. Labels sit in a column of their own between the year axis and
+  the figures (right-aligned, at most three lines, the first level with the
+  string), so they never sit on a bar; the column goes when no landmark is
+  shown. A label that would run into the one above is dropped, and its mark
+  stays on the string. Two marks in the same few pixels step sideways along
+  it, so both can be tapped. Linked figures get a mark on their bar's edge
+  (`utils/verticalStrings.js`).
+- The vertical timeline is on white too: a white toolbar and a light year
+  gutter with ink years. Zooming keeps the year in the middle (or between
+  the fingers) where it was.
+- Monarch labels drop past `pointLabelMaxYearsPerPixel` (1.0 year/px).
+- A name label may run into empty space but never into the next bar of its
+  row. If it doesn't fit, the dates go first, then the name ends in "…"; with
+  under 28px of room there is no label, and hovering names the bar
+  (`labelFit: 'fit'`, `utils/labelFit.js`). The same rule applies to the
+  rulers' labels below the axis. A test checks this against the real data.
 - Cards and labels must not overlap one another. Stacking is the layout's job
   (`utils/stacking`), not z-index.
 
@@ -123,9 +166,25 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 - Everything clickable is reachable by keyboard, in a sensible order, with a
   visible focus ring (`:focus-visible`).
+- **Search is the keyboard and screen-reader route to the timeline** (owner's
+  decision, M3). Figures and landmarks are drawn on a canvas and can't be
+  tabbed through; search reaches every one of them. So the route has to
+  work end to end:
+  - a "Skip to search" link is the first stop;
+  - the welcome dialog takes focus on its main button, and returns the
+    keyboard to the top of the page when it closes;
+  - choosing a result opens the panel with focus on its title (no focus ring:
+    the title is not a control, and the ring read as a selection box);
+  - Esc closes the panel and hands focus back to search.
+  A test walks this route. Full arrow-key navigation of the canvas is out of
+  scope for launch.
 - Touch targets are at least 44×44px on phone layouts.
+- Leaving the tour, the figures and landmarks it wasn't showing **sweep in**:
+  bars grow from their birth years in a left-to-right wave (0.8s across the
+  screen), names and strings fading in behind. Nothing else on the page moves.
 - Motion respects `prefers-reduced-motion: reduce`: the depth blur transition,
-  panel slide and viewport animations become instant.
+  panel slide, viewport animations, bar growing and the tour-exit sweep
+  become instant.
 - Text meets WCAG 2.2 AA contrast (4.5:1 body, 3:1 large text and UI
   boundaries) against white. `--color-ink-faded` on white is the floor.
 - Filter checkboxes and icon-only buttons have accessible names.
@@ -137,7 +196,8 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 Manuscript background · parallax grey rules · era brackets and era colours ·
 heresiarchs on the timeline · gold "defender" rings · the wavy connection
-chain · movements · plain (non-council, non-text) events · filtering by
+chain · movements · minor landmarks (non-ecumenical councils and minor
+events, `significance = 'minor'`; major events returned in M3 round 5) · filtering by
 century. Most survive in data behind an `active` flag or in dormant files
 (`churchHistory2Eras.js`), so restoring one is cheap. That is why it needs a
 decision rather than a commit.
@@ -150,16 +210,17 @@ Fix them, or move them to a rule above as accepted exceptions. Delete each line
 when it's fixed. First found 2026-10-03 by rendering the real dataset
 (`npm run shots`); dark mode, the welcome copy, stray colours, button
 contrast, reduced motion, legend checkbox names, the opening view, the zoom
-readout and the phone header covering the toolbar were fixed in milestone 1.
+readout and the phone header covering the toolbar were fixed in milestone 1;
+the stray hover card, the legend covering figures, the phone's overlapping
+landmark cards and its parchment toolbar in milestone 3 (on screens under
+1100px; see the first line below).
 
-- **§6 Legend:** covers figures at the right edge of every desktop view, and
-  floats over the middle of the canvas while the panel is open
-  (`panel--desktop.png`).
-- **§7 Labels:** cut mid-word by neighbouring bars ("Thomas Bradwar",
-  "Sylvester II / Gerbert of A"); landmark cards overlap on phone
-  (`default--phone.png`).
-- **§6 Hover card:** a landmark's hover card is left behind in the top-left
-  corner when the pointer leaves the canvas upward into the header ("Rome",
-  `panel--desktop.png`, `default-dark--desktop.png`).
-- **§4 Phone toolbar:** the mobile timeline's toolbar is still parchment
-  (beige ground, brown rules), not white (`default--phone.png`).
+- **§6 Legend (desktop, 1100px and wider):** the open Key still covers the
+  top-right figures in the opening view (Patrick, Pope Celestine, Cyril of
+  Alexandria in `default--desktop.png`). It collapses only on narrower screens
+  or while the panel is open. Found by the M3 ux-review.
+- **§6 Controls with the panel open:** the zoom, readout and layout controls
+  float over figure bars at the bottom left (Clement of Rome and Polycarp in
+  `panel--laptop.png`), and at 820px their labels wrap to two lines ("Zoom /
+  in", "50–340 / AD" in `panel--tablet.png`). Found by the M3 ux-review.
+

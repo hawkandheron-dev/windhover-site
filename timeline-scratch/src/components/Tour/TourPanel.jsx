@@ -1,9 +1,12 @@
+import { sizedImageUrl, TOUR_IMAGE_WIDTH } from './sizedImageUrl.js';
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from '../Timeline/components/Icon.jsx';
 import './TourPanel.css';
 
 function TourImage({ media, isAdmin, onCropUpdate }) {
   const [imgError, setImgError] = useState(false);
+  // The image fades in once decoded, rather than painting in strips.
+  const [loaded, setLoaded] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [posX, setPosX] = useState(media.cropPositionX ?? 50);
   const [posY, setPosY] = useState(media.cropPositionY ?? 50);
@@ -63,9 +66,12 @@ function TourImage({ media, isAdmin, onCropUpdate }) {
       onMouseDown={handleMouseDown}
     >
       <img
-        src={media.mediaUrl}
+        src={sizedImageUrl(media.mediaUrl, TOUR_IMAGE_WIDTH)}
         alt={media.altText || ''}
         style={{ objectPosition: `${posX}% ${posY}%` }}
+        className={loaded ? 'is-loaded' : undefined}
+        decoding="async"
+        onLoad={() => setLoaded(true)}
         onError={() => setImgError(true)}
         draggable={false}
       />

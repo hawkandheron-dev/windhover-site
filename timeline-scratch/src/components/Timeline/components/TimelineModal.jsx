@@ -10,7 +10,7 @@
  *  - Wikipedia/Britannica attribution moved to top ("From Wikipedia")
  */
 
-import { useEffect, useMemo, useCallback, useState } from 'react';
+import { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { formatDateRange, formatYear, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
 import { EditableText } from './EditableText.jsx';
@@ -28,7 +28,7 @@ import {
 import { PeopleSelector } from '../../Notes/PeopleSelector.jsx';
 import { NotesSection } from '../../Notes/NotesSection.jsx';
 import { EditEntityForm } from '../../EditEntityForm/EditEntityForm.jsx';
-import { HistoricalMap } from './HistoricalMap.jsx';
+import { HistoricalMap } from './LazyMaps.jsx';
 import './TimelineModal.css';
 
 function linkifyDescription(description, itemIndex, currentItemId) {
@@ -141,9 +141,17 @@ function linkifyDescription(description, itemIndex, currentItemId) {
  *   'panel' docks the same content down the right-hand side as a flex sibling
  *   of the timeline, leaving it live — which is what CH Timeline 2.0 needs, so
  *   a figure's background stays in focus while you read about them.
+ * @param {boolean} [brief] - A short card instead of the full detail: name,
+ *   dates, place and description, with no map, pictures or works list, and a
+ *   "More" button that opens the rest. No backdrop, so what is behind stays
+ *   visible. Lifelines uses it for the figure a tour step opens on a phone.
  */
-export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal' }) {
+export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false }) {
   const isPanel = variant === 'panel';
+  // "More" lifts a brief card to the full detail, until another item opens.
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => { setExpanded(false); }, [item?.id]);
+  const isBrief = brief && !expanded && !isPanel;
 
   // One binding for every pencil in this panel. Built here rather than inside
   // EditableText because only the caller knows which table an item came from:
@@ -160,6 +168,10 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   // the two they have. Works and Sources sit far apart in this render, so the
   // merged form hoists the sources list up into the works block.
   const mergeWorksAndSources = config?.mergeWorksAndSources === true;
+  // config.panelLayout === 'compact' (Lifelines): the description leads and a
+  // smaller map follows it, with headings in sentence case. On an event the
+  // map was the largest thing in the panel, ahead of what the event was.
+  const compactLayout = config?.panelLayout === 'compact';
   const hasSources = Boolean(item?.sources?.length);
   // ── Delete confirmation state ──────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -187,6 +199,31 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     setEditing(false);
   }, [item?.id]);
 
+  // config.manageFocus (Lifelines): opening moves focus to the title, so a
+  // keyboard or screen-reader reader lands in the panel they just opened;
+  // closing hands it back to whatever had it (usually the search box). Search
+  // is Lifelines' keyboard route to every figure (DESIGN.md §8), so without
+  // this the route ended at a panel the keyboard couldn't reach.
+  const manageFocus = config?.manageFocus === true;
+  const titleRef = useRef(null);
+  // Remember who had focus when the panel opened, and hand it back in the
+  // cleanup, which runs whether the panel closes or is unmounted (Lifelines
+  // unmounts it on close, so an effect keyed on isOpen === false never ran).
+  useEffect(() => {
+    if (!manageFocus || !isOpen) return;
+    const opener = document.activeElement;
+    return () => {
+      if (opener && opener !== document.body && document.contains(opener)) {
+        opener.focus({ preventScroll: true });
+      }
+    };
+  }, [manageFocus, isOpen]);
+  // Each item shown (including one reached from a related-people link) moves
+  // focus to its title, so the reader hears what they opened.
+  useEffect(() => {
+    if (manageFocus && isOpen) titleRef.current?.focus({ preventScroll: true });
+  }, [manageFocus, isOpen, item?.id]);
+
   // Handle escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -208,19 +245,21 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     // Only the centred variant takes the page hostage. The docked panel has
     // its own scroll container and sits beside a timeline that must stay
     // pannable, so it leaves the body alone.
-    if (!isPanel) {
+    // A brief card leaves the page alone too: it covers only the top of it.
+    const holdsPage = !isPanel && !isBrief;
+    if (holdsPage) {
       document.body.style.overflow = 'hidden';
       document.body.classList.add('modal-open');
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      if (!isPanel) {
+      if (holdsPage) {
         document.body.style.overflow = '';
         document.body.classList.remove('modal-open');
       }
     };
-  }, [isOpen, onClose, deleteConfirm, editSection, isPanel]);
+  }, [isOpen, onClose, deleteConfirm, editSection, isPanel, isBrief]);
 
   const connections = useMemo(() => {
     if (itemType !== 'person' || !item?.connections?.length || !itemIndex) return [];
@@ -460,6 +499,15 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   if (!isOpen || !item) return null;
 
+  const mapBlock = (itemType === 'person' || itemType === 'point') && item.location ? (
+    <HistoricalMap
+      key={item.id}
+      location={item.location}
+      birthYear={getYear(item.startDate || item.date)}
+      title={compactLayout ? 'Historical map' : undefined}
+    />
+  ) : null;
+
   const canEdit = !!authContext?.getToken;
 
   // Format date based on item type
@@ -510,27 +558,34 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   return (
     <div
-      className={isPanel ? 'timeline-modal timeline-modal--panel' : 'timeline-modal'}
+      className={isPanel ? 'timeline-modal timeline-modal--panel' : isBrief ? 'timeline-modal timeline-modal--brief' : 'timeline-modal'}
       // Clicking outside dismisses the centred dialog. The docked panel has no
-      // "outside" — it is part of the layout — so it closes from its own button.
-      onClick={isPanel ? undefined : onClose}
+      // "outside" — it is part of the layout — so it closes from its own button,
+      // and so does the brief card, whose "outside" is the live page.
+      onClick={isPanel || isBrief ? undefined : onClose}
       onMouseDown={handleModalWheel}
       onMouseUp={handleModalWheel}
       onWheel={handleModalWheel}
       onTouchStart={handleModalWheel}
       onTouchMove={handleModalWheel}
     >
-      {!isPanel && <div className="modal-backdrop" />}
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      {!isPanel && !isBrief && <div className="modal-backdrop" />}
+      <div
+        className="modal-content"
+        onClick={e => e.stopPropagation()}
+        {...(manageFocus && (isPanel || isBrief
+          ? { role: 'region', 'aria-labelledby': 'timeline-detail-title' }
+          : { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'timeline-detail-title' }))}
+      >
         <button
           className="modal-close"
           onClick={onClose}
-          aria-label="Close modal"
+          aria-label={manageFocus ? 'Close details' : 'Close modal'}
         >
           &times;
         </button>
 
-        {item.image && (
+        {item.image && !isBrief && (
           <img
             src={item.image}
             alt={item.name}
@@ -538,7 +593,10 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           />
         )}
 
-        <h2 className="modal-title">
+        <h2
+          className="modal-title"
+          {...(manageFocus && { id: 'timeline-detail-title', ref: titleRef, tabIndex: -1 })}
+        >
           {item.isMonarch && (
             <Icon name="crown" size={24} color="#ffd700" className="emperor-crown" />
           )}
@@ -588,15 +646,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </p>
         )}
 
-        {(itemType === 'person' || itemType === 'point') && item.location && (
-          <HistoricalMap
-            key={item.id}
-            location={item.location}
-            birthYear={getYear(item.startDate || item.date)}
-          />
-        )}
+        {!compactLayout && !isBrief && mapBlock}
 
-        {item.periodName && (
+        {item.periodName && !isBrief && (
           <p className="modal-period">
             Era:{' '}
             {periodEntry ? (
@@ -661,6 +713,17 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
             )}
           </div>
         )}
+
+        {isBrief ? (
+          <button
+            type="button"
+            className="modal-brief-more"
+            onClick={() => setExpanded(true)}
+          >
+            More about {item.name}
+          </button>
+        ) : (<>
+        {compactLayout && mapBlock}
 
         {/* Works / Texts — comma-separated hyperlinks (not a list).
             When merged, the sources list follows under the same heading, and
@@ -806,7 +869,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
         {(pointConnections.length > 0 || (canEdit && itemType === 'point')) && editSection !== 'pointConnections' && (
           <div className="modal-links">
             <h3>
-              Related People
+              {compactLayout ? 'Related people' : 'Related People'}
               {canEdit && itemType === 'point' && (
                 <button type="button" className="modal-edit-btn" onClick={startEditPointPeople}>
                   {pointConnections.length > 0 ? 'Edit' : '+ Add'}
@@ -1079,6 +1142,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
             )}
           </div>
         )}
+        </>)}
       </div>
     </div>
   );

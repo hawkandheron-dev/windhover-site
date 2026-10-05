@@ -12,7 +12,7 @@ import { Timeline } from './components/Timeline/Timeline.jsx';
 import { TimelineSearch } from './components/Timeline/components/TimelineSearch.jsx';
 import { computeFocusSet } from './components/Timeline/utils/focusSet.js';
 import { fetchChurchHistory2Data, fetchTourScenes, updateLinkedMediaCrop } from './data/churchHistory2Adapter.js';
-import { churchHistory2Config } from './data/churchHistory2Data.js';
+import { churchHistory2Config, BACK_STYLES } from './data/churchHistory2Data.js';
 import { AddNoteModal } from './components/Notes/AddNoteModal.jsx';
 import { ViewMyNotesModal } from './components/Notes/ViewMyNotesModal.jsx';
 import { checkUserRole, ensureUserExists } from './services/adminService.js';
@@ -24,6 +24,7 @@ import { FeedbackButton } from './components/Feedback/FeedbackButton.jsx';
 import { useTour } from './components/Tour/useTour.js';
 import { WelcomeDialog } from './components/Tour/WelcomeDialog.jsx';
 import { TourPanel } from './components/Tour/TourPanel.jsx';
+import { useMobileDetect } from './components/Timeline/hooks/useMobileDetect.js';
 import './App.css';
 import './ChurchHistory2App.css';
 
@@ -41,6 +42,84 @@ const hasClerk = !!(window.CLERK_PUBLISHABLE_KEY || import.meta.env.VITE_CLERK_P
 const ADMIN_MODE = new URLSearchParams(window.location.search).has('admin');
 
 const EMPTY_LAYER = { people: [], points: [], periods: [] };
+
+const lifelinesConfig = churchHistory2Config;
+
+// The reader's layout: the vertical timeline (lives running down the page)
+// or the horizontal one. Phones start vertical and everything wider starts
+// horizontal (owner's decision, M3 round 2); a reader's own choice is
+// remembered on this device.
+const LAYOUT_KEY = 'lifelines-layout';
+function useLayoutChoice() {
+  const isMobile = useMobileDetect();
+  const [choice, setChoice] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(LAYOUT_KEY);
+      return saved === 'vertical' || saved === 'horizontal' ? saved : null;
+    } catch {
+      return null;
+    }
+  });
+  const set = useCallback((value) => {
+    setChoice(value);
+    try { window.localStorage.setItem(LAYOUT_KEY, value); } catch { /* private mode: not remembered */ }
+  }, []);
+  return { value: choice ?? (isMobile ? 'vertical' : 'horizontal'), set };
+}
+
+function LayoutToggle({ value, onChange }) {
+  return (
+    <div className="ch2-layout-toggle" role="group" aria-label="Layout">
+      <span className="ch2-layout-toggle-heading" aria-hidden="true">Layout</span>
+      {[['vertical', 'Vert', 'Lives run down the page'], ['horizontal', 'Horiz', 'Lives run across the page']].map(([id, label, title]) => (
+        <button
+          key={id}
+          type="button"
+          className={`btn btn-sm ch2-layout-btn${value === id ? ' active' : ''}`}
+          aria-pressed={value === id}
+          aria-label={id === 'vertical' ? 'Vertical' : 'Horizontal'}
+          title={title}
+          onClick={() => onChange(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Search results named as the legend names them, with its shapes: Person,
+ * Ruler, Council, Text. The generic chips said EVENT in the error red.
+ */
+/**
+ * After the welcome dialog closes, start the keyboard at the top of the page.
+ * The skip link only shows for keyboard focus (:focus-visible), so a mouse
+ * reader sees nothing and a phone opens no keyboard.
+ */
+function focusSkipLink() {
+  requestAnimationFrame(() => {
+    // Only if focus is still nowhere (the dialog that had it is gone). A
+    // reader who has already clicked into search keeps their place: taking
+    // focus from them closed the search results under their finger.
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    document.querySelector('.ch2-skip-link')?.focus({ preventScroll: true });
+  });
+}
+
+function describeSearchKind(entry) {
+  const item = entry.item || {};
+  if (entry.type === 'person') {
+    return item.isMonarch
+      ? { label: 'Ruler', icon: 'crown', color: BACK_STYLES.emperors.color }
+      : { label: 'Person' };
+  }
+  // The same marks as the harp strings' dots (StringMark).
+  if (item.filterKey === 'councils') return { label: 'Council', mark: 'diamond', color: item.color };
+  if (item.filterKey === 'documents') return { label: 'Text', mark: 'square', color: item.color };
+  return { label: 'Event', mark: 'dot', color: item.color };
+}
 
 /** Split a merged dataset back into its two layers by the adapter's tag. */
 function splitByLayer(merged) {
@@ -202,6 +281,8 @@ function Timeline2({
   );
 
   const depth = useDepthFocus(index);
+  const layout = useLayoutChoice();
+  const exitWave = useTourExitWave(tourLayers, frontData, timelineRef);
 
   // The one scene that asked for "everything at once" now means "bring the
   // background forward" — there are no period brackets left for it to reveal.
@@ -213,19 +294,24 @@ function Timeline2({
         ref={timelineRef}
         data={tourLayers ? tourLayers.front : frontData}
         backData={tourLayers ? tourLayers.back : backData}
-        config={churchHistory2Config}
+        config={lifelinesConfig}
         showBackgroundImage={false}
         focusIds={depth.focusIds}
         depthMode={sceneWantsBackground ? 'forward' : depth.effectiveDepthMode}
         isFocusPreview={depth.isPreview}
         onPersonHover={depth.onPersonHover}
         onPersonSelect={depth.onPersonSelect}
-        onDepthModeChange={depth.setDepthMode}
+        // No depth control: the rulers stay faint, and hovering or choosing
+        // a figure lifts theirs (owner's decision, M3 round 2). Its place in
+        // the controls goes to the layout toggle.
+        layout={layout.value}
+        layoutToggle={<LayoutToggle value={layout.value} onChange={layout.set} />}
         // The tour panel already owns the right-hand rail, and its scenes open
         // a centred dialog on purpose. Dock the detail only outside the tour.
         detailVariant={tour.tourActive ? 'modal' : 'panel'}
-        animatingIds={tour.tourActive ? tour.newlyAddedIds : undefined}
-        animatingPointIds={tour.tourActive ? tour.newlyAddedPointIds : undefined}
+        animatingIds={tour.tourActive ? tour.newlyAddedIds : exitWave.people}
+        animatingPointIds={tour.tourActive ? tour.newlyAddedPointIds : exitWave.points}
+        animationWave={!tour.tourActive && exitWave.people ? EXIT_WAVE_MS : undefined}
         hideLegend={tour.tourActive && !tour.currentScene?.isBuildOut}
         isTourMode={tour.tourActive}
         {...timelineProps}
@@ -237,8 +323,8 @@ function Timeline2({
           totalScenes={tour.totalScenes}
           onNext={tour.nextScene}
           onPrev={tour.prevScene}
-          onSkip={tour.skipTour}
-          onComplete={tour.completeTour}
+          onSkip={() => { exitWave.start(); tour.skipTour(); }}
+          onComplete={() => { exitWave.start(); tour.completeTour(); }}
           media={tour.sceneMedia}
           isAdmin={isAdmin}
           onMediaCropUpdate={onMediaCropUpdate}
@@ -246,6 +332,46 @@ function Timeline2({
       )}
     </>
   );
+}
+
+/**
+ * Leaving the tour, the view glides back to the opening frame while the
+ * figures and landmarks the tour wasn't showing sweep in:
+ * bars grow from their birth years in a left-to-right wave across the
+ * screen, their labels and strings fading in behind (owner's pick, M3 round
+ * 2). Before, the full timeline replaced the tour's handful in one jump.
+ * Reduced motion skips the growing (TimelineCanvas) and the fades (CSS).
+ */
+const EXIT_WAVE_MS = 800;
+function useTourExitWave(tourLayers, frontData, timelineRef) {
+  const [wave, setWave] = useState({ people: undefined, points: undefined });
+  const timer = useRef(null);
+  const glideTimer = useRef(null);
+  useEffect(() => () => { clearTimeout(timer.current); clearTimeout(glideTimer.current); }, []);
+
+  const start = useCallback(() => {
+    // The camera glides back to the opening view on every exit, Finish
+    // included (owner's call, round 3: the sweep alone went unnoticed, and
+    // after the build-out scene there is nothing left to sweep). It waits a
+    // moment for the full timeline to be laid out, so it aims at the real
+    // axis.
+    clearTimeout(glideTimer.current);
+    glideTimer.current = setTimeout(() => timelineRef?.current?.resetView?.({ animate: true, duration: 1000 }), 60);
+
+    const shown = tourLayers?.front;
+    if (!shown || !frontData) return;
+    const shownPeople = new Set((shown.people || []).map(p => p.id));
+    const shownPoints = new Set((shown.points || []).map(p => p.id));
+    const people = new Set((frontData.people || []).filter(p => !shownPeople.has(p.id)).map(p => p.id));
+    const points = new Set((frontData.points || []).filter(p => !shownPoints.has(p.id)).map(p => p.id));
+    if (people.size === 0 && points.size === 0) return;
+    setWave({ people, points });
+    clearTimeout(timer.current);
+    // Wave plus the last bar's grow and fade, then back to a still timeline.
+    timer.current = setTimeout(() => setWave({ people: undefined, points: undefined }), EXIT_WAVE_MS + 1100);
+  }, [tourLayers, frontData, timelineRef]);
+
+  return { ...wave, start };
 }
 
 /**
@@ -403,6 +529,10 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
           <div className="header-left">
             {frontData && (
               <TimelineSearch
+                ranked
+                describeKind={describeSearchKind}
+                inputId="lifelines-search"
+                inputLabel="Search figures, councils and texts"
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}
@@ -468,8 +598,9 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
       {tour.showWelcome && !loading && !error && frontData && (
         <WelcomeDialog
           onStartTour={tour.startTour}
-          onDismiss={tour.dismissWelcome}
+          onDismiss={() => { tour.dismissWelcome(); focusSkipLink(); }}
           title="Welcome to Lifelines"
+          manageFocus
         />
       )}
 
@@ -533,6 +664,10 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
           <div className="header-left">
             {frontData && (
               <TimelineSearch
+                ranked
+                describeKind={describeSearchKind}
+                inputId="lifelines-search"
+                inputLabel="Search figures, councils and texts"
                 data={searchData}
                 onSelectItem={handleSearchSelect}
                 onHighlight={handleSearchHighlight}
@@ -594,8 +729,9 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, tourSc
       {tour.showWelcome && !loading && !error && frontData && (
         <WelcomeDialog
           onStartTour={tour.startTour}
-          onDismiss={tour.dismissWelcome}
+          onDismiss={() => { tour.dismissWelcome(); focusSkipLink(); }}
           title="Welcome to Lifelines"
+          manageFocus
         />
       )}
     </>
@@ -619,10 +755,11 @@ function ChurchHistory2App() {
       try {
         if (!frontData) setLoading(true);
         setError(null);
-        // Fetch main data first (initializes the Supabase client singleton),
-        // then tour scenes reuse the same client.
-        const result = await fetchChurchHistory2Data();
-        const scenes = await fetchTourScenes().catch(() => null);
+        // Both at once: the tour scenes used to wait for all ten tables.
+        const [result, scenes] = await Promise.all([
+          fetchChurchHistory2Data(),
+          fetchTourScenes().catch(() => null),
+        ]);
         if (cancelled) return;
         setFrontData(result.data);
         setBackData(result.backData);
@@ -653,6 +790,15 @@ function ChurchHistory2App() {
 
   return (
     <div className="app ch2-app">
+      {/* Search is the keyboard route to every figure (DESIGN.md §8): the
+          canvas can't be tabbed through, so the first stop jumps to it. */}
+      <a
+        className="ch2-skip-link"
+        href="#lifelines-search"
+        onClick={(e) => { e.preventDefault(); document.getElementById('lifelines-search')?.focus(); }}
+      >
+        Skip to search
+      </a>
       {hasClerk ? (
         <AuthenticatedApp
           frontData={frontData}

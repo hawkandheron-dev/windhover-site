@@ -21,6 +21,7 @@ import { memo } from 'react';
 import { Icon } from './Icon.jsx';
 import { yearToPixel } from '../utils/coordinates.js';
 import { getYearRange, formatYear } from '../utils/dateUtils.js';
+import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
 import './MonarchLabels.css';
 
 /**
@@ -65,8 +66,11 @@ export const MonarchLabels = memo(function MonarchLabels({
   yOffset = 0,
   width,
   height,
+  fit = false,
 }) {
   if (!people || people.length === 0) return null;
+  const monarchs = people.filter(p => p.isMonarch);
+  const nextStartById = fit ? nextBarStartInRow(monarchs, viewportStartYear, yearsPerPixel) : null;
 
   return (
     <div className="ch2-monarch-labels" aria-hidden="true">
@@ -86,14 +90,27 @@ export const MonarchLabels = memo(function MonarchLabels({
         if (x + barWidth < -40 || x > width + 40) return null;
         if (y < -40 || y > height + 40) return null;
 
-        const reign = formatReign(person);
+        let reign = formatReign(person);
         const birth = person.birthYear ?? null;
+
+        // With fit (Lifelines), the same rule as the figures' labels: room runs
+        // to the next reign in this row; the years go before the name is cut,
+        // and a reign with no real room gets no label. The old rule clipped to
+        // the bar, which cut "Caligula 37–41" to "Caligula 37–".
+        let maxWidth = Math.max(barWidth - 8, 48);
+        if (fit) {
+          const room = (nextStartById.get(person.id) ?? Infinity) - (x + 4) - LABEL_GAP;
+          const nameWidth = 15 + measureLabel(person.name, '600 11px') + LABEL_PADDING;
+          if (nameWidth + 4 + measureLabel(reign, '500 11px') > room) reign = '';
+          if (nameWidth > room && room < MIN_LABEL_ROOM) return null;
+          maxWidth = Number.isFinite(room) ? Math.max(room, MIN_LABEL_ROOM) : undefined;
+        }
 
         return (
           <span
             key={person.id}
             className="ch2-monarch-label"
-            style={{ left: `${x + 4}px`, top: `${y}px`, maxWidth: `${Math.max(barWidth - 8, 48)}px` }}
+            style={{ left: `${x + 4}px`, top: `${y}px`, ...(maxWidth !== undefined && { maxWidth: `${maxWidth}px` }) }}
             title={formatMonarchLabel(person)}
           >
             <Icon name="crown" size={11} color="#8a6d3b" />

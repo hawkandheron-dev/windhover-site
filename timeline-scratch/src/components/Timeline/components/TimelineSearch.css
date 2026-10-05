@@ -199,6 +199,17 @@
   color: #00696f;
 }
 
+/* Page-specific kinds (describeKind): the legend's own words and shapes, in
+   neutral ink, so no category borrows the error red. */
+.timeline-search-option-kind {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-ink-faded);
+}
+
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .timeline-search {

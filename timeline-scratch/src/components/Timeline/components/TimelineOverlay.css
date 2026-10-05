@@ -130,3 +130,110 @@
 .point-callout--collapsed:hover .point-callout-body {
   max-width: 44ch;
 }
+
+/* Harp strings (config.pointStyle === 'string'). The drawn line takes no
+   pointer; a few-pixel strip over it does, so the string can be hovered and
+   clicked. It sits under labels and dots. Hovering any part of a string
+   (line, label or dot) turns it gold (--color-string-hover). */
+.point-string {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Three times the resting 1px line (+200%, owner's call, round 5). */
+  width: 3px;
+  margin-left: -1.5px;
+  pointer-events: none;
+  /* Over bars and names: only the hovered or focused string is drawn here. */
+  z-index: 12;
+}
+
+.point-string.is-hover {
+  background: var(--color-string-hover, #c9a227);
+}
+
+.point-string-hit {
+  position: absolute;
+  width: 9px;
+  margin-left: -4px;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.point-string-label {
+  position: absolute;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--color-ink);
+  /* Opaque: below the axis these sit over the rulers' band, whose names
+     would otherwise show through. */
+  background: #ffffff;
+  border-radius: 3px;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+.point-string-label.is-hover {
+  z-index: 13;
+}
+
+.point-string-label:hover,
+.point-string-label.is-hover,
+.point-string-label.is-focus {
+  background: #ffffff;
+  box-shadow: 0 1px 4px var(--color-shadow);
+}
+
+.point-string-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  box-sizing: content-box;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+.point-string-dot--square {
+  border-radius: 2px;
+}
+
+.point-string-dot--diamond {
+  border-radius: 2px;
+  transform: rotate(45deg) scale(0.85);
+}
+
+.point-string-dot.is-hover {
+  background: var(--color-string-hover, #c9a227) !important;
+  z-index: 13;
+}
+
+/* The tour-exit wave (revealWave): labels and strings fade in behind the
+   bars growing in. Reduced motion collapses it (ChurchHistory2App.css). */
+@keyframes timeline-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* A figure linked to the hovered string: a gold ring round their bar, under
+   the string itself (z 12) and over the names. */
+.point-string-person-ring {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--color-string-hover, #c9a227);
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px rgba(227, 169, 43, 0.25);
+  pointer-events: none;
+  z-index: 11;
+}

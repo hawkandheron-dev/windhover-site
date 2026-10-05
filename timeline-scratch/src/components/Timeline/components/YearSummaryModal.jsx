@@ -4,7 +4,7 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
-import { YearDetailMap } from './YearDetailMap.jsx';
+import { YearDetailMap } from './LazyMaps.jsx';
 import './TimelineModal.css';
 import { formatYear as formatEraYear } from '../utils/dateUtils.js';
 

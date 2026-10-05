@@ -27,6 +27,8 @@
      the 4.5:1 that 13-16px text needs. This clears it at 5.4:1. */
   --color-action:          #3f63d0;
   --color-action-hover:    #3352b4;
+  /* Harp string hover: the line, label and dot under the pointer. */
+  --color-string-hover:    #e3a92b;
 
   background: #ffffff;
 }
@@ -34,6 +36,12 @@
 .ch2-app .app-header {
   background: #ffffff;
   border-bottom: 1px solid var(--color-border);
+  /* App.css lets the pointer through the header to the timeline, which suits
+     the transparent header of the parchment pages. Here the header is a solid
+     bar, so the pointer passing through hovered figures hidden behind it: a
+     stray hover card and year chip appeared while the reader was in the
+     header. A solid bar catches the pointer. */
+  pointer-events: auto;
 }
 
 .ch2-app .timeline-container {
@@ -139,6 +147,7 @@
   .ch2-app *::before,
   .ch2-app *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
@@ -166,4 +175,423 @@
     min-height: 0;
     height: auto;
   }
+}
+
+/* The same for the vertical timeline at any width (layout toggle): its
+   toolbar sits at the top, where the floating header would cover it. */
+.ch2-app:has(.mobile-timeline) {
+  display: flex;
+  flex-direction: column;
+}
+
+.ch2-app:has(.mobile-timeline) > .app-header {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ch2-app:has(.mobile-timeline) > .tab-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+/* The slim legend (DESIGN.md §6) sits just below the header, and folds to a
+   "Key" button that carries no panel chrome of its own. */
+.ch2-app .timeline-legend--slim {
+  top: calc(var(--ch2-header-height) + 12px);
+  right: 16px;
+}
+
+.ch2-app .timeline-legend--collapsed {
+  width: auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* Detail panel, compact layout (panelLayout: 'compact'). Headings in
+   sentence case at the same weight as the panel's other headings, not an
+   all-caps label; the map comes after the description and smaller. */
+.ch2-app .historical-map-section h3 {
+  font-size: 16px;
+  color: var(--color-ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ch2-app .timeline-modal--panel .historical-map-container {
+  height: 180px;
+}
+
+/* Related people are links to other figures, so they have to look pressable:
+   on Lifelines' white the parchment pill had no visible edge at all. */
+.ch2-app .modal-pill {
+  background: #ffffff;
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-ink);
+}
+
+.ch2-app .modal-pill:hover {
+  background: var(--color-parchment-dark);
+  border-color: var(--color-accent);
+}
+
+/* Keyboard access (DESIGN.md §8). The skip link is off-screen until it has
+   focus, then sits above the header as the page's first stop. */
+.ch2-skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.ch2-skip-link:focus-visible {
+  transform: none;
+  outline: 3px solid var(--color-action);
+  outline-offset: 2px;
+}
+
+/* The panel title takes focus when the panel opens; show the ring only to
+   keyboard users. */
+.ch2-app .modal-title:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Touch gestures (touchGestures): the timeline handles drag and pinch itself,
+   so the browser must not scroll or zoom the page underneath. */
+.ch2-app .timeline-container {
+  touch-action: none;
+}
+
+/* Horizontal timeline on a phone (mobileLayout: 'horizontal'). The header is
+   its own row here, so the key sits at the timeline's top edge. Fingers pan,
+   so the compass keeps only its reset; the zoom buttons drop their words and
+   grow to touch size (DESIGN.md §8: 44px). */
+@media (max-width: 768px) {
+  .ch2-app .timeline-legend--slim {
+    top: 12px;
+    right: 12px;
+  }
+
+  .ch2-app .timeline-container--phone .timeline-controls {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+    /* Under the detail modal's scrim (z-index 1000), not over it. */
+    z-index: 30;
+  }
+
+  .ch2-app .timeline-container--phone .compass-up,
+  .ch2-app .timeline-container--phone .compass-down,
+  .ch2-app .timeline-container--phone .compass-left,
+  .ch2-app .timeline-container--phone .compass-right {
+    display: none;
+  }
+
+  .ch2-app .timeline-container--phone .compass-btn,
+  .ch2-app .timeline-container--phone .zoom-controls .btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .ch2-app .timeline-container--phone .zoom-controls .btn > span:not(.icon) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .ch2-app .timeline-container--phone .zoom-info {
+    white-space: nowrap;
+  }
+
+  .ch2-app .timeline-container--phone .ch2-layout-btn {
+    min-height: 40px;
+  }
+}
+
+/* Layout toggle (Vertical / Horizontal), in the timeline's controls where
+   the Rulers control was. One segmented control, the same quiet chrome as
+   the zoom readout; the chosen half is ink, not action blue (§3). */
+.ch2-layout-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: 5px;
+  background: #ffffff;
+  pointer-events: auto;
+}
+
+.ch2-layout-toggle-heading {
+  padding: 0 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink-faded);
+}
+
+.ch2-app .ch2-layout-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-faded);
+}
+
+.ch2-app .ch2-layout-btn.active {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+/* In the vertical timeline's toolbar it sits at the end of the row. */
+.ch2-app .mobile-timeline-toolbar .ch2-layout-toggle {
+  margin-left: 8px;
+}
+
+/* At phone width the toolbar row is full: the group keeps its "Layout" name
+   for screen readers, and drops the visible word. */
+@media (max-width: 768px) {
+  .ch2-app .mobile-timeline-toolbar .ch2-layout-toggle-heading {
+    display: none;
+  }
+
+  .ch2-app .mobile-timeline-toolbar .ch2-layout-toggle {
+    margin-left: 4px;
+  }
+
+  .ch2-app .mobile-timeline-toolbar .ch2-layout-btn {
+    min-height: 36px;
+    padding: 0 7px;
+  }
+}
+
+/* The vertical timeline on white (DESIGN §4): a white toolbar and a light
+   year gutter with ink years, in place of the parchment bar and the dark
+   brown-grey gutter it was drawn with. */
+.ch2-app .mobile-timeline-toolbar,
+.ch2-app .mobile-filter-drawer {
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom-color: var(--color-border);
+}
+
+.ch2-app .mobile-toolbar-btn {
+  background: #ffffff;
+  border-color: var(--color-border-hover);
+  color: var(--color-ink-light);
+}
+
+.ch2-app .mobile-toolbar-btn:active {
+  background: var(--color-parchment-dark);
+}
+
+.ch2-app .mobile-year-gutter {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: none;
+}
+
+.ch2-app .mobile-axis-line {
+  width: 1px;
+  background: var(--color-border-hover);
+}
+
+.ch2-app .mobile-year-label {
+  color: var(--color-ink-faded);
+  font-weight: 600;
+}
+
+.ch2-app .mobile-year-tick {
+  background: var(--color-border-hover);
+}
+
+.ch2-app .mobile-gridline {
+  background: var(--color-border);
+}
+
+/* A figure's years on the vertical timeline: 9px at 75% white measured
+   about 3.4:1 on the bars' blue. 11px solid white is 4.8:1 (WCAG AA) and
+   meets DESIGN's 11px floor. */
+.ch2-app .mobile-person-dates {
+  font-size: 11px;
+  color: #ffffff;
+}
+
+/* iOS Safari: 100vh is the height with its toolbars hidden, so with the
+   address bar showing, the bottom of the timeline (controls, the vertical
+   timeline's last rows) sat behind it. 100dvh is the height actually
+   visible; browsers without it keep 100vh. */
+body:has(.ch2-app) {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+#root:has(> .ch2-app),
+.app.ch2-app {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.ch2-app .timeline-controls,
+.ch2-app .mobile-timeline {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* The strapline under "Lifelines" stands upright (owner's call, M3 round 2).
+   Upright it is wider, so the key grows a little to keep it on one line. */
+.ch2-app .timeline-legend--slim .legend-site-subtitle {
+  font-style: normal;
+  text-wrap: balance;
+}
+
+.ch2-app .timeline-legend--slim:not(.timeline-legend--collapsed) {
+  width: 256px;
+}
+
+/* The tour on a phone is a bottom sheet (owner's call, M3 round 2). As a
+   side rail it took two-thirds of a 390px screen and left the timeline a
+   sliver. Here the timeline keeps the top and the tour docks underneath,
+   full width, at most 45% of the height, scrolling inside. */
+@media (max-width: 768px) {
+  .ch2-app .ch2-timeline-wrapper {
+    flex-direction: column;
+  }
+
+  .ch2-app .ch2-timeline-wrapper > .timeline-with-panel,
+  .ch2-app .ch2-timeline-wrapper > .timeline-container,
+  .ch2-app .ch2-timeline-wrapper > .mobile-timeline {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .ch2-app .tour-panel {
+    width: 100%;
+    max-height: 45%;
+    flex: 0 0 auto;
+    border-left: none;
+    border-top: 1px solid var(--color-border-hover);
+    box-shadow: 0 -4px 16px var(--color-shadow);
+    border-radius: 12px 12px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation-name: ch2TourSheetIn;
+  }
+
+  .ch2-app .tour-panel-header {
+    padding: 10px 16px 8px;
+  }
+
+  .ch2-app .tour-panel-body {
+    padding: 14px 16px;
+    min-height: 0;
+  }
+
+  /* The picture shrinks to a thumbnail beside the title (owner's call,
+     round 5): at full width it took most of the sheet and pushed the words
+     below the fold. Its credit can't be read at this size; per-image credit
+     lines are part of M7 (licensing). */
+  .ch2-app .tour-scene-image {
+    float: left;
+    width: 64px;
+    height: 64px;
+    aspect-ratio: 1;
+    margin: 0 12px 4px 0;
+    border-radius: 6px;
+  }
+
+  .ch2-app .tour-scene-image .tour-image-attribution {
+    display: none;
+  }
+
+  /* Beside a thumbnail, the title centres on it. */
+  .ch2-app .tour-scene-image + .tour-scene-title {
+    min-height: 64px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .ch2-app .tour-scene-narrative {
+    clear: left;
+  }
+
+  .ch2-app .tour-panel-footer {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
+/* The figure a tour step opens, on a phone: a short card across the top,
+   above the tour sheet, with the timeline still visible between them
+   (owner's call, round 6c: "a shorter panel on mobile, maybe with no
+   images"). It scrolls inside; "More" opens the full detail. */
+.ch2-app .timeline-modal--brief {
+  align-items: flex-start;
+  pointer-events: none;
+  touch-action: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px 0;
+}
+
+.ch2-app .timeline-modal--brief .modal-content {
+  pointer-events: auto;
+  width: 100%;
+  max-height: 40vh;
+  max-height: 40dvh;
+  padding: 16px 16px 12px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.ch2-app .timeline-modal--brief .modal-wiki-description:empty {
+  display: none;
+}
+
+.ch2-app .timeline-modal--brief .modal-title {
+  font-size: 1.35rem;
+  padding-right: 32px;
+}
+
+.ch2-app .modal-brief-more {
+  margin-top: 4px;
+  padding: 10px 0;
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--color-action);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@keyframes ch2TourSheetIn {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Rulers in a strip (rulerStyle: 'strip'): the controls sit above it. */
+.ch2-app .timeline-container--ruler-strip .timeline-controls {
+  bottom: calc(var(--ruler-strip-height, 0px) + 12px);
+}
+
+/* The panel's title takes focus when the panel opens, so a keyboard or
+   screen-reader user lands on it (DESIGN §8). It is not a control, so it
+   draws no focus ring: after a click the ring read as a stray selection box
+   round the name (owner's report, round 6). */
+.ch2-app #timeline-detail-title:focus {
+  outline: none;
 }

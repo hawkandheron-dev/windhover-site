@@ -3,11 +3,12 @@
  */
 
 import { Icon, ShapeIcon } from './Icon.jsx';
+import { StringMark } from './StringMark.jsx';
 import './TimelineLegend.css';
 
 const LOGO_PATH = new URL('../../../../../../resources/logos/Windhover_BLK.png', import.meta.url).href;
 
-export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, config }) {
+export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, config, collapsed = false, onToggleCollapsed }) {
   if (!isVisible || !legend || legend.length === 0) return null;
 
   const handleToggle = (filterKey) => {
@@ -15,6 +16,23 @@ export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilte
       onFilterToggle(filterKey);
     }
   };
+
+  if (config?.legendLayout === 'slim') {
+    return (
+      <SlimLegend
+        legend={legend}
+        filters={filters}
+        onToggle={handleToggle}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        siteTitle={siteTitle}
+        siteSubtitle={siteSubtitle}
+        publisherStrapline={config.publisherStrapline}
+        collapsed={collapsed}
+        onToggleCollapsed={onToggleCollapsed}
+      />
+    );
+  }
 
   return (
     <div className="timeline-legend" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -159,3 +177,97 @@ export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilte
     </div>
   );
 }
+
+/**
+ * Lifelines' legend (config.legendLayout = 'slim'). The product's name leads,
+ * the publisher signs off at the foot, and in between are only the things a
+ * reader can switch: no colour key, no section headings for four rows.
+ * Councils and texts keep their shapes and reigns their crown, so each row
+ * still says what it governs on the canvas.
+ *
+ * It collapses to a single "Key" button so it never sits over figures; the
+ * parent decides when (see Timeline.jsx).
+ */
+function SlimLegend({ legend, filters, onToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, publisherStrapline, collapsed, onToggleCollapsed }) {
+  if (collapsed) {
+    return (
+      <div className="timeline-legend timeline-legend--slim timeline-legend--collapsed" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+        <button
+          type="button"
+          className="btn legend-expand"
+          onClick={onToggleCollapsed}
+          aria-expanded="false"
+          aria-controls="lifelines-legend"
+        >
+          Key
+        </button>
+      </div>
+    );
+  }
+
+  const rows = legend.filter(item => item.filterKey);
+  return (
+    <div
+      id="lifelines-legend"
+      className="timeline-legend timeline-legend--slim"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="legend-slim-head">
+        {siteTitle && (
+          <h1 className="legend-site-title">
+            {siteTitle}
+            {siteSubtitle && <span className="legend-site-subtitle">{siteSubtitle}</span>}
+          </h1>
+        )}
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            className="legend-collapse"
+            onClick={onToggleCollapsed}
+            aria-expanded="true"
+            aria-controls="lifelines-legend"
+            aria-label="Hide the key"
+            title="Hide the key"
+          >
+            <Icon name="close" size={12} />
+          </button>
+        )}
+      </div>
+
+      <ul className="legend-slim-rows">
+        {rows.map(item => {
+          const isActive = filters[item.filterKey] !== false;
+          return (
+            <li key={item.id}>
+              <label className={`legend-slim-row${isActive ? '' : ' is-off'}`}>
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={() => onToggle(item.filterKey)}
+                />
+                <span className="legend-slim-mark" aria-hidden="true">
+                  {item.type === 'point' && (item.mark
+                    ? <StringMark mark={item.mark} color={item.color} size={10} />
+                    : <ShapeIcon shape={item.shape} color={item.color} size={16} />)}
+                  {item.isMonarch && <Icon name="crown" size={14} color={item.color} />}
+                  {item.type === 'people' && !item.isMonarch && <span className="legend-slim-bar" />}
+                </span>
+                <span className="legend-slim-label">{item.name}</span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="legend-publisher">
+        <img className="legend-brand-logo" src={LOGO_PATH} alt="" />
+        <span className="legend-publisher-text">
+          <span className="legend-brand-title">Windhover</span>
+          {publisherStrapline && <span className="legend-publisher-strapline">{publisherStrapline}</span>}
+        </span>
+      </div>
+    </div>
+  );
+}
+

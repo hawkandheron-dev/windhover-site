@@ -9,6 +9,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { TOUR_SCENES as FALLBACK_SCENES } from './tourScenes.js';
 import { getYear } from '../Timeline/utils/dateUtils.js';
 import { fetchLinkedMedia } from '../../data/churchHistorySupabaseAdapter.js';
+import { sizedImageUrl, TOUR_IMAGE_WIDTH } from './sizedImageUrl.js';
 
 const DEFAULT_STORAGE_KEY = 'windhover-timeline-tour-completed';
 
@@ -65,16 +66,28 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
     }
   }, [storageKey]);
 
-  // Fetch linked media for all tour scene IDs on mount
+  // Fetch linked media for all tour scene IDs on mount. Keyed on the ids, not
+  // the array: the static fallback and the database scenes share ids, so the
+  // database scenes arriving shouldn't fetch the same media a second time.
+  const sceneIdKey = TOUR_SCENES.map(s => s.id).join(',');
   useEffect(() => {
-    const sceneIds = TOUR_SCENES.map(s => s.id);
-    fetchLinkedMedia('tour_scene', sceneIds)
+    fetchLinkedMedia('tour_scene', sceneIdKey.split(','))
       .then(map => setMediaMap(map))
       .catch(() => setMediaMap(new Map()));
-  }, [TOUR_SCENES]);
+  }, [sceneIdKey]);
 
   const currentScene = TOUR_SCENES[sceneIndex];
   const sceneMedia = mediaMap.get(currentScene?.id) || null;
+
+  // Warm the browser cache with this scene's and the next scene's images, so
+  // pressing Next shows a picture rather than an empty box.
+  useEffect(() => {
+    if (typeof Image === 'undefined') return;
+    for (const scene of [TOUR_SCENES[sceneIndex], TOUR_SCENES[sceneIndex + 1]]) {
+      const url = scene && mediaMap.get(scene.id)?.mediaUrl;
+      if (url) new Image().src = sizedImageUrl(url, TOUR_IMAGE_WIDTH);
+    }
+  }, [mediaMap, sceneIndex, TOUR_SCENES]);
 
   // ── Auto-frame viewport when scene changes ───────────────────────────
   const frameVisiblePeople = useCallback((personIds, animate = false) => {
@@ -98,6 +111,11 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
     const framedMax = maxYear + padding;
 
     const ref = timelineRef.current;
+    // The vertical (phone) timeline frames by years itself.
+    if (ref?.frameYears) {
+      ref.frameYears(framedMin, framedMax, { animate });
+      return;
+    }
     const info = ref.getViewportInfo?.();
     if (!info) return;
 

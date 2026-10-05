@@ -80,6 +80,12 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+}
+
+.tour-scene-image img.is-loaded {
+  opacity: 1;
 }
 
 .tour-scene-image-adjusting {

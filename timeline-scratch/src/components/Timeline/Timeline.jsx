@@ -16,6 +16,8 @@ import { TimelineLegend } from './components/TimelineLegend.jsx';
 import { MobileTimeline } from './components/MobileTimeline.jsx';
 import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
+import { RulerStrip } from './components/RulerStrip.jsx';
+import { rulerStripHeight } from './utils/rulerStrip.js';
 import { getYear, formatYear, formatYearSpan } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import bgManuscript from '../../assets/bg-manuscript.jpg';
@@ -43,15 +45,27 @@ const DEPTH_MODES = [
   { id: 'forward',     label: 'Front',  title: 'Bring the whole background into focus — or hold Alt' },
 ];
 
-export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange }, ref) {
+export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle, animationWave }, ref) {
   const isMobile = useMobileDetect();
 
-  // Render mobile timeline on small viewports
-  if (isMobile) {
+  // Which timeline to draw. By default the vertical one on small screens and
+  // the horizontal one otherwise; a page may choose (layout: 'vertical' |
+  // 'horizontal', Lifelines' layout toggle). The horizontal timeline on a
+  // phone opens its detail as a modal rather than a side panel.
+  const vertical = layout ? layout === 'vertical' : isMobile;
+  const horizontalOnPhone = isMobile && !vertical;
+  // config.tourDetailOnPhone === 'brief' (Lifelines): a figure a tour step
+  // opens shows as a short card above the tour sheet, not the full dialog,
+  // so the timeline stays in view (owner's call, M3 round 6c).
+  const detailBrief = isMobile && isTourMode && config?.tourDetailOnPhone === 'brief';
+  if (vertical) {
     return (
       <MobileTimeline
         ref={ref}
+        layoutToggle={layoutToggle}
+        detailBrief={detailBrief}
         data={data}
+        backData={backData}
         config={config}
         onItemClick={onItemClick}
         authContext={authContext}
@@ -68,7 +82,11 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
     <DesktopTimeline
       ref={ref}
       data={data}
-      config={config}
+      // config.phone overrides keys on a phone (the opening span, say).
+      config={horizontalOnPhone && config.phone ? { ...config, ...config.phone } : config}
+      phoneLayout={horizontalOnPhone}
+      layoutToggle={layoutToggle}
+      animationWave={animationWave}
       onViewportChange={onViewportChange}
       onItemClick={onItemClick}
       suppressModal={suppressModal}
@@ -88,7 +106,8 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       focusIds={focusIds}
       depthMode={depthMode}
       isFocusPreview={isFocusPreview}
-      detailVariant={detailVariant}
+      detailVariant={horizontalOnPhone ? 'modal' : detailVariant}
+      detailBrief={detailBrief}
       onPersonHover={onPersonHover}
       onPersonSelect={onPersonSelect}
       onDepthModeChange={onDepthModeChange}
@@ -96,7 +115,11 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
   );
 });
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange }, ref) {
+// True on a screen with no hover-capable pointer (a phone, an iPad without a
+// trackpad). Checked per event: an iPad gains hover when a trackpad connects.
+const noHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches;
+
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -106,6 +129,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const [hoveredItem, setHoveredItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  // The cursor line and year chip follow the pointer only while it is over the
+  // timeline; otherwise they froze at the last position, often under the header.
+  const [pointerInside, setPointerInside] = useState(false);
   const [filters, setFilters] = useState(() => buildInitialFilters(config));
   // Cursor line and year summary state
   const [pinnedYear, setPinnedYear] = useState(null);
@@ -194,7 +220,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     initialYearsPerPixel: initialYearsPerPixel,
     minYearsPerPixel: 0.1,
     maxYearsPerPixel: 50,
-    minYear: derivedMinYear,
+    // A page may set its own floor (Lifelines starts at 100 BC); otherwise
+    // the data's extent plus padding.
+    minYear: defaultConfig.minYear ?? derivedMinYear,
     maxYear: derivedMaxYear
   });
 
@@ -208,6 +236,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     () => (backData ? applyFilters(backData, filters) : null),
     [backData, filters]
   );
+  // Lifelines' prototype: rulers in a strip at the foot of the screen rather
+  // than a band below the axis (config.rulerStyle === 'strip').
+  const rulerStripOn = defaultConfig.rulerStyle === 'strip' && Boolean(filteredBackData?.people?.length);
+
 
   const itemIndex = useMemo(() => {
     const map = new Map();
@@ -257,8 +289,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
       periodRowHeight: 40,
       lanePadding: 8,
       axisHeight: 30,
-      // Bare pins collide at the pin's own width, not a label's.
-      pointMarkerWidth: showPointLabels ? null : 24,   // matches the collapsed chip
+      // Bare pins collide at the pin's own width, not a label's. Harp strings
+      // (config.pointStyle === 'string') need no stacking at all: one row on
+      // each side of the axis holds their labels.
+      pointMarkerWidth: defaultConfig.pointStyle === 'string' ? 0 : (showPointLabels ? null : 24),
       ...layoutSizes,
     }
   );
@@ -369,10 +403,103 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const isModalOpen = (selectedItem !== null && detailVariant !== 'panel') || yearSummaryOpen;
 
   // Handle wheel/trackpad: pinch → zoom, two-finger scroll → pan
+  // Touch: drag to pan, pinch to zoom about the fingers (config.touchGestures,
+  // Lifelines). The timeline otherwise only knew the mouse, so on an iPad,
+  // which gets this desktop timeline, a finger drag did nothing at all. Taps
+  // are left to the browser's synthesised click, which the item and
+  // empty-timeline click handling already serve. Needs touch-action: none on
+  // the container (ChurchHistory2App.css), so the page doesn't scroll instead.
+  const touchRef = useRef({});
+  useEffect(() => {
+    touchRef.current = {
+      width: dimensions.width,
+      maxOffsetY: Math.max(0, layout.totalHeight - dimensions.height),
+      handlePanX, handlePanY, handleZoom,
+    };
+  });
+  useEffect(() => {
+    if (!defaultConfig.touchGestures) return;
+    const el = containerRef.current;
+    if (!el) return;
+    let last = null;
+    let moved = 0;
+    const point = (t) => {
+      const r = el.getBoundingClientRect();
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    };
+    const snapshot = (touches) => {
+      if (touches.length === 1) {
+        last = { mode: 'pan', ...point(touches[0]) };
+      } else if (touches.length >= 2) {
+        const a = point(touches[0]);
+        const b = point(touches[1]);
+        last = { mode: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      } else {
+        last = null;
+      }
+    };
+    const onStart = (e) => {
+      // Controls, the legend, dialogs and links keep their own touch.
+      if (e.target.closest?.('.timeline-controls, .timeline-legend, .timeline-modal, button, a, input, label')) {
+        last = null;
+        return;
+      }
+      moved = 0;
+      snapshot(e.touches);
+    };
+    const onMove = (e) => {
+      if (!last) return;
+      const { width, maxOffsetY, handlePanX: panX, handlePanY: panY, handleZoom: zoom } = touchRef.current;
+      if (e.touches.length >= 2) {
+        const a = point(e.touches[0]);
+        const b = point(e.touches[1]);
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        if (last.mode !== 'pinch' || last.dist === 0) { snapshot(e.touches); return; }
+        // Zoom scales years-per-pixel by 1.1^delta; a spread of ratio r
+        // should divide it by r.
+        zoom(-Math.log(dist / last.dist) / Math.log(1.1), mid.x, width);
+        panX(mid.x - last.x, width);
+        panY(mid.y - last.y, maxOffsetY);
+        moved += Math.abs(mid.x - last.x) + Math.abs(mid.y - last.y) + Math.abs(dist - last.dist);
+        last = { mode: 'pinch', dist, ...mid };
+      } else if (e.touches.length === 1) {
+        const p = point(e.touches[0]);
+        if (last.mode !== 'pan') { snapshot(e.touches); return; }
+        panX(p.x - last.x, width);
+        panY(p.y - last.y, maxOffsetY);
+        moved += Math.abs(p.x - last.x) + Math.abs(p.y - last.y);
+        last = { mode: 'pan', ...p };
+      }
+    };
+    const onEnd = (e) => {
+      // A gesture that moved is not a tap: suppress the click it may synthesise.
+      if (moved > 8) {
+        wasDraggingRef.current = true;
+        setTimeout(() => { wasDraggingRef.current = false; }, 400);
+      }
+      snapshot(e.touches);
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [defaultConfig.touchGestures]);
+
   const handleWheel = useCallback((e) => {
     if (isModalOpen) {
       return; // Let the modal handle its own scrolling
     }
+    // The page itself is zoomed in (a pinch over the header, say): leave the
+    // wheel and pinch to the browser, or the reader can't scroll back out to
+    // the header, or pinch the page back out, while over the timeline.
+    if ((window.visualViewport?.scale ?? 1) > 1.01) return;
     e.preventDefault();
 
     const container = containerRef.current;
@@ -406,6 +533,39 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     return () => el.removeEventListener('wheel', handleWheel);
   }, [handleWheel]);
 
+  // Safari reports a trackpad pinch as gesture events, not a ctrl+wheel, so
+  // over the timeline it zoomed the whole page instead of the timeline.
+  const gestureRef = useRef({});
+  useEffect(() => {
+    gestureRef.current = { handleZoom, width: dimensions.width, isModalOpen };
+  });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !('GestureEvent' in window)) return;
+    let lastScale = 1;
+    const start = (e) => {
+      if (gestureRef.current.isModalOpen || (window.visualViewport?.scale ?? 1) > 1.01) return;
+      e.preventDefault();
+      lastScale = e.scale || 1;
+    };
+    const change = (e) => {
+      if (gestureRef.current.isModalOpen || (window.visualViewport?.scale ?? 1) > 1.01) return;
+      e.preventDefault();
+      const { handleZoom: zoom, width } = gestureRef.current;
+      const rect = el.getBoundingClientRect();
+      const scale = e.scale || 1;
+      // A spread of ratio r divides years-per-pixel by r; zoom takes 1.1^delta.
+      zoom(-Math.log(scale / lastScale) / Math.log(1.1), e.clientX - rect.left, width);
+      lastScale = scale;
+    };
+    el.addEventListener('gesturestart', start, { passive: false });
+    el.addEventListener('gesturechange', change, { passive: false });
+    return () => {
+      el.removeEventListener('gesturestart', start);
+      el.removeEventListener('gesturechange', change);
+    };
+  }, []);
+
   // Handle mouse down for pan or blank click
   const handleMouseDown = useCallback((e) => {
     if (e.button !== 0) return; // Only left click
@@ -436,17 +596,22 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     const y = e.clientY - rect.top;
 
     setMousePos({ x, y });
+    // A touch screen has no hover: the mouse events a tap synthesises would
+    // leave the cursor line, year chip and hover card stuck where the finger was.
+    if (!(defaultConfig.touchGestures && noHover())) setPointerInside(true);
 
     if (isPanning) {
       const maxOffsetY = Math.max(0, layout.totalHeight - dimensions.height);
       updatePan(x, y, dimensions.width, maxOffsetY);
     }
-  }, [isModalOpen, isPanning, updatePan, dimensions, layout.totalHeight]);
+  }, [isModalOpen, isPanning, updatePan, dimensions, layout.totalHeight, defaultConfig.touchGestures]);
 
   // Calculate cursor year from mouse X position (needs to be before handleMouseUp)
   const cursorYear = useMemo(() => {
     return Math.round(viewportStartYear + mousePos.x * yearsPerPixel);
   }, [viewportStartYear, mousePos.x, yearsPerPixel]);
+
+  const pendingYearSummaryRef = useRef(null);
 
   // Handle mouse up
   const handleMouseUp = useCallback((e) => {
@@ -454,18 +619,42 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     if (!container) return;
     if (isModalOpen) return;
 
-    // Check if this was a click (minimal movement and short duration)
-    // Don't trigger if any modal is open or hovering over controls
+    // Where the pointer was released, from the event itself. mousePos is
+    // state, as fresh as the last render; mousedown already reads the event,
+    // so comparing the two called a stale mousePos a drag. A tap (no move
+    // before it, as on a touch screen) or a quick click after a move was
+    // then swallowed as a drag, and a landmark card's click opened nothing.
+    const rect = container.getBoundingClientRect();
+    const upX = e?.clientX != null ? e.clientX - rect.left : mousePos.x;
+    const upY = e?.clientY != null ? e.clientY - rect.top : mousePos.y;
+
+    // A click on empty timeline opens that year's summary. "Empty" is judged
+    // from the event, not from hover state, which has the same freshness
+    // problem: the click has to land on a canvas (not a button, the legend or
+    // a label), and the summary waits a frame so that a click which opened an
+    // item (the canvas's own click, or a label's) cancels it.
     const clickStart = container._clickStart;
-    if (clickStart && !hoveredItem && !isOverControls && !selectedItem && !yearSummaryOpen) {
-      const dx = Math.abs(mousePos.x - clickStart.x);
-      const dy = Math.abs(mousePos.y - clickStart.y);
+    const onCanvas = e?.target?.tagName === 'CANVAS';
+    // hoveredItem and isOverControls are deliberately not consulted: they are
+    // state, stale for a click that follows a move too quickly. The target
+    // rules out controls and labels, and an item hit on the canvas cancels
+    // the pending summary through handleItemClickInternal.
+    if (clickStart && onCanvas && !selectedItem && !yearSummaryOpen) {
+      const dx = Math.abs(upX - clickStart.x);
+      const dy = Math.abs(upY - clickStart.y);
       const duration = Date.now() - clickStart.time;
 
       // If minimal movement and short duration, treat as click
       if (dx < 5 && dy < 5 && duration < 300) {
-        setPinnedYear(cursorYear);
-        setYearSummaryOpen(true);
+        const year = Math.round(viewportStartYear + upX * yearsPerPixel);
+        pendingYearSummaryRef.current = year;
+        requestAnimationFrame(() => {
+          if (pendingYearSummaryRef.current === year) {
+            pendingYearSummaryRef.current = null;
+            setPinnedYear(year);
+            setYearSummaryOpen(true);
+          }
+        });
       }
     }
     container._clickStart = null;
@@ -475,28 +664,52 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
     // If any significant movement happened, suppress the next canvas click
     if (clickStart) {
-      const dx = Math.abs(mousePos.x - clickStart.x);
-      const dy = Math.abs(mousePos.y - clickStart.y);
+      const dx = Math.abs(upX - clickStart.x);
+      const dy = Math.abs(upY - clickStart.y);
       if (dx >= 5 || dy >= 5) {
         wasDraggingRef.current = true;
         requestAnimationFrame(() => { wasDraggingRef.current = false; });
       }
     }
-  }, [endPan, hoveredItem, isModalOpen, mousePos, cursorYear, isOverControls, selectedItem, yearSummaryOpen]);
+  }, [endPan, isModalOpen, mousePos, viewportStartYear, yearsPerPixel, selectedItem, yearSummaryOpen]);
 
   // Handle item hover
   const handleItemHover = useCallback((type, item) => {
-    if (type && item) {
+    if (type && item && !(defaultConfig.touchGestures && noHover())) {
       setHoveredItem({ type, item, mouseX: mousePos.x, mouseY: mousePos.y });
     } else {
       setHoveredItem(null);
     }
     // Depth preview: hovering a figure lifts their background, and only theirs.
     onPersonHover?.(type === 'person' ? item?.id ?? null : null);
-  }, [mousePos, onPersonHover]);
+  }, [mousePos, onPersonHover, defaultConfig.touchGestures]);
+
+  // The legend gives way when space is short (config.legendCollapsible): it
+  // folds to a "Key" button while the detail panel is open or the timeline is
+  // narrower than 1100px, so it never sits over the figures being read. A
+  // reader's own open/close wins until that situation changes, e.g. the panel
+  // closes, and then the automatic choice applies again.
+  const legendAutoCollapsed = !!defaultConfig.legendCollapsible
+    && (!!selectedItem || (measured && dimensions.width < 1100));
+  const [legendChoice, setLegendChoice] = useState(null);
+  useEffect(() => { setLegendChoice(null); }, [legendAutoCollapsed]);
+  const legendCollapsed = legendChoice ?? legendAutoCollapsed;
+  const toggleLegend = useCallback(() => setLegendChoice(!legendCollapsed), [legendCollapsed]);
+
+  // Leaving the timeline ends any hover as well as any drag. Canvas items only
+  // clear their hover on a mousemove over empty canvas, so a pointer that left
+  // straight into the header kept the last hover card on screen indefinitely.
+  const handleContainerLeave = useCallback((e) => {
+    handleMouseUp(e);
+    setHoveredItem(null);
+    setPointerInside(false);
+    onPersonHover?.(null);
+  }, [handleMouseUp, onPersonHover]);
 
   // Handle item click
   const handleItemClickInternal = useCallback((type, item) => {
+    // This click opened an item, so it was not a click on empty timeline.
+    pendingYearSummaryRef.current = null;
     setHoveredItem(null);
     if (!suppressModal) {
       setSelectedItem({ type, item });
@@ -607,6 +820,20 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     setViewportStartYear,
     setVerticalOffset,
     animateViewport,
+    // Back to the opening view: its span, centre and axis height, framed on
+    // the real width. Animated, it glides there (Lifelines' tour exit).
+    resetView: ({ animate = false, duration = 1000 } = {}) => {
+      const fraction = defaultConfig.initialAxisFraction ?? 0.5;
+      const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
+      const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
+      if (animate) {
+        animateViewport(centeredViewportStart, initialYearsPerPixel, offset, duration);
+      } else {
+        setYearsPerPixel(initialYearsPerPixel);
+        setViewportStartYear(centeredViewportStart);
+        setVerticalOffset(offset);
+      }
+    },
     closeModal: handleModalClose,
     openYearSummary: (year) => {
       setSelectedItem(null); // close any person modal first
@@ -615,7 +842,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     },
     closeYearSummary: () => setYearSummaryOpen(false),
     getViewportInfo: () => ({ width: dimensions.width, height: dimensions.height, yearsPerPixel, viewportStartYear, axisY: layout.axisY, totalHeight: layout.totalHeight }),
-  }), [handleSearchSelect, handleSearchHighlight, handleSearchClearHighlight, handleModalClose, jumpToYear, dimensions.width, dimensions.height, setYearsPerPixel, setViewportStartYear, setVerticalOffset, animateViewport, yearsPerPixel, viewportStartYear, layout.axisY, layout.totalHeight]);
+  }), [handleSearchSelect, handleSearchHighlight, handleSearchClearHighlight, handleModalClose, jumpToYear, dimensions.width, dimensions.height, setYearsPerPixel, setViewportStartYear, setVerticalOffset, animateViewport, yearsPerPixel, viewportStartYear, layout.axisY, layout.totalHeight, centeredViewportStart, initialYearsPerPixel, defaultConfig.initialAxisFraction]);
 
   // Compute set of highlighted item IDs for rendering
   const highlightedItemIds = useMemo(() => {
@@ -766,6 +993,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     <TimelineModal
       isOpen={selectedItem !== null}
       variant={detailVariant}
+      brief={detailBrief}
       item={selectedItem?.item}
       itemType={selectedItem?.type}
       config={defaultConfig}
@@ -787,11 +1015,12 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const timelineBody = (
     <div
       ref={containerRef}
-      className="timeline-container"
+      className={`timeline-container${phoneLayout ? ' timeline-container--phone' : ''}${rulerStripOn ? ' timeline-container--ruler-strip' : ''}`}
+      style={rulerStripOn ? { '--ruler-strip-height': `${rulerStripHeight(filteredBackData.people, yearsPerPixel)}px` } : undefined}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={handleContainerLeave}
     >
       {/* Background manuscript image with parallax */}
       {showBackgroundImage && (
@@ -811,7 +1040,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
 
       {/* Cursor year line - behind all elements */}
-      {!isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
+      {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
         <div
           className="cursor-year-line"
           style={{
@@ -846,7 +1075,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
       {/* CH 2.0: the watercolour background and its focus overlay, behind the
           main figures but above the parallax field. */}
-      {filteredBackData && (
+      {filteredBackData && !rulerStripOn && (
         <DepthLayers
           width={dimensions.width}
           height={dimensions.height}
@@ -880,6 +1109,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         highlightedItemIds={highlightedItemIds}
         currentHighlightId={currentHighlightId}
         animatingIds={animatingIds}
+        animationWave={animationWave}
+        stringFocusIds={focusIds}
       />
 
       <TimelineOverlay
@@ -898,13 +1129,35 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         onItemClick={handleItemClickInternal}
         wasDraggingRef={wasDraggingRef}
         animatingPointIds={animatingPointIds}
+        revealIds={animationWave ? animatingIds : undefined}
+        revealWave={animationWave}
         isTourMode={isTourMode}
         palette={defaultConfig.palette}
         showPointLabels={showPointLabels}
+        focusIds={focusIds}
+        backObstacles={!rulerStripOn && filteredBackData && depthMode !== 'hidden'
+          ? { layout: backLayout, yOffset: layout.axisY - backLayout.axisY }
+          : null}
       />
 
+      {/* The rulers' strip (config.rulerStyle === 'strip'), in place of the
+          background band below the axis. */}
+      {rulerStripOn && (
+        <RulerStrip
+          people={filteredBackData.people}
+          viewportStartYear={viewportStartYear}
+          yearsPerPixel={yearsPerPixel}
+          width={dimensions.width}
+          color={defaultConfig.rulerColor}
+          focusIds={focusIds}
+          onItemHover={handleItemHover}
+          onItemClick={handleItemClickInternal}
+          wasDraggingRef={wasDraggingRef}
+        />
+      )}
+
       {/* Cursor year display - follows cursor */}
-      {!isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
+      {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
         <div
           className="cursor-year-display"
           style={{
@@ -928,6 +1181,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
       {!hideLegend && (
         <TimelineLegend
+          collapsed={legendCollapsed}
+          onToggleCollapsed={defaultConfig.legendCollapsible ? toggleLegend : undefined}
           legend={defaultConfig.legend}
           isVisible={true}
           filters={filters}
@@ -1028,21 +1283,36 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           )}
         </div>
 
+        {/* A page's own control, e.g. Lifelines' layout toggle. */}
+        {layoutToggle}
+
         {/* Depth control — only where there is a background layer to lift */}
         {filteredBackData && onDepthModeChange && (
-          <div className="depth-controls">
-            {DEPTH_MODES.map(mode => (
-              <button
-                key={mode.id}
-                type="button"
-                onClick={() => onDepthModeChange(mode.id)}
-                title={mode.title}
-                className={`btn btn-sm depth-btn${depthMode === mode.id ? ' active' : ''}`}
-                aria-pressed={depthMode === mode.id}
-              >
-                {mode.label}
-              </button>
-            ))}
+          <div
+            className="depth-controls"
+            role="group"
+            aria-label={defaultConfig.depthControl?.heading ?? 'Background layer'}
+          >
+            {defaultConfig.depthControl?.heading && (
+              <span className="depth-controls-heading" aria-hidden="true">{defaultConfig.depthControl.heading}</span>
+            )}
+            {DEPTH_MODES.map(mode => {
+              // config.depthControl renames the modes in the reader's terms
+              // ("Rulers: Hide / Faint / Clear") without changing what they do.
+              const own = defaultConfig.depthControl?.modes?.[mode.id];
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => onDepthModeChange(mode.id)}
+                  title={own?.title ?? mode.title}
+                  className={`btn btn-sm depth-btn${depthMode === mode.id ? ' active' : ''}`}
+                  aria-pressed={depthMode === mode.id}
+                >
+                  {own?.label ?? mode.label}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

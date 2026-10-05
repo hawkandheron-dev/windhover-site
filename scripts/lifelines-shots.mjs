@@ -42,6 +42,7 @@ const ONLY = opt('only');
 // 1440x900 is the comfortable case.
 const VIEWPORTS = {
   phone:   { width: 390,  height: 844,  mobile: true },
+  'phone-large': { width: 430, height: 932, mobile: true },
   tablet:  { width: 820,  height: 1180, mobile: false },
   laptop:  { width: 1280, height: 720,  mobile: false },
   desktop: { width: 1440, height: 900,  mobile: false },
@@ -50,14 +51,59 @@ const VIEWPORTS = {
 // A figure with connections, works and a long description: the panel at its fullest.
 const PANEL_QUERY = 'Athanasius';
 
-const STATES = [
+const DEFAULT_STATES = [
   { name: 'first-visit',   viewports: ['phone', 'laptop', 'desktop'], welcome: true },
   { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop'] },
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
   { name: 'keyboard-focus', viewports: ['desktop'], act: tabThrough },
+  // The other layout from the toggle: vertical on wide screens, horizontal on a phone.
+  { name: 'vertical',      viewports: ['tablet', 'desktop'], layout: 'vertical' },
+  // Leaving the tour: the rest of the timeline sweeps in left to right.
+  { name: 'tour-exit-mid',  viewports: ['desktop'], welcome: true, act: tourExit(450) },
+  { name: 'tour-exit-end',  viewports: ['desktop'], welcome: true, act: tourExit(2200) },
+  // The tour itself, a few scenes in (a bottom sheet on phones).
+  { name: 'tour',           viewports: ['phone', 'desktop'], welcome: true, act: tourScene(2) },
+  { name: 'tour-later',     viewports: ['phone'], welcome: true, act: tourScene(6) },
+  { name: 'tour-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(2) },
+  // Scene 7 opens Irenaeus: on a phone, a short card above the sheet.
+  { name: 'tour-later-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(6) },
+  { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
 ];
+
+// Zoom with the named buttons (the horizontal timeline's controls).
+const zoom = (label, times) => async (page) => {
+  for (let i = 0; i < times; i++) {
+    await page.getByRole('button', { name: label }).click();
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(300);
+};
+
+// --compare mobile: today's vertical phone timeline against the desktop's
+// horizontal one on a phone (chosen with the layout toggle; detail as a modal).
+const zoomInEither = async (page) => {
+  const named = page.getByRole('button', { name: 'Zoom in' });
+  if (await named.count()) return zoom('Zoom in', 2)(page);
+  // The vertical phone toolbar's zoom buttons are icon-only: −, readout, +.
+  for (let i = 0; i < 2; i++) {
+    await page.locator('.mobile-zoom-controls button').nth(1).click();
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(300);
+};
+const PHONE_LAYOUTS = ['vertical', 'horizontal'];
+const COMPARE_MOBILE = PHONE_LAYOUTS.flatMap(layout => [
+  { name: `mobile-${layout}-opening`,   viewports: ['phone', 'phone-large'], layout },
+  { name: `mobile-${layout}-zoomed-in`, viewports: ['phone', 'phone-large'], layout, act: zoomInEither },
+  { name: `mobile-${layout}-detail`,    viewports: ['phone', 'phone-large'], layout, act: openPanel },
+]);
+
+const COMPARE = opt('compare');
+// --compare points (flags against strings) went when strings became the
+// config default and ?points=strings stopped meaning anything (PR #160).
+const STATES = COMPARE === 'mobile' ? COMPARE_MOBILE : DEFAULT_STATES;
 
 // ── tiny static server over the repo root (apps/ plus node_modules fonts) ──
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
@@ -91,6 +137,14 @@ function fontCss(base) {
 function loadTables() {
   const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/e2e/data/lifelines-snapshot.json'), 'utf8'));
   delete snap._meta;
+  // Tour pictures come from CH_LinkedMedia, which the snapshot doesn't carry,
+  // and from Wikimedia, which the sandbox can't reach: give every scene a
+  // stand-in so the tour panel's picture layout can be seen at all.
+  snap.CH_LinkedMedia = (snap.CH_TourScenes || []).map((scene, i) => ({
+    media_id: `stand-in-${i}`, entity_type: 'tour_scene', entity_id: scene.scene_id,
+    media_url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Stand-in.jpg',
+    alt_text: 'Stand-in picture', attribution: 'Stand-in (screenshots only)', sort_order: 0,
+  }));
   return snap;
 }
 
@@ -106,6 +160,23 @@ async function openSearch(page) {
   await input.click();
   await input.fill(PANEL_QUERY.slice(0, 4));
   await page.waitForTimeout(250);
+}
+function tourScene(n) {
+  return async (page) => {
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.waitForTimeout(1200);
+    for (let i = 0; i < n; i++) { await page.locator('[title="Next (→)"]').click(); await page.waitForTimeout(900); }
+    await page.waitForTimeout(600);
+  };
+}
+function tourExit(afterMs) {
+  return async (page) => {
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.waitForTimeout(1200);
+    for (let i = 0; i < 2; i++) { await page.locator('[title="Next (→)"]').click(); await page.waitForTimeout(900); }
+    await page.locator('[title="Exit tour"]').click();
+    await page.waitForTimeout(afterMs);
+  };
 }
 async function tabThrough(page) {
   for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
@@ -135,12 +206,20 @@ async function shoot(browser, base, tables, state, vpName) {
   // the catch-all abort goes in before the specific mocks.
   await page.route(u => !u.host.startsWith('localhost') && !u.host.startsWith('127.0.0.1'), r => r.abort());
   await page.route('**/fonts.googleapis.com/**', r => r.fulfill({ status: 200, contentType: 'text/css', body: fontCss(base) }));
+  await page.route('**/commons.wikimedia.org/**', r => r.fulfill({
+    status: 200, contentType: 'image/jpeg',
+    body: fs.readFileSync(path.join(ROOT, 'resources/Bodleian-Library-MS-Laud-Misc-388_00001_fol-016v.jpg')),
+  }));
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
   await installSupabaseTableMock(page, tables);
 
-  await page.goto(base + PAGE);
-  await page.locator(vp.mobile ? '.mobile-timeline' : 'canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
+  // A state may preset the reader's remembered layout (the layout toggle).
+  if (state.layout) {
+    await page.addInitScript(l => { try { localStorage.setItem('lifelines-layout', l); } catch { /* none */ } }, state.layout);
+  }
+  await page.goto(base + PAGE + (state.query || ''));
+  await page.locator('.mobile-timeline, canvas').first().waitFor({ timeout: 15_000 }).catch(() => {
     errors.push('timeline did not render within 15s');
   });
   await page.evaluate(() => document.fonts.ready);
@@ -179,7 +258,7 @@ async function main() {
   const results = [];
   try {
     for (const state of STATES) {
-      if (ONLY && !state.name.includes(ONLY)) continue;
+      if (ONLY && !ONLY.split(',').some(o => state.name.includes(o))) continue;
       for (const vp of state.viewports) {
         const r = await shoot(browser, base, tables, state, vp);
         results.push(r);

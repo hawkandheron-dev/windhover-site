@@ -2,7 +2,8 @@
 "_meta":{
 "source":"Supabase project fnxsfdbbnjbveyjmwanc, tables read by churchHistory2Adapter.js",
 "captured":"2026-10-03",
-"refresh":"run scripts/lifelines-snapshot.sql and replace the tables below"
+"refresh":"run scripts/lifelines-snapshot.sql and replace the tables below",
+"note_significance":"CH_Events.significance and the two Constantinople councils applied locally from migration 20261004120000 (sandbox cannot reach Supabase); refresh with scripts/lifelines-snapshot.sql after it is applied."
 },
 "CH_People":[
 {
@@ -5951,7 +5952,8 @@
 "description":"The crucifixion and resurrection of Jesus, the foundational event of Christianity. https://en.wikipedia.org/wiki/Crucifixion_of_Jesus",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Crucifixion_of_Jesus",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-pentecost",
@@ -5963,7 +5965,8 @@
 "description":"The descent of the Holy Spirit on the apostles, traditionally considered the birth of the Church. https://en.wikipedia.org/wiki/Pentecost",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Pentecost",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-galatians",
@@ -5975,7 +5978,8 @@
 "description":"One of Paul's earliest letters, addressing justification by faith and the relationship between Jewish law and the gospel. https://en.wikipedia.org/wiki/Epistle_to_the_Galatians",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Epistle_to_the_Galatians",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-council-jerusalem",
@@ -5987,7 +5991,8 @@
 "description":"The apostles met to settle the question of whether Gentile converts must follow Jewish law. https://en.wikipedia.org/wiki/Council_of_Jerusalem",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Jerusalem",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-mark",
@@ -5999,7 +6004,8 @@
 "description":"The earliest of the four canonical Gospels, likely written between 55–75 AD. https://en.wikipedia.org/wiki/Gospel_of_Mark",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Gospel_of_Mark",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-philippians",
@@ -6011,7 +6017,8 @@
 "description":"Written during Paul's imprisonment, a letter of joy and encouragement to the church at Philippi. https://en.wikipedia.org/wiki/Epistle_to_the_Philippians",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Epistle_to_the_Philippians",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-fire-rome",
@@ -6023,7 +6030,8 @@
 "description":"Nero blamed Christians for the fire, beginning the first imperial persecution. https://en.wikipedia.org/wiki/Great_Fire_of_Rome",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Great_Fire_of_Rome",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-temple-destroyed",
@@ -6035,7 +6043,8 @@
 "description":"The Roman army under Titus destroyed the Second Temple, a watershed for both Judaism and early Christianity. https://en.wikipedia.org/wiki/Siege_of_Jerusalem_(70_CE)",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Siege_of_Jerusalem_(70_CE)",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-didache",
@@ -6047,7 +6056,8 @@
 "description":"An early Christian treatise on ethics, liturgy, and church practice, sometimes called \"The Teaching of the Twelve Apostles.\" https://en.wikipedia.org/wiki/Didache",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Didache",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-clement-epistle",
@@ -6059,7 +6069,8 @@
 "description":"Letter from Clement, bishop of Rome, to the church in Corinth. One of the earliest extra-biblical Christian texts. https://en.wikipedia.org/wiki/First_Epistle_of_Clement",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/First_Epistle_of_Clement",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-john-fragment",
@@ -6071,7 +6082,8 @@
 "description":"Rylands Library Papyrus P52, the earliest known fragment of the New Testament, containing a portion of the Gospel of John. https://en.wikipedia.org/wiki/Rylands_Library_Papyrus_P52",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Rylands_Library_Papyrus_P52",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-shepherd-hermas",
@@ -6083,7 +6095,8 @@
 "description":"An early Christian literary work considered scripture by some early church fathers. Contains visions, mandates, and parables. https://en.wikipedia.org/wiki/The_Shepherd_of_Hermas",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/The_Shepherd_of_Hermas",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-muratorian",
@@ -6095,7 +6108,8 @@
 "description":"The earliest known list of books considered canonical for the New Testament. https://en.wikipedia.org/wiki/Muratorian_fragment",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Muratorian_fragment",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-pauline-p46",
@@ -6107,7 +6121,8 @@
 "description":"Chester Beatty Papyrus P46, one of the oldest manuscripts of Paul's epistles. https://en.wikipedia.org/wiki/Papyrus_46",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Papyrus_46",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-against-heresies",
@@ -6119,7 +6134,8 @@
 "description":"A foundational work of Christian theology refuting Gnosticism and articulating apostolic tradition. https://en.wikipedia.org/wiki/Against_Heresies_(Irenaeus)",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/On_the_Detection_and_Overthrow_of_the_So-Called_Gnosis",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-on-first-principles",
@@ -6131,7 +6147,8 @@
 "description":"The first systematic exposition of Christian theology, addressing God, Christ, the Holy Spirit, creation, and scripture. https://en.wikipedia.org/wiki/On_First_Principles",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/On_First_Principles",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-thomas-mentioned",
@@ -6143,7 +6160,8 @@
 "description":"Non-canonical sayings gospel attributed to the apostle Thomas, first mentioned by Origen and Hippolytus. https://en.wikipedia.org/wiki/Gospel_of_Thomas",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Gospel_of_Thomas",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-hexapla",
@@ -6155,7 +6173,8 @@
 "description":"A massive critical edition of the Old Testament with six parallel columns of text in Hebrew and Greek. https://en.wikipedia.org/wiki/Hexapla",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Hexapla",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-decian-persecution",
@@ -6167,7 +6186,8 @@
 "description":"Emperor Decius ordered all citizens to perform sacrifice to Roman gods, triggering widespread persecution of Christians. https://en.wikipedia.org/wiki/Decian_persecution",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Decian_persecution",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-antioch-268",
@@ -6179,7 +6199,8 @@
 "description":"Deposed Paul of Samosata for adoptionism. The synod rejected the word homoousios in the sense Paul gave it — a fact the Arian party would use against Nicaea sixty years later. https://en.wikipedia.org/wiki/Synods_of_Antioch",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Synods_of_Antioch",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"event-diocletian-persecution",
@@ -6191,7 +6212,8 @@
 "description":"The last and most severe persecution of Christians in the Roman Empire, under Diocletian and his co-emperors. https://en.wikipedia.org/wiki/Diocletianic_Persecution",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Diocletianic_Persecution",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-edict-milan",
@@ -6203,7 +6225,8 @@
 "description":"Constantine and Licinius proclaimed religious toleration throughout the empire, ending the persecution of Christians. https://en.wikipedia.org/wiki/Edict_of_Milan",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Edict_of_Milan",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-arles-314",
@@ -6215,7 +6238,8 @@
 "description":"Convened by Constantine to settle the Donatist appeal. It upheld the validity of sacraments administered by unworthy ministers and ruled against the Donatists, who refused the verdict. https://en.wikipedia.org/wiki/Council_of_Arles",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Arles",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-on-incarnation",
@@ -6227,7 +6251,8 @@
 "description":"A foundational Christological treatise on why God became man, widely influential in patristic theology. https://en.wikipedia.org/wiki/On_the_Incarnation",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/On_the_Incarnation",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-thalia",
@@ -6239,7 +6264,8 @@
 "description":"Arius' verse popularisation of his teaching, written to be sung. It survives only in the quotations Athanasius made in order to refute it. https://en.wikipedia.org/wiki/Thalia_(Arius)",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Thalia_(Arius)",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-ecclesiastical-history-eusebius",
@@ -6251,7 +6277,8 @@
 "description":"The first comprehensive history of the Christian church from the apostolic age to Constantine. https://en.wikipedia.org/wiki/Church_History_(Eusebius)",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Church_History_(Eusebius)",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-nicaea",
@@ -6263,7 +6290,8 @@
 "description":"The first ecumenical council, convened by Emperor Constantine. Produced the Nicene Creed and condemned Arianism. https://en.wikipedia.org/wiki/First_Council_of_Nicaea",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/First_Council_of_Nicaea",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-codex-vaticanus",
@@ -6275,7 +6303,8 @@
 "description":"One of the oldest extant manuscripts of the Greek Bible, housed in the Vatican Library. https://en.wikipedia.org/wiki/Codex_Vaticanus",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Codex_Vaticanus",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-nicene-creed",
@@ -6287,7 +6316,8 @@
 "description":"The creed of the 318 fathers, which confessed the Son homoousios — of one substance with the Father — and appended anathemas naming the Arian slogans directly. https://en.wikipedia.org/wiki/Nicene_Creed",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Nicene_Creed",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-antioch-341",
@@ -6299,7 +6329,8 @@
 "description":"Ninety-seven Eastern bishops issued creeds avoiding homoousios and confirmed the deposition of Athanasius — the opening move of the long Eastern reaction against Nicaea. https://en.wikipedia.org/wiki/Synods_of_Antioch",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Synods_of_Antioch",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"council-serdica-343",
@@ -6311,7 +6342,8 @@
 "description":"Called to reunite East and West, it split before it began: the Eastern bishops withdrew and the two halves excommunicated each other. The first clear rupture between the Nicene West and the Eusebian East. https://en.wikipedia.org/wiki/Council_of_Serdica",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Serdica",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-catechetical-lectures",
@@ -6323,7 +6355,8 @@
 "description":"A series of instructional lectures for catechumens preparing for baptism, providing a window into 4th-century liturgical practice. https://en.wikipedia.org/wiki/Catechetical_Lectures",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Catechetical_lectures",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-codex-sinaiticus",
@@ -6335,7 +6368,8 @@
 "description":"One of the oldest and most complete manuscripts of the Christian Bible, containing the earliest complete copy of the New Testament. https://en.wikipedia.org/wiki/Codex_Sinaiticus",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Codex_Sinaiticus",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-ariminum-seleucia-359",
@@ -6347,7 +6381,8 @@
 "description":"Constantius II split the episcopate into two assemblies and pressed a Homoian formula on both. \"The whole world groaned and was astonished to find itself Arian,\" wrote Jerome of the result. https://en.wikipedia.org/wiki/Council_of_Rimini",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Rimini",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-de-trinitate-hilary",
@@ -6359,7 +6394,8 @@
 "description":"Twelve books written in exile, the first full-scale Latin defence of Nicene trinitarianism and the channel through which the Greek debate reached the West. https://en.wikipedia.org/wiki/De_Trinitate_(Hilary)",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/De_Trinitate_(Hilary)",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-alexandria-362",
@@ -6371,7 +6407,8 @@
 "description":"Athanasius, back from his third exile, offered terms to the moderate Homoiousians and settled the language of three hypostaseis in one ousia — the formula that made the settlement of 381 possible. https://en.wikipedia.org/wiki/Council_of_Alexandria",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Alexandria",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-athanasius-canon",
@@ -6383,7 +6420,8 @@
 "description":"Athanasius' 39th Festal Letter, the earliest list matching the modern 27-book New Testament canon. https://en.wikipedia.org/wiki/Athanasius_of_Alexandria#Easter_letter_of_367",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Biblical_canon#Athanasius",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-panarion",
@@ -6395,7 +6433,8 @@
 "description":"The \"medicine chest against heresies\": eighty entries from the Stoics to the Arians, quoting at length from works that survive nowhere else. https://en.wikipedia.org/wiki/Panarion",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Panarion",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-edict-thessalonica",
@@ -6407,7 +6446,8 @@
 "description":"Theodosius I declared Nicene Christianity the state religion of the Roman Empire. https://en.wikipedia.org/wiki/Edict_of_Thessalonica",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Edict_of_Thessalonica",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-constantinople-1",
@@ -6419,7 +6459,8 @@
 "description":"Affirmed the Nicene Creed, declared the divinity of the Holy Spirit, and expanded the creed into its present form. https://en.wikipedia.org/wiki/First_Council_of_Constantinople",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/First_Council_of_Constantinople",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-niceno-constantinopolitan-creed",
@@ -6431,7 +6472,8 @@
 "description":"The expanded creed of 381, which added the clauses on the Holy Spirit — \"the Lord and giver of life, who proceeds from the Father\" — against the Pneumatomachi. This is the creed recited in churches today. https://en.wikipedia.org/wiki/Nicene_Creed",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Nicene_Creed",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-confessions",
@@ -6443,7 +6485,8 @@
 "description":"A spiritual autobiography and meditation on sin, grace, and the nature of God — one of the most influential works in Christian literature. https://en.wikipedia.org/wiki/Confessions_(Augustine)",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Confessions_(Augustine)",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-vulgate",
@@ -6455,7 +6498,8 @@
 "description":"Jerome's Latin translation of the Bible from Hebrew and Greek, which became the standard text of Western Christianity for over a millennium. https://en.wikipedia.org/wiki/Vulgate",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Vulgate",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-rome-visigoths",
@@ -6467,7 +6511,8 @@
 "description":"Alaric I and the Visigoths sacked Rome, a shock to the Roman world that prompted Augustine to write The City of God. https://en.wikipedia.org/wiki/Sack_of_Rome_(410)",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Sack_of_Rome_(410)",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-city-of-god",
@@ -6479,7 +6524,8 @@
 "description":"Written in response to the sack of Rome, a monumental work contrasting the earthly city with the City of God. https://en.wikipedia.org/wiki/The_City_of_God",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/The_City_of_God",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-carthage-418",
@@ -6491,7 +6537,8 @@
 "description":"Two hundred African bishops condemned Pelagius and Celestius in nine canons on original sin and grace. Pope Zosimus, who had just cleared them, reversed himself and confirmed the sentence. https://en.wikipedia.org/wiki/Council_of_Carthage",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Carthage",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-twelve-anathemas",
@@ -6503,7 +6550,8 @@
 "description":"Appended to Cyril's third letter to Nestorius, twelve propositions each ending \"let him be anathema.\" Their uncompromising language won at Ephesus and troubled the Antiochenes for twenty years. https://en.wikipedia.org/wiki/Cyril_of_Alexandria",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://www.newadvent.org/fathers/3810.htm",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-ephesus",
@@ -6515,7 +6563,8 @@
 "description":"Condemned Nestorianism and affirmed Mary as Theotokos (God-bearer). Led by Cyril of Alexandria. https://en.wikipedia.org/wiki/Council_of_Ephesus",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Ephesus",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-formula-reunion",
@@ -6527,7 +6576,8 @@
 "description":"The concordat that ended the schism after Ephesus: Cyril accepted a confession of two natures drafted at Antioch, and John of Antioch accepted the condemnation of Nestorius. https://en.wikipedia.org/wiki/Formula_of_Reunion",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Formula_of_Reunion",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-ephesus-ii-449",
@@ -6539,7 +6589,8 @@
 "description":"Dioscorus of Alexandria rehabilitated Eutyches, deposed Flavian and refused to let the Tome of Leo be read. Leo called it a latrocinium, a gang of robbers, and no church has ever counted it ecumenical. https://en.wikipedia.org/wiki/Second_Council_of_Ephesus",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Second_Council_of_Ephesus",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-tome-of-leo",
@@ -6551,7 +6602,8 @@
 "description":"Leo's letter to Flavian, setting out the two natures in one person with Latin precision. Refused a reading at the Robber Synod, it was acclaimed at Chalcedon: \"Peter has spoken through Leo.\" https://en.wikipedia.org/wiki/Tome_of_Leo",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Tome_of_Leo",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-chalcedon",
@@ -6563,7 +6615,8 @@
 "description":"Defined the two natures of Christ (divine and human) in one person, rejecting both Nestorianism and Eutychianism. https://en.wikipedia.org/wiki/Council_of_Chalcedon",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Chalcedon",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-chalcedonian-definition",
@@ -6575,7 +6628,8 @@
 "description":"One person in two natures, \"without confusion, without change, without division, without separation\" — the four adverbs that fence off Nestorius on one side and Eutyches on the other. https://en.wikipedia.org/wiki/Chalcedonian_Definition",
 "created_at":"2026-08-12T02:25:31.550794+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Chalcedonian_Definition",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-west-empire-end",
@@ -6587,7 +6641,8 @@
 "description":"Romulus Augustulus, the last Western Roman emperor, was deposed by Odoacer, traditionally marking the end of the Western Empire. https://en.wikipedia.org/wiki/Fall_of_the_Western_Roman_Empire",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Fall_of_the_Western_Roman_Empire",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-rule-benedict",
@@ -6599,7 +6654,8 @@
 "description":"A guide for monastic life emphasizing prayer, work, and community, which became the foundation of Western monasticism. https://en.wikipedia.org/wiki/Rule_of_Saint_Benedict",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Rule_of_Saint_Benedict",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-hagia-sophia",
@@ -6611,7 +6667,8 @@
 "description":"Justinian I's great cathedral, the largest in the world for nearly a millennium. https://en.wikipedia.org/wiki/Hagia_Sophia",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Hagia_Sophia",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"event-synod-whitby",
@@ -6623,7 +6680,8 @@
 "description":"Resolved differences between Celtic and Roman Christian practices in Northumbria, particularly the dating of Easter. https://en.wikipedia.org/wiki/Synod_of_Whitby",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Synod_of_Whitby",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"event-iconoclasm-begins",
@@ -6635,7 +6693,8 @@
 "description":"Leo III ordered the destruction of religious images, sparking a theological and political crisis lasting over a century. https://en.wikipedia.org/wiki/Byzantine_iconoclasm",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Byzantine_Iconoclasm",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"doc-bede-history",
@@ -6647,7 +6706,8 @@
 "description":"The Venerable Bede's history of the English church and people, a foundational work of English historiography. https://en.wikipedia.org/wiki/Ecclesiastical_History_of_the_English_People",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Ecclesiastical_History_of_the_English_People",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-second-nicaea",
@@ -6659,7 +6719,8 @@
 "description":"The seventh ecumenical council, which restored the veneration of icons, called by Empress Irene. https://en.wikipedia.org/wiki/Second_Council_of_Nicaea",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Second_Council_of_Nicaea",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"council-frankfurt",
@@ -6671,7 +6732,8 @@
 "description":"Addressed Adoptionism and the iconoclasm controversy. Charlemagne presided. https://en.wikipedia.org/wiki/Council_of_Frankfurt_(794)",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Frankfurt_(794)",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"doc-book-kells",
@@ -6683,7 +6745,8 @@
 "description":"An illuminated manuscript Gospel book, a masterpiece of Insular art created by Celtic monks. https://en.wikipedia.org/wiki/Book_of_Kells",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Book_of_Kells",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-charlemagne-crowned",
@@ -6695,7 +6758,8 @@
 "description":"Pope Leo III crowned Charlemagne Emperor of the Romans, reviving the Western imperial title and linking church and state. https://en.wikipedia.org/wiki/Coronation_of_Charlemagne",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Coronation_of_Charlemagne",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-east-west-schism",
@@ -6707,7 +6771,8 @@
 "description":"The formal split between Eastern Orthodox and Roman Catholic churches, precipitated by mutual excommunications between Rome and Constantinople. https://en.wikipedia.org/wiki/East%E2%80%93West_Schism",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/East%E2%80%93West_Schism",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-normans-england",
@@ -6719,7 +6784,8 @@
 "description":"William the Conqueror's invasion following the Battle of Hastings, transforming English church and state. https://en.wikipedia.org/wiki/Norman_Conquest",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Norman_Conquest",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"event-investiture-controversy",
@@ -6731,7 +6797,8 @@
 "description":"A conflict between papacy and empire over the appointment of church officials, resolved by the Concordat of Worms (1122). https://en.wikipedia.org/wiki/Investiture_Controversy",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Investiture_Controversy",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"event-first-crusade",
@@ -6743,7 +6810,8 @@
 "description":"Called by Pope Urban II, the first military expedition to recapture Jerusalem from Muslim control. https://en.wikipedia.org/wiki/First_Crusade",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/First_Crusade",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-summa-theologica",
@@ -6755,7 +6823,8 @@
 "description":"Thomas Aquinas' masterwork of systematic theology, synthesizing Aristotelian philosophy with Christian doctrine. https://en.wikipedia.org/wiki/Summa_Theologica",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Summa_Theologica",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-divine-comedy",
@@ -6767,7 +6836,8 @@
 "description":"An epic poem journeying through Hell, Purgatory, and Paradise — a landmark of world literature and medieval theology. https://en.wikipedia.org/wiki/Divine_Comedy",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Divine_Comedy",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-revelations-julian",
@@ -6779,7 +6849,8 @@
 "description":"The first known book written by a woman in English, recording mystical visions and theological reflections on divine love. https://en.wikipedia.org/wiki/Revelations_of_Divine_Love",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Revelations_of_Divine_Love",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-imitation-christ",
@@ -6791,7 +6862,8 @@
 "description":"One of the most widely read Christian devotional works, emphasizing interior spiritual life and following Christ's example. https://en.wikipedia.org/wiki/The_Imitation_of_Christ",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/The_Imitation_of_Christ",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-hussite-wars",
@@ -6803,7 +6875,8 @@
 "description":"A series of wars fought by followers of Jan Hus against the Holy Roman Empire and the Catholic Church. https://en.wikipedia.org/wiki/Hussite_Wars",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Hussite_Wars",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"event-printing-press",
@@ -6815,7 +6888,8 @@
 "description":"Johannes Gutenberg's invention of movable type revolutionized the production of books and the spread of ideas, including the Bible. https://en.wikipedia.org/wiki/Printing_press",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Printing_press",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-ottomans-constantinople",
@@ -6827,7 +6901,8 @@
 "description":"Mehmed II conquered Constantinople, ending the Byzantine Empire and reshaping the Christian world. https://en.wikipedia.org/wiki/Fall_of_Constantinople",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Fall_of_Constantinople",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-spanish-inquisition",
@@ -6839,7 +6914,8 @@
 "description":"Established by Ferdinand and Isabella to enforce Catholic orthodoxy, targeting converted Jews and Muslims. https://en.wikipedia.org/wiki/Spanish_Inquisition",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Spanish_Inquisition",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"doc-95-theses",
@@ -6851,7 +6927,8 @@
 "description":"Martin Luther's challenge to the sale of indulgences, traditionally dated to October 31, 1517, sparking the Protestant Reformation. https://en.wikipedia.org/wiki/Ninety-five_Theses",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Ninety-five_Theses",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-diet-worms",
@@ -6863,7 +6940,8 @@
 "description":"Luther defended his writings before Emperor Charles V and refused to recant, declaring \"Here I stand.\" https://en.wikipedia.org/wiki/Diet_of_Worms",
 "created_at":"2026-02-01T13:28:30.242989+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Diet_of_Worms",
-"active":false
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-institutes",
@@ -6875,7 +6953,8 @@
 "description":"John Calvin's systematic presentation of Reformed Protestant theology, one of the most influential works of the Reformation. https://en.wikipedia.org/wiki/Institutes_of_the_Christian_Religion",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Institutes_of_the_Christian_Religion",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"doc-de-revolutionibus",
@@ -6887,7 +6966,8 @@
 "description":"Proposed the heliocentric model of the solar system, challenging the geocentric worldview held by the Church. https://en.wikipedia.org/wiki/De_revolutionibus_orbium_coelestium",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/De_revolutionibus_orbium_coelestium",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-council-trent",
@@ -6899,7 +6979,8 @@
 "description":"The Catholic Church's major reforming council in response to the Protestant Reformation, clarifying doctrine and reforming abuses. https://en.wikipedia.org/wiki/Council_of_Trent",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Council_of_Trent",
-"active":true
+"active":true,
+"significance":"minor"
 },
 {
 "event_id":"event-peace-augsburg",
@@ -6911,7 +6992,8 @@
 "description":"Established the principle of cuius regio, eius religio — allowing rulers to choose Lutheranism or Catholicism for their territories. https://en.wikipedia.org/wiki/Peace_of_Augsburg",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Peace_of_Augsburg",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"event-king-james-bible",
@@ -6923,7 +7005,8 @@
 "description":"Commissioned by James I, it became the most widely read English translation of the Bible for centuries. https://en.wikipedia.org/wiki/King_James_Version",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/King_James_Version",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-mayflower",
@@ -6935,7 +7018,8 @@
 "description":"Pilgrim separatists sailed from England and established Plymouth Colony, seeking religious freedom. https://en.wikipedia.org/wiki/Mayflower",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Mayflower",
-"active":false
+"active":false,
+"significance":"minor"
 },
 {
 "event_id":"doc-pilgrims-progress",
@@ -6947,7 +7031,8 @@
 "description":"An allegorical novel of the Christian journey, written in prison, one of the most widely read books in the English language. https://en.wikipedia.org/wiki/The_Pilgrim%27s_Progress",
 "created_at":"2026-02-06T12:41:40.646172+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/The_Pilgrim%27s_Progress",
-"active":true
+"active":true,
+"significance":"major"
 },
 {
 "event_id":"event-edict-nantes-revoked",
@@ -6959,7 +7044,34 @@
 "description":"Louis XIV revoked Protestant rights in France, causing mass emigration of Huguenots. https://en.wikipedia.org/wiki/Edict_of_Fontainebleau",
 "created_at":"2026-02-06T13:36:29.879735+00:00",
 "reference_url":"https://en.wikipedia.org/wiki/Revocation_of_the_Edict_of_Nantes",
-"active":false
+"active":false,
+"significance":"minor"
+},
+{
+"event_id":"council-constantinople-2",
+"name":"Second Council of Constantinople",
+"event_type":"council",
+"event_date":"0553-01-01",
+"end_date":null,
+"location":"Constantinople",
+"description":"Fifth ecumenical council: condemned the Three Chapters, writings judged sympathetic to Nestorius, and reaffirmed Chalcedon. https://en.wikipedia.org/wiki/Second_Council_of_Constantinople",
+"created_at":"2026-10-04T12:00:00+00:00",
+"reference_url":"https://en.wikipedia.org/wiki/Second_Council_of_Constantinople",
+"active":true,
+"significance":"major"
+},
+{
+"event_id":"council-constantinople-3",
+"name":"Third Council of Constantinople",
+"event_type":"council",
+"event_date":"0680-01-01",
+"end_date":"0681-12-31",
+"location":"Constantinople",
+"description":"Sixth ecumenical council: condemned Monothelitism, teaching that Christ has two wills, divine and human. https://en.wikipedia.org/wiki/Third_Council_of_Constantinople",
+"created_at":"2026-10-04T12:00:00+00:00",
+"reference_url":"https://en.wikipedia.org/wiki/Third_Council_of_Constantinople",
+"active":true,
+"significance":"major"
 }
 ],
 "CH_Connections":[

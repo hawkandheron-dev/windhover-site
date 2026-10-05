@@ -1,6 +1,545 @@
 # Lifelines release plan
 
-> **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. **Next: M3** (now includes the legend rework) and M4. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
+> **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
+
+## M3 PR #160: CI red and two bot findings (2026-10-05)
+
+**Context.** Matthew subscribed this session to [hawkandheron-dev/windhover-site#160](https://github.com/hawkandheron-dev/windhover-site/pull/160). Three items are open on it:
+- **E2E failed in CI.** One test fails twice: "no figure label runs into the next one in its row (real data)" (`tests/e2e/church-history-2.spec.js:848`), with `TypeError: Map.groupBy is not a function`. CI runs Node 20, which lacks `Map.groupBy` (Node 21+), and the sandbox's newer Node hid it. The cause is in the test, not the app. The other 65 tests pass in CI, including the three auth smoke tests that only fail in the sandbox.
+- **Codex P2 on `scripts/lifelines-shots.mjs:85`:** `--compare points` still switches on `?points=strings`, which nothing reads any more since strings became the config default, so both arms render strings. The prototype is retired.
+- **Codex P2 on `Timeline.jsx:63-68`:** the vertical layout gets only `data`, never `backData`, so choosing Vertical drops every emperor and monarch while the Key still offers an "Emperors & monarchs" switch. This was already true on phones before M3 (vertical was the only phone layout); the toggle makes it reachable on desktop too.
+
+**Steps**
+1. **Fix the test:** replace `Map.groupBy` with a plain grouping (a `Map` filled in a loop), no change to what it asserts. Reproduce the failure first by running that test under Node 20 (`npx -y node@20`), then show it passing.
+2. **Retire `--compare points`:** delete `POINT_STYLES`/`COMPARE_POINTS` and the `points` option; update the script's usage comment. Reply on the thread with the commit and resolve it.
+3. **Rulers in the vertical layout:** Matthew picked (2026-10-05) a **rulers column pinned to the right edge**, the vertical twin of the bottom strip:
+   - about 90px wide, sticky right, white with a left rule;
+   - thin vertical reign bars packed into up to three sub-columns, each with a small crown and the name, cut with "…" at the next reign (reuse `packRulerRows` logic, rotated);
+   - tap opens the ruler; the Emperors switch hides it;
+   - opt-in via `rulerStyle: 'strip'` passed to `MobileTimeline` with `backData`, so other apps are unchanged.
+   - Tests: e2e that the vertical layout shows Constantine in the column and the Key switch hides it; ruler names don't overlap.
+   - Shots: default--phone, vertical--tablet/desktop.
+   - DESIGN.md §6: rulers sit in a strip at the foot (horizontal) or a column at the right edge (vertical).
+4. **Push once**, after unit, build, full e2e, lint and shots are clean. Reply on both Codex threads with the commit, resolve them, and update the PR body's Checks section.
+
+## M3 round 6c: the tour's detail on phones (2026-10-04)
+
+**Context.** Some tour steps open a figure's detail (step 7 opens Irenaeus). On a phone that detail is the full centred modal, with a large map, and it covers the whole timeline and half the tour sheet.
+
+Matthew: "I think it's just a shorter panel on mobile, maybe with no images."
+
+**Change** (Lifelines only; phones, ≤768px; only while the tour is running):
+- The detail the tour opens becomes a **short card** in the top part of the screen, above the tour sheet:
+  - at most about 40% of the height, scrolling inside;
+  - the timeline stays visible between the card and the sheet.
+- It shows the name, dates, place and description. It drops the map and other pictures (and, later, portraits), along with the long works and sources list, which stays one tap away through "open full details" in the card.
+- **How:**
+  - `TimelineModal` gains an opt-in `variant="brief"`. It hides the map block and the works/sources section and adds a "More" link that switches to the full layout. Other apps never pass it.
+  - The tour passes it on phones: `MobileTimeline` and the horizontal phone layout open the modal with `brief` when `isTourMode` is set.
+  - Lifelines CSS places the brief card at the top, with `max-height: 40%` and a white surface (DESIGN §4).
+- Outside the tour, a tapped figure still opens the full detail.
+
+**Verification**
+- E2E at 390×844, in the vertical and horizontal layouts:
+  - a tour step that opens a figure shows the brief card with no map, at most 45% of the height and above the sheet;
+  - "More" opens the full detail;
+  - a figure tapped outside the tour still opens the full modal with its map.
+- Shots: the phone tour state (`tour-later`) before and after.
+- DESIGN.md §6 Tour row: on phones a step's figure detail is a brief card.
+
+## M3 round 6b: strip default, no title ring, apply the migration (2026-10-04)
+
+**Context.** Matthew:
+- "Rulers across the bottom is *excellent*." Make the strip the default.
+- When a person or ruler opens, their name in the panel shows a blue box. That's the focus ring on the panel title, which takes focus for keyboard and screen-reader users (DESIGN §8). Remove the box.
+- "Apply migration for councils and events."
+- The mobile-tour question (skip auto-opening panels on phones) is undecided; leave it.
+
+**State:** done but not yet committed. 47 of 49 Lifelines e2e tests passed on the last run.
+- **Strip as default:** `rulerStyle: 'strip'` in config, and the `?rulers=strip` switch and `--compare rulers` are gone.
+- **Quiet band removed:** its code is gone (depth override, `backClearsFrontPoints`, `utils/rulerDrop.js` and its test, the monarch-label CSS), and `DepthLayers` is back to its pre-round-4 form.
+- **Panel title:** `outline: none` on `#timeline-detail-title:focus`. It isn't a control; focus still lands there.
+- **100 BC:** `minYear: -100`, honoured by `Timeline.jsx` (`defaultConfig.minYear ?? derivedMinYear`) and `MobileTimeline` `dataBounds`.
+- **Tests:** strip default; 100 BC floor; the title has focus but no ring; the panel test checks strip focus (Constantius II).
+
+**Steps**
+1. **Fix the 2 failing e2e tests** (from the last run: "expected > 21, got 1" and "expected < 79.5, got 159"). Find which tests they are and whether the strip changed the geometry they measure, e.g. the controls moved up or the canvas height shrank. Fix the cause, or update the test where the decision changed, saying why. Never loosen a test.
+2. **DONE 2026-10-04.** Applied and verified on the live project:
+   - councils: 7 major, 12 minor (still active, hidden by the app);
+   - events: 16 major (active), 9 minor (inactive);
+   - documents: 43 major.
+   
+   (Original step:) **Apply the migration** `20261004120000_ch_event_significance.sql` to the live project (`fnxsfdbbnjbveyjmwanc`), as Matthew asked. Run the file's SQL as written (`execute_sql`): it's idempotent, so the CI workflow re-running it on merge is a no-op, as with the M1 active flags. Then verify with read-only queries:
+   - `significance` exists;
+   - 7 shown councils, 16 shown events, and texts unchanged;
+   - the two new Constantinople rows are present.
+3. **Run the checks:** full unit + e2e suites, lint compared with HEAD on the touched files, and shots (desktop, laptop, phone, dark). Read the strip and the panel title.
+4. **DESIGN.md:**
+   - §3 Reigns row: the strip is the treatment, the quiet band was retired;
+   - §6: the timeline starts at 100 BC;
+   - §8: the panel title takes focus without a ring.
+5. **Commit and push:** round 6 in one commit, with the reasons and the migration note. Sync `docs/lifelines-release-plan.md`.
+6. **Report to Matthew:**
+   - the migration is applied, with counts;
+   - the tour copy doc is ready (link);
+   - the sign-in explanation (Clerk on `*.pages.dev`, or a Preview env var);
+   - the still-open mobile tour question.
+
+## M3 round 6: start at 100 BC; tour copy doc (2026-10-04)
+
+**Context.** Matthew:
+- "Start the whole thing at 100 BC; we don't need anything earlier... lots of white space."
+- He tried signing in to edit the tour copy and couldn't.
+
+**Findings.**
+- **Pan floor:** the timeline lets readers pan to `data minimum − max(10% of span, 200 years)` (`Timeline.jsx` `derivedMinYear`). The earliest record is Augustus, born 63 BC, so the floor is about 263 BC. The vertical phone timeline pads its own bounds similarly (`MobileTimeline` `dataBounds`).
+- **Tour copy:** Lifelines has no tour-text editing at all, signed in or not, merged or not. The copy lives in `CH_TourScenes`; signing in only unlocks the picture-crop control.
+- **His answer:** edit the copy in a **shared doc** (M6, brought forward).
+- **Sign-in itself:** it probably fails on the preview because of the Clerk setup:
+  - a production Clerk key only accepts its own domain, not `*.pages.dev`;
+  - or Cloudflare Pages has no `CLERK_PUBLISHABLE_KEY` for the Preview environment, since Pages variables are set per environment.
+
+  Neither needs code. I'll explain both and Matthew checks; it only matters for the admin tools (notes, suggestions, picture crop).
+
+**Steps**
+1. **100 BC floor** (Lifelines config `minYear: -100`, opt-in):
+   - `Timeline.jsx`: `minYear = defaultConfig.minYear ?? derivedMinYear`, passed to `useZoomPan` (`clampStart` already enforces it).
+   - `MobileTimeline`: clamp `dataBounds.minYear` to `config.minYear` when set.
+   - The opening view (1–500 AD) is unchanged.
+   - E2E: panning far left stops with the readout starting at 100 BC; phone: scrolling to the top shows 100 BC.
+   - DESIGN §6 "Opening view" row: the timeline starts at 100 BC.
+2. **Tour copy doc:** a Claude Doc with all 20 scenes from `CH_TourScenes`. Each scene gets its number, the title, the narrative and any additional or third narrative lines, plus which figures it shows, for context.
+   - Matthew edits it.
+   - I then write one migration updating `CH_TourScenes` and send screenshots.
+   - The doc's scene ids keep his edits matched to the rows.
+
+## Added to the plan (2026-10-04): placeholder portraits
+
+**Context.** Matthew: "we need a good placeholder portrait for male and female people who don't have images."
+
+**What the code shows today:**
+- Lifelines shows no portraits anywhere.
+- `CH_People` has no image field and no sex field.
+- The only images are tour pictures, which come from `CH_LinkedMedia` with `entity_type 'tour_scene'`.
+
+So this needs three things: somewhere for real portraits to come from, a placeholder when there is none, and a way to choose the male or female placeholder.
+
+**Steps (a new M3 step, after the open picks; it touches data, so the migration rides the same PR):**
+1. **Where portraits come from.** Reuse `CH_LinkedMedia` with `entity_type 'person'`, the same table and `fetchLinkedMedia` path the tour uses, so no new table is needed. Run the URL through `sizedImageUrl` (thumbnails) as for the tour.
+2. **Male or female.** A migration adds `sex text check (sex in ('male','female'))` to `CH_People`.
+   - I prefill it from the data: names and roles (pope, bishop and emperor are male; abbess, empress and saints like Monica and Macrina are female), so each figure starts with a best guess.
+   - I give Matthew a short list to confirm: the women, plus any figure I'm unsure of.
+   - Unknown falls back to a neutral placeholder.
+3. **The placeholders.** Two (plus a neutral one) hand-drawn inline SVGs in Lifelines' style, not stock silhouettes.
+   - **Style:** a quiet bust in the ink tokens on a soft ground, matching the white UI and the Cormorant/Alegreya feel (DESIGN §4). Late-antique dress cues: a cloak and pallium for men, a veil or palla for women. No halo, so the placeholders don't make sanctity claims.
+   - **Sizing:** the same circle or rounded square as a real portrait, so the layout never changes when a real image arrives.
+   - **Marking:** a placeholder is visibly a placeholder (lighter tone) and has empty alt text; the person's name is already beside it.
+   - **Review:** I'll render 2–3 style options as an Artifact for Matthew to pick from before wiring them in.
+4. **Where portraits show:** the detail panel header beside the name, search results (small), and the hover card. The vertical phone cards stay text-only unless Matthew wants them there.
+5. **DESIGN.md:** a rule for portraits and placeholders (size, shape, the placeholder tone, the alt text). Add the sex field to the M5 data checklist.
+
+**Verification:**
+- Unit: the placeholder choice (male, female, unknown).
+- E2E: a figure with linked media shows its portrait; one without shows the right placeholder at the same size.
+- Shots: the panel and search on desktop and phone, in light and dark.
+
+## M3 round 5: major events, seven councils, string hover (2026-10-04)
+
+**Context.**
+- **Roomy:** Matthew: "Roomy doesn't work." Remove the prototype.
+- **Noise:**
+  - Split events into major and minor. Show the major ones and hide the minor ones for now.
+  - Show only the seven ecumenical councils.
+  - Keep the texts.
+- **String hover:**
+  - The line grows 200% wider and turns a brighter gold.
+  - It comes forward, over every person.
+  - It highlights the people connected to it.
+
+**His answers.**
+- **Major events (16):** his list plus the Decian Persecution.
+  - Crucifixion & Resurrection; Pentecost; Great Fire of Rome; Destruction of the Temple
+  - Decian Persecution; Great Persecution; Edict of Milan; Edict of Thessalonica
+  - Rome sacked by the Visigoths; End of the Western Roman Empire; Coronation of Charlemagne
+  - East/West Schism; First Crusade; Gutenberg's printing press; Fall of Constantinople; Luther at the Diet of Worms
+- **Minor events (9, hidden):**
+  - Hagia Sophia; Iconoclasm; Normans; Investiture Controversy; Hussite Wars
+  - Spanish Inquisition; Peace of Augsburg; Mayflower; Revocation of the Edict of Nantes
+- **Councils:**
+  - Major: Nicaea I, Constantinople I, Ephesus, Chalcedon, Nicaea II.
+  - **Add** Constantinople II (553) and Constantinople III (680–681).
+  - The other 12 councils (Jerusalem, Arles, Antioch ×2, Serdica, Ariminum/Seleucia, Alexandria, Carthage, Ephesus II, Whitby, Frankfurt, Trent) become minor and hidden. They are not deleted.
+
+### Steps
+
+**A. Data: one migration** (`supabase/migrations/2026100412xxxx_ch_event_significance.sql`; CI applies it on merge).
+- Add `significance text not null default 'major' check (significance in ('major','minor'))` to `CH_Events`. Texts stay major.
+- Set the 9 minor events and 12 minor councils to minor, by `event_id`.
+- Set `active = true` on the 16 major events, which are hidden today (DESIGN §9 "plain events" removed; the owner is bringing the major ones back).
+- Insert the two councils:
+  - **Constantinople II:** 553, Constantinople. Condemned the Three Chapters.
+  - **Constantinople III:** 680–681, Constantinople. Condemned Monothelitism.
+  - Each with a one-line description and a Wikipedia `reference_url`, for Matthew to review in the PR. Citations come in M5.
+- Refresh `tests/e2e/data/lifelines-snapshot.json` with the same changes, via a small script that applies them to the JSON. The sandbox can't write to Supabase.
+
+**B. Adapter and config** (Lifelines only).
+- `churchHistory2Adapter.js`:
+  - Drop rows where `significance === 'minor'`, treating a missing value as major so old snapshots still load.
+  - Plain events (`event_type 'event'`) already have a style (`POINT_STYLES.events`, filter key `events`). They sit above the axis with the councils.
+  - Their mark is a **dot** (`markForPoint`), while councils are diamonds and texts are squares.
+- Legend: add an "Events" row with the dot mark (`filterKey: 'events'`); make sure the filter defaults on.
+- DESIGN.md:
+  - §9: plain events are no longer "removed". Major events show; minor events are hidden.
+  - §3: the events colour paired with the dot mark.
+
+**C. String hover.**
+- The hovered line goes from 1px to 3px (+200%) in a brighter gold. Add a new `--color-string-hover` value, brighter than `#c08f12` (e.g. `#e3a92b`) while still reading on white at 3px. It stays in the overlay at z 12, above every person bar and label. Dots and label follow the same gold.
+- **Connected people highlighted:** while a string is hovered, each linked figure's bar (`point.connectedPeople`, front layer) gets a gold outline ring drawn in the overlay (bars' screen rects are already computed there), and its name label gets a gold edge.
+  - It's overlay-only, so no Timeline state is needed.
+  - Rulers linked to the event are skipped for now: there are 4 such links, and they're on another layer.
+
+**D. Remove the roomy prototype.**
+- Remove `?density=roomy`, `stringDotLabels`, the dot labels, `personBarHeight` and `--compare density`, along with its e2e test. Git keeps them.
+
+**Verification**
+- Unit: an adapter test that minor rows are dropped and a missing significance counts as major.
+- E2E:
+  - **Fixture:** add a major event, a minor event and a minor council.
+  - **Visibility:** the major event shows with a dot, the minor ones don't, and the "Events" Key row toggles it.
+  - **Hover:**
+    - the hovered string is 3px and the new gold;
+    - Athanasius's and Eusebius's bars get rings when Nicaea is hovered;
+    - the rings go on mouse leave.
+  - **Real data:** exactly 7 councils render across the full span.
+- Shots: the defaults, read on desktop, laptop and phone.
+- Unit and e2e pass, and lint is unchanged.
+
+## M3 round 4: rulers lower, full labels, compact vs roomy (2026-10-03)
+
+**Context.** Matthew's notes on round 3:
+1. **Monarchs need to move down.** In the quiet band the first ruler row sits right under the axis, in the same row as the texts' labels ("Galatians" over "Nero", "Shepherd of Hermas" over "Commodus").
+2. **Labels go back to full names.** "Truncated labels is weird, I take it back. Labels shouldn't change when we hover on them."
+3. **New:** "a compact vs. roomy view, where events and texts that show up in between people could have a small label and enough vertical margin for them to show."
+
+### Steps (same branch; render with shots after each)
+
+**A. Rulers below the texts' row.**
+- In `Timeline.jsx`, measure the front layout's below-axis band: the deepest below-axis landmark row (`stackedPoints` with `aboveTimeline === false`) under the axis, plus about 10px of air.
+- Behind the opt-in config `backClearsFrontPoints: true` (Lifelines), pass that height to `DepthLayers` as an extra `yOffset` (the canvas, the focus layer and `MonarchLabels` all share it). Pass it to the overlay's `backObstacles` too, so the texts' dots still avoid the rulers.
+- The rulers then start under the texts' labels, clear of them, at every zoom. Other apps are unchanged.
+- The `?rulers=strip` prototype is unaffected.
+
+**B. Full names, no hover swap.**
+- Labels show `point.name` at rest and on hover; the hover only lifts the label (the shadow) and turns its string gold.
+- Remove `utils/shortLabel.js`, its unit test, `config.shortLabels` and the adapter's `shortName`. Git keeps them if short labels return.
+- The collision pass measures the full names again (as in round 2).
+- DESIGN.md §7: drop the short-label rule and say labels never change on hover.
+
+**C. Compact vs roomy prototype** (`?density=roomy`; compact stays the default until Matthew picks).
+- **Roomy** opens a margin under each figure's bar, so the strings' dots among the people can carry a small label:
+  - People rows grow from 34px to about 52px (bar unchanged, a gap of about 20px under it), via the Lifelines `layoutSizes` when `density === 'roomy'`.
+  - Each dot among the people (a linked dot on a bar's lower edge, or an open-space dot in a gap) gets a small label beside it, in the gap under the bar. It's 11px, ink-light, with the string's mark, giving the landmark's full name.
+  - One in-context label per landmark: on the dot nearest the axis.
+  - A greedy per-gap collision pass drops a label that would hit another label or a bar; the dot stays and still hovers and opens.
+- **Compact** is today's layout (no labels among the people).
+- **Implementation:**
+  - A `stringDotLabels: true` option in `TimelineOverlay.renderPointStrings`, and a `labelRect` per placed dot from `placeStringDots`. The open-space search in roomy mode prefers the gaps, which are now taller.
+  - The density comes from a URL parameter read in `ChurchHistory2App` (like `?rulers=strip`).
+- **Comparison:** `--compare density` in the shots script renders compact vs roomy at the opening view, zoomed in and with Athanasius selected, on desktop and laptop. Send it to Matthew and stop for his pick. If roomy wins, it can become the default or a reader toggle beside Layout.
+
+**Verification**
+- Unit:
+  - `placeStringDots` returns label rects that never overlap a bar or each other.
+  - The ruler offset helper (pure function for the below-band height).
+- E2E:
+  - On real data, no ruler label overlaps a text label (bounding boxes).
+  - A string label reads the same before and during hover.
+  - With `?density=roomy`:
+    - people rows are taller;
+    - Nicaea's dot on Athanasius carries a "Council of Nicaea" label, which doesn't overlap any figure label.
+- Shots: the defaults plus `--compare density` and `--compare rulers`, read in light and dark.
+- Unit and e2e pass; lint unchanged; the other apps unchanged.
+
+## M3 round 3: harp strings, rulers, zoom (Matthew's feedback, 2026-10-03)
+
+**Context.** Matthew used round 2 on his PC.
+- **What he liked:**
+  - Dots where a string meets its related people.
+  - One line of councils above the axis and one of texts below, which keeps the focus on people.
+- **What he asked for:**
+  - **Markers:** texts become small squares, other events stay dots, councils become diamonds, all the same size.
+  - **Labels:** short at rest ("Didache"), the full name on hover.
+  - **Strings:** behind every entry, with a hovered string brought to the front.
+  - **Dots:** one on every related person a string crosses.
+- **Problems he reported:**
+  - The rulers' band is cluttered, and the blur doesn't read as anything.
+  - The exit sweep felt no different. When the tour is finished, its last scene has already shown everyone, so there's nothing left to sweep.
+  - After a trackpad pinch over the header zoomed the page, he couldn't scroll back up out of the timeline.
+  - He asked whether it should be "Lyons" or "Lyon".
+- **His answers:**
+  - Councils go to the place only ("Nicaea").
+  - Rulers: try "crisp and quiet" (the default) and "a strip pinned to the bottom" behind a URL parameter.
+  - Tour exit: glide plus sweep, always.
+
+**Irenaeus:** keep **"Irenaeus of Lyons"**.
+- It's the established English name for the saint, for example in John Behr's *Irenaeus of Lyons* (OUP, 2013) and the Catholic Encyclopedia. "Lyon" is the city's modern official name.
+- The data is already consistent: his name is "Irenaeus of Lyons" and his location "Lyons, Gaul". Only Michael VIII's note mentions the 1274 "Council of Lyon", which is that council's usual modern name.
+- So nothing changes. I'll recheck it against Wikipedia and Britannica in M5's date pass, once the network is widened.
+
+### Steps (same branch; render with shots after each)
+
+**A. Marker shapes.**
+- Councils get a diamond, texts a square and anything else a dot, all 9px with a 2px white rim.
+- The dots, the label icons and the legend rows (Lifelines config `shape`) use the same marks, so the Key matches the canvas. `ShapeIcon` gets `square`/`diamond` if they're missing.
+- Gold hover keeps the shape.
+- The dots drop their native `title`, which duplicated the hover card (his screenshot).
+
+**B. Short labels.**
+- `utils/shortLabel.js` derives the resting label from the name:
+  - **Councils:** the place, with ordinals as numerals ("Ephesus II", "Constantinople I"). Parentheticals are dropped ("Antioch").
+  - **Texts:**
+    - Drop "X writes / delivers / compiles / completes / posts" and trailing "composed / written / completed / mentioned / published", plus a leading "The".
+    - "Paul's letter to the Galatians" → "Galatians"; "First epistle of Clement" → "1 Clement"; papyri → "P42", "P46".
+- A config map of overrides covers anything the rules get wrong. Later, a `short_name` column (M5) can override in the data.
+- A unit test pins all 60 current names to their short forms; I'll show Matthew that table.
+- Hovering a label grows it to the full name, in front of its neighbours; the collision pass uses the short widths.
+
+**C. Strings behind entries.**
+- The resting lines move onto the front canvas, drawn before the bars, so every bar and name sits on top.
+  - Same colours and opacities, including focus.
+  - Behind `pointStyle: 'string'`, so other apps are untouched.
+- The overlay keeps only the hit strips, labels and dots.
+- The hovered or focused string is drawn again in the overlay, gold and 2px, above everything.
+
+**D. A dot on every related person.**
+- `placeStringDots` returns a list per landmark: one dot on each linked figure alive that year (on their bar's lower edge), or one open-space dot if there are none.
+- The unit tests are extended to cover several dots per landmark.
+
+**E. Rulers, two prototypes** (`?rulers=strip` switches; the default is quiet).
+- **Quiet (default):**
+  - No blur.
+  - Thin pale bars and small grey names, under the strings.
+  - The text dots' open-space search treats ruler rows as obstacles, so dots stop landing in the ruler names.
+  - Hovering or choosing a figure darkens their ruler(s) instead of un-blurring them.
+- **Strip (`?rulers=strip`):**
+  - A compact band pinned to the bottom of the timeline: rows of about 14px, at most 5 rows, panning horizontally with the axis but not vertically.
+  - Below the axis, only the texts' line remains.
+  - The controls sit above the strip. Rulers in the strip still hover and open.
+- Matthew compares the two on the preview and picks. Shots render both (`--compare rulers`).
+- DESIGN.md §3/§6 record the background as reigns only, with the chosen treatment.
+
+**F. Tour exit: glide plus sweep, always.**
+- On every exit (Exit, Skip, Esc, Finish), the viewport glides about 1s from the tour's last frame to the opening view, and the people the tour wasn't showing sweep in during it.
+- Finish after the build-out still glides.
+- This uses the imperative `animateViewport` the tour already uses, with the opening frame as the target (exposed from Timeline as `resetView({ animate })`).
+- Reduced motion jumps straight there.
+
+**G. Trackpad and browser zoom.**
+- Over the timeline, a trackpad pinch (Chrome, Edge and Firefox send it as a ctrl+wheel; Safari as `gesture*` events) zooms the timeline, not the page.
+- If the page is already zoomed by the browser (`visualViewport.scale > 1`), the timeline stops capturing the scroll wheel, so the reader can always scroll back out to the header and zoom out.
+- Browser zoom stays available everywhere else, for accessibility.
+- E2E: a ctrl+wheel zooms the readout; a plain wheel while visually zoomed isn't swallowed.
+
+**H. Then:** step 6 (the vertical phone: card overlap, white toolbar, zoom into empty BC), `ux-review`, and the M3 PR.
+
+**Verification:**
+- Unit: `shortLabel` (all 60 names), `placeStringDots` with multiple dots.
+- E2E:
+  - the shapes per kind;
+  - a short label that expands on hover;
+  - a string under a bar (`elementFromPoint` on a bar crossing returns the canvas or bar, not the string);
+  - a hovered string on top;
+  - multiple dots on the Nicaea fixture (add a second linked person);
+  - glide on Finish;
+  - pinch zoom;
+  - the visual-zoom scroll passthrough;
+  - `?rulers=strip` renders the strip.
+- Shots: the defaults plus `--compare rulers`, read in light and dark.
+- Lint unchanged, and the other apps unchanged.
+
+## M3 round 2: Matthew's feedback on the prototypes (2026-10-03)
+
+**Context.** Matthew tried the M3 branch on his PC and phone.
+- **What he reported:** the page loads slowly, element by element. Tour images paint "bar by bar". Coming out of the tour, the full timeline appears with a jarring jump.
+- **What he picked:**
+  - **Harp strings** win, and should be hoverable and clickable. Their dots should sit on related people.
+  - **Phone:** both layouts work. Vertical is the phone default, horizontal the desktop default, and readers can switch between them.
+  - The **Rulers** control goes.
+  - The **tour** on phones becomes a bottom panel.
+  - The phone's scroll area must clear iOS Safari's address bar.
+  - The legend **subtitle** is no longer italic.
+- **His answers:**
+  - Tour exit: **sweep in**.
+  - Dots for events with no linked person go **in open space**, never on a bar.
+
+What the code shows (two read-only investigations):
+- **Load:**
+  - A blocking `<script src="/api/supabase-config">` holds up React.
+  - maplibre (1 MB raw, 277 KB gzip) loads eagerly, although only modals use it.
+  - Google Fonts load through CSS `@import` chains.
+  - Tour scenes are fetched only after all 10 tables, then linked media after that, so it's a waterfall.
+  - Tour images are full-resolution Wikimedia originals (`Special:FilePath/…` with no `?width=`). That is the "dial-up" effect.
+- **Strings:** the line has `pointer-events: none`, so only the label or the axis dot is a target. The canvas also keeps an invisible 120×20 hit box per point (`TimelineCanvas.jsx:428`).
+- **Links:** points carry `connectedPeople` (from `CH_EventConnections`). 32 of the 60 active points have at least one person, 4 of those links go to monarchs, and the overlay already gets `layout.stackedPeople` with each person's y.
+- **Tour exit:** the data swaps instantly. The canvas already has a 1200ms bar-grow animation driven by `animatingIds`.
+
+### Steps (same branch and PR as M3; render with shots after each)
+
+**A. Load speed**
+1. **Tour images:** in TourPanel, rewrite `Special:FilePath` URLs to `?width=` sized for the panel (×2 for Retina). Add `decoding="async"`, the aspect-ratio box and a fade-in on load. Preload the next scene's image. This is a client-side rewrite in a helper, so no data migration is needed.
+2. **Parallel fetches:** fetch tour scenes in the same `Promise.all` as the tables (`ChurchHistory2App.jsx:670`). Also stop `useTour` fetching linked media twice: wait for the real scene ids.
+3. **Lazy maps:** `React.lazy` for `HistoricalMap` and `YearDetailMap`. maplibre and its CSS then load only when a detail opens, with a fixed-size placeholder meanwhile. This is shared code, but a pure load change with no visible difference, and it helps every app (called out in the commit).
+4. **Config script:** make `/api/supabase-config` non-blocking for Lifelines (`defer`, read the globals at mount). It is only needed for the Supabase URL and the Clerk key, both read after mount.
+5. **Fonts:** replace the CSS `@import` with `<link rel="preconnect">` plus `<link rel="stylesheet">` in `church-history-2.html`. The self-hosting decision stays in M7.
+6. **Measure:** record bundle sizes before and after, and the request waterfall in Playwright (blocked domains stubbed), in the commit. The real-world check is Matthew reloading the preview on his PC.
+
+**B. Legend subtitle:** remove the italic on `.timeline-legend--slim .legend-site-subtitle` (Lifelines only). Update DESIGN.md §2 if it describes it.
+
+**C. Harp strings become the default** (`pointStyle: 'string'` in Lifelines config; remove `?points=strings`)
+1. **Hover and click on the string itself:** give each string an invisible ~9px-wide hit strip (`pointer-events: auto`) over the full height. On hover the line turns gold and goes to 2px, the label lifts, and the cursor is a pointer. Clicking opens the event modal or panel through the existing `onItemClick('point', …)`.
+   - New token `--color-string-hover` (gold) on `.ch2-app`, added to DESIGN.md §3 as a hover-only highlight colour.
+   - Strings sit under bars and labels (z-order), so a person bar still wins where they cross.
+   - Drop the 120px phantom canvas hit box when `pointStyle` is 'string'.
+2. **Dots on related people:**
+   - **Linked events:** for each point, take the `connectedPeople` that are in `layout.stackedPeople` and alive at the point's year. Place the dot on that person's bar at the point's x, choosing the bar nearest the axis if there are several. The other people are linked by the focus highlight as now.
+   - **Monarch links** (4) and **links to people not alive then:** use the open-space rule.
+   - **Unlinked events (open-space rule):** at the point's x, find the vertical gaps between bars in the people band (from `stackedPeople` rows covering that year) and the empty band between the people and the axis. Place the dot in the gap nearest the axis that isn't already holding a dot within 14px; if there's none, fall back to the axis.
+   - Texts below the axis use the same rule against the space below the axis (rulers are faint background, so their area counts as open).
+   - This is a pure function, `placeStringDots(points, stackedPeople, viewport…)` in `utils/stringDots.js`, with unit tests: linked → on the person's row; unlinked → never inside a bar; no two dots within 14px; deterministic.
+   - Dots stay clickable and hoverable, with the same gold hover as their string.
+3. **Labels** stay as they are (greedy per side).
+
+**D. Tour exit sweep**
+- When the tour closes, the figures and points the tour wasn't showing grow in from left to right. Reuse the canvas bar-grow by passing their ids as `animatingIds`/`animatingPointIds`, with a per-item delay based on screen x (a ~900ms wave). Labels and strings fade in behind it (an opacity transition keyed on the same set).
+- The ids are computed in `ChurchHistory2App` from `tour.tourData` against `frontData` at exit.
+- **Reduced motion:** the canvas grow loop checks `prefers-reduced-motion` and draws final frames at once (today it ignores the preference).
+- This also applies to the welcome dialog's "Skip", which goes straight to the full timeline, so it arrives the same way.
+
+**E. Controls and layout toggle**
+1. **Remove the Rulers control:** set `depthControl: false` in the Lifelines config so the control isn't rendered. Lifelines stays on "Faint", and hovering or focusing a figure still lifts their ruler. The other apps keep their depth control.
+2. **Layout toggle "Vertical / Horizontal"** where the Rulers control was: a two-button segmented control using the existing `.depth-controls` styling, renamed.
+   - **Defaults:** vertical below 768px, horizontal above.
+   - **Shown on phones and tablets only** (under 1100px). On a wide desktop, the vertical layout would be a very long single column; Matthew can say if he wants it there too.
+   - **Remembered:** the choice is stored per device in localStorage under its own key.
+   - **Where it lives:** in the vertical layout's toolbar and in the horizontal layout's controls.
+   - This replaces the `?mobile=horizontal` prototype switch.
+3. **iOS address bar:** size the app with `100dvh` (falling back to `100vh`) instead of `100vh`, and add `padding-bottom: env(safe-area-inset-bottom)` to the bottom controls and toolbar. Check at 390×844 with a simulated shorter visual viewport.
+
+**F. Tour as a bottom sheet on phones**
+- Below 768px, `TourPanel` docks to the bottom: full width, at most ~45% of the height, with its own scroll and the image above the text. The timeline keeps the top part and frames the scene's figures within it (pass the sheet height as a bottom inset to the tour's viewport framing).
+- Lifelines-only CSS and config (`tourPanelPlacement: 'bottom-on-phone'`).
+
+**G. DESIGN.md and step 6**
+- **DESIGN.md:**
+  - §3: the gold string hover.
+  - §6:
+    - Controls: no Rulers control; the Layout toggle and its defaults.
+    - Phone layout: vertical by default, switchable.
+    - Tour: a bottom sheet on phones.
+    - Legend: the subtitle is upright.
+  - §7: dot placement.
+  - §8: the tour-exit motion and reduced motion.
+- **Step 6 (vertical phone fixes) comes back**, because vertical stays the phone default:
+  - card stacking (#4);
+  - white toolbar (#11);
+  - the zoom-into-empty-BC bug, found in the comparison.
+
+**Verification**
+- Unit: `stringDots` placement rules, and the image URL rewrite.
+- E2E:
+  - string hover turns gold and click opens the event;
+  - a linked dot sits within its person's bar;
+  - no unlinked dot sits inside a bar (real data);
+  - the layout toggle switches and is remembered;
+  - the Rulers control is absent on Lifelines but present on Heresies;
+  - after skipping the tour, all figures are present within 1.5s.
+- Shots: the default set, plus the tour exit mid-sweep (a new state) and the phone tour sheet. Run `ux-review`. The other-apps diff shows Heresies and 1.0 unchanged apart from lazy maps.
+- Matthew re-checks the load on his PC and the scroll area on an iPhone using the preview.
+
+## M3 implementation: UI/UX review round
+
+**Context.** M1 and M2 are merged (M2 is #159). This milestone is the collaborative design pass. The review used the 16 screenshots from the last `npm run shots` run against the real dataset (Lifelines' code equals `main`), plus DESIGN.md. Matthew decided the four design questions on 2026-10-03 (below). Everything is Lifelines-only behind config or props; the other five apps stay identical (CLAUDE.md rule 2).
+
+**Matthew's decisions**
+1. **Legend:** a slim panel that collapses. The colour key goes (century ramp and swatches). Lifelines and its strapline sit at the top; "Windhover / Get a bird's eye view" sits at the bottom. The four show/hide checkboxes stay; councils and texts keep their shape icons. The panel collapses to a small "Key" button when the detail panel opens or the screen is narrow, so it never covers figures.
+2. **Events:** prototype harp strings behind `pointStyle: 'string'`, then show flags vs strings side by side at three zoom levels. Matthew picks.
+3. **Background rulers:** keep the faded default, but fix the ghosting. The control is relabelled "Rulers: Hide / Faint / Clear".
+4. **Keyboard access:** search is the accessible route. Add a skip link to search; Esc closes the panel and returns focus; the panel content is fully keyboard-usable. Recorded as a DESIGN.md §8 decision.
+
+**Findings** (severity on Nielsen's 0–4 scale; evidence is in `.shots/lifelines/`)
+
+| # | Sev | Finding | Evidence | Fix |
+|---|---|---|---|---|
+| 1 | 3 | Legend covers figures at the right edge, and floats mid-canvas when the panel opens; on tablet it covers about a quarter of the view | `default--tablet`, `panel--laptop` | Decision 1 |
+| 2 | 3 | Event cards form a staircase that dominates the view, hides axis labels on laptop, and pushes figures off screen | `default--laptop`, `default--tablet` | Decision 2 |
+| 3 | 3 | Names cut mid-word or overlapped by the next bar: "lement of Rome" under Jesus's label, "Thomas Bradwar", "Sylvester II / Gerbert of A" | `default--desktop`, `default--tablet` | When a label won't fit, show the name without dates; if it still won't fit, end it with "…". Never let a neighbouring bar cover a label (draw labels above bars) |
+| 4 | 3 | Phone: landmark cards overlap each other and cover the figure bars ("Paul's letter to the Galatians" hidden under "Council of Jerusalem") | `default--phone` | Stack the phone cards so they don't collide (reuse `stackPoints`), and make them opaque white with a border |
+| 5 | 2 | Background ghosting: blurred duplicate ruler names behind the crisp labels ("Septimius Severus" twice) | `default--desktop` | Decision 3: don't draw ruler names on the blurred canvas layer when the crisp label layer is on (opt-in config) |
+| 6 | 2 | Depth control "Off / Soft / Front" is jargon | all desktop shots | Decision 3 wording |
+| 7 | 2 | A hover card is left in the top-left corner ("Rome") after the pointer leaves the canvas into the header | `default--desktop`, `panel--desktop` | Clear the hover state when the pointer leaves the canvas |
+| 8 | 2 | Cursor year chip ("250 AD") sits at the very top and overlaps the header | `default--laptop`, `default--tablet` | Place it just below the header (`--ch2-header-height`) |
+| 9 | 2 | Detail panel: a large map dominates an event's panel; an all-caps "HISTORICAL MAP" label; "Related People" names don't look clickable | `panel--desktop`, `panel--laptop` | Smaller map below the description; sentence-case headings; related people as links |
+| 10 | 2 | Search labels results "EVENT" in red, while the legend says "Councils" / "Texts & creeds"; red is the error colour (DESIGN §3) | `search--desktop`, `search--phone` | Label results Council / Text / Person in neutral ink, with the shape icon |
+| 11 | 2 | Phone timeline still uses parchment: beige toolbar and dark brown-grey year gutter (existing known violation) | `default--phone` | White toolbar, light gutter with ink-faded year labels |
+| 12 | 2 | Ruler labels below the axis are about 9–10px and truncated ("Caligula 37–") | `default--desktop` | 11px minimum; the same truncation rule as #3 |
+| 13 | 2 | No keyboard route to figures (canvas) | `keyboard-focus--desktop` | Decision 4 |
+| 14 | 1 | Phone date format "1 AD – 66 AD" vs desktop "1–66" | `default--phone` | Use `formatYearSpan` on phone |
+| 15 | 1 | Search ranks "Athanasian canon" above "Athanasius" | `search--desktop` | Rank people above events on equal matches |
+| — | 0 | Welcome dialog (desktop and phone), the dark-mode parity and the readout are all fine | `first-visit--*`, `default-dark--*` | — |
+
+Error and loading states (raw "Error: …", plain "Loading…") stay in M4 as planned.
+
+**Order of work** (one PR, small commits; render after each)
+1. **Bug fixes (#7, #8, #14, #15):** quick and low-risk.
+2. **Legend rework (decision 1, #1):**
+   - New opt-in props on `TimelineLegend.jsx`: brand order, no ramp, collapsible.
+   - Lifelines config changes in `data/churchHistory2Data.js` (drop the `century-ramp` and swatch rows).
+   - Collapse logic: in `ChurchHistory2App.jsx`, collapse when a panel is open or the width is under 1100px.
+   - Update DESIGN.md §2, §3 and §6, and the e2e spec "legend shows a century ramp…" with the reason.
+3. **Labels and density (#3, #12):**
+   - The label-fitting rule goes in `TimelineOverlay.jsx`, behind config `labelFit: 'truncate'`.
+   - Rulers: change `MonarchLabels.jsx` and its CSS.
+4. **Background (decision 3, #5, #6):**
+   - Suppress the canvas ruler labels in `DepthLayers.jsx` / `rendering.js` behind config.
+   - New labels for the `DEPTH_MODES` in `Timeline.jsx` via config, so the other apps keep theirs.
+5. **Detail panel and search (#9, #10):**
+   - `TimelineModal.jsx` gets an opt-in `panelLayout: 'compact'`.
+   - `TimelineSearch.jsx` gets opt-in type labels.
+6. **Phone (#4, #11), now gated on step 9:** `MobileTimeline.jsx` stacking and white styling, scoped under `.ch2-app`. This runs only if Matthew keeps the vertical phone layout after the step 9 comparison; otherwise it's dropped.
+7. **Keyboard (decision 4, #13):**
+   - Skip link to search; Esc and focus return in the panel.
+   - Add the decision to DESIGN.md §8.
+8. **Harp strings prototype (decision 2):**
+   - Build it behind `pointStyle: 'string'`. It plugs into `TimelineOverlay.renderPointCallouts` and the layout sizes, reusing `yearToPixel` and the canvas hit map (narrow hit box).
+   - The focus set brightens the selected person's strings.
+   - Add a `--compare` option to `scripts/lifelines-shots.mjs` that renders flags vs strings at three zoom levels.
+   - Send Matthew the comparison and stop for his pick before making either the default.
+9. **Horizontal phone prototype** (Matthew's request, 2026-10-03). Phones get the same horizontal timeline as desktop, with the detail opening as a modal instead of the side panel. Done before step 6, since its outcome decides whether step 6 happens.
+   - **How:** a Lifelines config key `mobileLayout: 'horizontal'`. When it's set, `Timeline.jsx` renders `DesktopTimeline` below 768px instead of `MobileTimeline`, with `detailVariant: 'modal'` (that variant already exists). The other apps keep the vertical phone layout.
+   - **Phone-specific work it needs:**
+     - touch drag to pan and pinch to zoom on the canvas. Checked: `DesktopTimeline` has no touch or pointer handlers at all today, so these are new. Use pointer events on the container, feeding the existing `startPan`/`updatePan`/`endPan` and `handleZoom` in `useZoomPan` (anchored on the pinch midpoint). Tap opens items through the existing hit map. This is the bulk of the prototype's cost;
+     - the slim, collapsed legend from step 2;
+     - controls sized for touch (44px), and the year readout;
+     - a smaller label and flag density at phone widths (or harp strings, if chosen in step 8);
+     - the opening view framed on the measured width (the M1 fit), at a span that suits 390px.
+   - **Comparison:** a `--compare-mobile` option in `scripts/lifelines-shots.mjs` renders vertical vs horizontal at 390×844 and 430×932, at the opening view, zoomed in, and with a detail open. Send these to Matthew, then stop for his pick.
+   - **If horizontal wins:** make it the Lifelines default, and update DESIGN.md §6 (the phone layout, and the detail as a modal on phones). The vertical-layout fixes in step 6 are dropped; `MobileTimeline` stays for the other apps.
+
+**Verification**
+- After each step:
+  - Build, then run `npm run shots`, then read the affected PNGs, including dark mode and phone.
+  - Run `ux-review` on the result.
+  - Delete the fixed lines from DESIGN.md "Known violations".
+- Unit and e2e tests pass (with `CHROMIUM_PATH`). New e2e covers:
+  - the legend collapsing when the panel opens
+  - no duplicate ruler names
+  - the hover card cleared on leaving the canvas
+  - Esc closing the panel and returning focus
+  - the skip link
+- The other apps are unchanged: the before/after screenshot diff from M1, run on the 1.0 and Heresies pages.
+- Lint introduces no new findings in the touched files.
+
+---
 
 ## M2 implementation: site root goes straight to Lifelines
 

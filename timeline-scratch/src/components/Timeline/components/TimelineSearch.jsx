@@ -7,10 +7,12 @@
  *     with a match count badge and prev/next navigation.
  */
 
+import { StringMark } from './StringMark.jsx';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getYear } from '../utils/dateUtils.js';
-import { Icon } from './Icon.jsx';
+import { Icon, ShapeIcon } from './Icon.jsx';
 import './TimelineSearch.css';
+import { matchRank } from '../utils/searchRank.js';
 
 /**
  * Build a flat search index from timeline data.
@@ -52,7 +54,12 @@ function buildIndex(data) {
 
 const TYPE_LABELS = { person: 'Person', point: 'Event', period: 'Period' };
 
-export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink }) {
+/**
+ * `describeKind(entry)` lets a page name its results in its own terms, e.g.
+ * { label: 'Council', shape: 'cross', color }. Without it the generic
+ * coloured chips (PERSON / EVENT) remain.
+ */
+export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlight, homeLink, ranked = false, describeKind, inputId, inputLabel = 'Search the timeline' }) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -67,8 +74,10 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
   const filtered = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return index.filter(e => e.name.toLowerCase().includes(q)).slice(0, 12);
-  }, [query, index]);
+    const matches = index.filter(e => e.name.toLowerCase().includes(q));
+    if (ranked) matches.sort((a, b) => matchRank(a, q) - matchRank(b, q) || a.name.localeCompare(b.name));
+    return matches.slice(0, 12);
+  }, [query, index, ranked]);
 
   // Keep activeIdx in bounds when results change
   useEffect(() => {
@@ -199,6 +208,8 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
         {homeLink}
         <input
           ref={inputRef}
+          id={inputId}
+          aria-label={inputLabel}
           type="text"
           className="timeline-search-input"
           placeholder="Search timeline…"
@@ -264,9 +275,22 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
               <span className="timeline-search-option-name">
                 {highlightMatch(entry.name, query)}
               </span>
-              <span className={`timeline-search-option-type type-${entry.type}`}>
-                {TYPE_LABELS[entry.type] || entry.type}
-              </span>
+              {describeKind ? (() => {
+                const kind = describeKind(entry);
+                return (
+                  <span className="timeline-search-option-kind">
+                    {kind.icon === 'crown'
+                      ? <Icon name="crown" size={12} color={kind.color} />
+                      : kind.mark ? <StringMark mark={kind.mark} color={kind.color} size={8} />
+                      : kind.shape && <ShapeIcon shape={kind.shape} color={kind.color} size={12} />}
+                    {kind.label}
+                  </span>
+                );
+              })() : (
+                <span className={`timeline-search-option-type type-${entry.type}`}>
+                  {TYPE_LABELS[entry.type] || entry.type}
+                </span>
+              )}
             </li>
           ))}
         </ul>

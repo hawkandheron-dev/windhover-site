@@ -33,6 +33,10 @@ export function TimelineCanvas({
   highlightedItemIds = new Set(),
   currentHighlightId = null,
   animatingIds,
+  /** A wave instead of all at once: bars grow in from left to right across
+   *  the screen over this many ms (Lifelines' tour exit). Absent: all grow
+   *  together, as in the tour. */
+  animationWave,
   // ── CH Timeline 2.0 additions. Every one defaults to the behaviour the
   // other five timelines already have, so this file renders them unchanged.
   /** Canvas colour overrides; absent means the parchment palette. */
@@ -46,39 +50,58 @@ export function TimelineCanvas({
   /** 'front' draws the axis and leaves points to the overlay; 'back' draws
    *  point markers itself and renders movement spans as soft washes. */
   layerMode = 'front',
+  /** Skip a ruler's canvas name when crisp HTML labels already name the
+   *  rulers (DepthLayers' MonarchLabels); drawn twice, the blurred copy sat
+   *  offset under the crisp one and read as a rendering fault. */
+  suppressMonarchNames = false,
+  /** Landmarks belonging to the figure in focus: their strings are drawn
+   *  darker and the rest fainter, still behind the bars. */
+  stringFocusIds = null,
 }) {
   const canvasRef = useRef(null);
   const hitMapRef = useRef(new Map()); // For click detection
   const isBackLayer = layerMode === 'back';
   const showLabels = isBackLayer && Boolean(onlyIds);
 
-  // Grow animation state — progress 0→1 drives a clip on newly added bars
-  const [animProgress, setAnimProgress] = useState(1);
+  // Grow animation state. animElapsed (ms since the animation began) drives a
+  // clip on newly added bars; Infinity means nothing is growing.
+  const [animElapsed, setAnimElapsed] = useState(Infinity);
   const animFrameRef = useRef(null);
+  const growMs = animationWave ? 700 : 1200;
+  const totalMs = growMs + (animationWave || 0);
 
   useEffect(() => {
-    if (animatingIds && animatingIds.size > 0) {
+    // Reduced motion: bars appear at full length at once.
+    const reduce = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (animatingIds && animatingIds.size > 0 && !reduce) {
       const start = performance.now();
-      const duration = 1200; // ms
-
       const tick = (now) => {
-        const t = Math.min((now - start) / duration, 1);
-        // ease-out cubic
-        setAnimProgress(1 - Math.pow(1 - t, 3));
-        if (t < 1) {
+        const elapsed = now - start;
+        setAnimElapsed(elapsed >= totalMs ? Infinity : elapsed);
+        if (elapsed < totalMs) {
           animFrameRef.current = requestAnimationFrame(tick);
         }
       };
 
-      setAnimProgress(0);
+      setAnimElapsed(0);
       animFrameRef.current = requestAnimationFrame(tick);
       return () => {
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       };
     } else {
-      setAnimProgress(1);
+      setAnimElapsed(Infinity);
     }
-  }, [animatingIds]);
+  }, [animatingIds, totalMs]);
+
+  // How far a growing bar has got, 0→1 with an ease-out. In a wave, a bar
+  // starts once the wave reaches its left edge on screen.
+  const growProgress = (x) => {
+    if (animElapsed === Infinity) return 1;
+    const delay = animationWave ? animationWave * Math.min(Math.max(x / Math.max(width, 1), 0), 1) : 0;
+    const t = Math.min(Math.max((animElapsed - delay) / growMs, 0), 1);
+    return 1 - Math.pow(1 - t, 3);
+  };
 
   // Get hovered period date range for highlighting
   const hoveredPeriodRange = hoveredPeriod ? getYearRange(hoveredPeriod.startDate, hoveredPeriod.endDate) : null;
@@ -132,6 +155,12 @@ export function TimelineCanvas({
       );
     }
 
+    // Harp strings at rest go first, so every bar and name sits on top of
+    // them (owner's call, M3 round 3). The overlay draws the hovered one.
+    if (!isBackLayer && config?.pointStyle === 'string') {
+      renderStrings(ctx, layout.stackedPoints || []);
+    }
+
     // Render all other items (they already have y positions calculated)
     renderPeople(ctx, visible(layout.stackedPeople));
     renderPoints(ctx, visible(layout.stackedPoints));
@@ -141,7 +170,7 @@ export function TimelineCanvas({
 
     // Draw search highlights on top
     renderSearchHighlights(ctx, layout);
-  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animProgress, palette, yOffset, onlyIds, layerMode]);
+  }, [width, height, viewportStartYear, yearsPerPixel, panOffsetY, layout, config, hoveredItem, hoveredPeriod, highlightedItemIds, currentHighlightId, animatingIds, animElapsed, animationWave, stringFocusIds, palette, yOffset, onlyIds, layerMode]);
 
   /** The focus layer draws a subset; every other layer draws everything. */
   function visible(items) {
@@ -178,6 +207,7 @@ export function TimelineCanvas({
       }
 
       // Check if this person is animating (grow from left to right)
+      const animProgress = growProgress(x);
       const isAnimating = animatingIds && animatingIds.has(person.id) && animProgress < 1;
 
       // Save context state for opacity
@@ -219,7 +249,7 @@ export function TimelineCanvas({
 
       // The focus layer is the only place a background figure gets a name —
       // blurred labels on the resting layer are noise, not information.
-      if (showLabels) {
+      if (showLabels && !(suppressMonarchNames && person.isMonarch)) {
         drawLayerLabel(ctx, person.name, x + 4, y + boxHeight / 2, color);
       }
 
@@ -400,6 +430,25 @@ export function TimelineCanvas({
     });
   }
 
+  // Harp strings: one full-height hairline per landmark, in its colour.
+  function renderStrings(ctx, points) {
+    const focusActive = stringFocusIds && stringFocusIds.size > 0;
+    ctx.save();
+    for (const point of points) {
+      const x = Math.round(yearToPixel(getYearRange(point.date).start, viewportStartYear, yearsPerPixel)) + 0.5;
+      if (x < -2 || x > width + 2) continue;
+      const inFocus = focusActive && stringFocusIds.has(point.id);
+      ctx.globalAlpha = focusActive ? (inFocus ? 0.85 : 0.12) : 0.3;
+      ctx.lineWidth = inFocus ? 2 : 1;
+      ctx.strokeStyle = point.color || '#888';
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   // Render points
   function renderPoints(ctx, points) {
     points.forEach(point => {
@@ -420,9 +469,11 @@ export function TimelineCanvas({
         ctx.restore();
       }
 
-      // Store in hit map for clicking (left-aligned from date position)
+      // Store in hit map for clicking (left-aligned from date position).
+      // Harp strings are their own targets in the overlay; a 120px box here
+      // would be an invisible landmark target over whatever lies beside it.
       const hitWidth = 120;
-      if (interactive) {
+      if (interactive && config?.pointStyle !== 'string') {
         hitMapRef.current.set(point.id, {
           type: 'point',
           item: point,

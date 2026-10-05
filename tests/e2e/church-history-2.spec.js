@@ -18,6 +18,11 @@ import { fileURLToPath } from 'node:url';
 import { installConfigMock, installClerkMock, installSupabaseTableMock } from './fixtures.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const SNAPSHOT = (() => {
+  const snap = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'tests/e2e/data/lifelines-snapshot.json'), 'utf8'));
+  delete snap._meta;
+  return snap;
+})();
 
 const person = (id, name, birth, death, role, extra = {}) => ({
   person_id: id,
@@ -44,6 +49,8 @@ const TABLES = {
     // Front layer: a plain figure and a defender.
     person('athanasius', 'Athanasius', 296, 373, 'defender'),
     person('gregory-nyssa', 'Gregory of Nyssa', 335, 395, null),
+    // A second figure at Nicaea, so its string carries two dots.
+    person('eusebius', 'Eusebius of Caesarea', 260, 339, null),
     // Foreground figure in a much later era, to prove the date-derived remap.
     person('aquinas', 'Thomas Aquinas', 1225, 1274, null),
     // Back layer: a heresiarch, a contested figure and an emperor.
@@ -79,6 +86,22 @@ const TABLES = {
       event_date: '0313-01-01', end_date: null, location: 'Milan',
       description: 'Test fixture.', reference_url: null, active: false,
     },
+    // Round 5: landmarks are major or minor; minor ones are hidden.
+    {
+      event_id: 'event-fire-rome', name: 'Great Fire of Rome', event_type: 'event',
+      event_date: '0064-01-01', end_date: null, location: 'Rome',
+      description: 'Test fixture.', reference_url: null, active: true, significance: 'major',
+    },
+    {
+      event_id: 'event-hagia-sophia', name: 'Hagia Sophia consecrated', event_type: 'event',
+      event_date: '0360-01-01', end_date: null, location: 'Constantinople',
+      description: 'Test fixture.', reference_url: null, active: true, significance: 'minor',
+    },
+    {
+      event_id: 'council-arles-314', name: 'Council of Arles', event_type: 'council',
+      event_date: '0314-01-01', end_date: null, location: 'Arles',
+      description: 'Test fixture.', reference_url: null, active: true, significance: 'minor',
+    },
   ],
   CH_Movements: [
     {
@@ -102,6 +125,7 @@ const TABLES = {
   ],
   CH_EventConnections: [
     { id: 1, event_id: 'council-nicaea', person_id: 'athanasius' },
+    { id: 2, event_id: 'council-nicaea', person_id: 'eusebius' },
   ],
   CH_Sources: [],
   CH_Source_Figures: [],
@@ -114,10 +138,12 @@ const TABLES = {
   ],
 };
 
-async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at } = {}) {
+async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false } = {}) {
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
-  await installSupabaseTableMock(page, TABLES);
+  // realData: the snapshot of the live tables, for checks that only mean
+  // something at real density (the fixture has seven people).
+  await installSupabaseTableMock(page, realData ? SNAPSHOT : TABLES);
   await page.setViewportSize(viewport);
   // A query goes on the clean URL: the .html form redirects to it (here and on
   // Cloudflare Pages), and serve drops the query on the way.
@@ -161,27 +187,49 @@ test.describe('CH Timeline 2.0', () => {
     expect(bg).toBe('rgb(255, 255, 255)');
   });
 
-  test('legend shows a century ramp and a short key, not eras or periods', async ({ page }) => {
+  // Changed in milestone 3: the colour key (century ramp, swatches, section
+  // headings) was removed at the owner's direction. The legend is now
+  // Lifelines' name, the four switches, and Windhover at the foot.
+  test('legend leads with Lifelines, lists five switches, and signs off with Windhover', async ({ page }) => {
     await loadPage(page);
+    const legend = page.locator('.timeline-legend--slim');
 
-    // Colour means century now, shown as a ramp rather than sixteen rows.
-    await expect(page.locator('.legend-century-bar')).toHaveCount(1);
-    const ticks = await page.locator('.legend-century-ticks span').allTextContents();
-    expect(ticks[0]).toBe('1st');
-    expect(ticks[ticks.length - 1]).toBe('16th');
+    await expect(legend.locator('.legend-site-title')).toContainText('Lifelines');
+    await expect(legend.locator('.legend-publisher')).toContainText('Windhover');
+    await expect(legend.locator('.legend-publisher')).toContainText("Get a bird's eye view");
+    // Name above the switches, publisher below them.
+    const titleY = (await legend.locator('.legend-site-title').boundingBox()).y;
+    const rowsY = (await legend.locator('.legend-slim-rows').boundingBox()).y;
+    const publisherY = (await legend.locator('.legend-publisher').boundingBox()).y;
+    expect(titleY).toBeLessThan(rowsY);
+    expect(rowsY).toBeLessThan(publisherY);
 
-    const headings = page.locator('.legend-section-heading');
-    expect((await headings.allTextContents()).map(t => t.trim()))
-      .toEqual(['Figures', 'Landmarks', 'Background']);
+    const rows = (await legend.locator('.legend-slim-label').allTextContents()).map(t => t.trim());
+    // Round 5 brought the major events back, with their own switch.
+    expect(rows).toEqual(['Church figures', 'Councils', 'Events', 'Texts & creeds', 'Emperors & monarchs']);
 
-    const rows = (await page.locator('.legend-item').allTextContents()).map(t => t.trim());
-    expect(rows).toEqual(['Church figures', 'Councils', 'Texts & creeds', 'Emperors & monarchs']);
+    // No colour key and no eras, ramp or period rows.
+    await expect(page.locator('.legend-century-bar')).toHaveCount(0);
+    await expect(page.locator('.legend-color-box')).toHaveCount(0);
+    await expect(page.locator('.legend-section-heading')).toHaveCount(0);
+    // Each switch is named by its row, so a screen reader hears "Councils".
+    await expect(legend.getByRole('checkbox', { name: 'Councils' })).toBeChecked();
+  });
 
-    // None of the era rows survive, and neither does 1.0's generic "Period".
-    for (const gone of ['The Apostolic Age', 'Early Middle Ages', 'Renaissance & Reformation']) {
-      await expect(page.locator('.legend-item', { hasText: gone })).toHaveCount(0);
-    }
-    await expect(page.locator('.legend-item').filter({ hasText: /^Period$/ })).toHaveCount(0);
+  test('legend folds to a Key button while the detail panel is open', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator('.timeline-legend--slim .legend-slim-rows')).toBeVisible();
+    const search = page.locator('.timeline-search-input').first();
+    await search.fill('Athanasius');
+    await page.locator('.timeline-search-dropdown [role="option"]').first().click();
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+
+    const key = page.getByRole('button', { name: 'Key' });
+    await expect(key).toBeVisible();
+    await expect(page.locator('.legend-slim-rows')).toHaveCount(0);
+    // The reader can still open it by hand.
+    await key.click();
+    await expect(page.locator('.legend-slim-rows')).toBeVisible();
   });
 
   test('hides heresiarchs, keeps contested figures, drops deactivated rows', async ({ page }) => {
@@ -205,43 +253,204 @@ test.describe('CH Timeline 2.0', () => {
     await expect(page.locator('.timeline-search-option')).toHaveCount(0);
   });
 
-  test('the background layer is blurred and non-interactive at rest', async ({ page }) => {
+  // The rulers (round 6, owner's pick): a strip pinned to the foot of the
+  // timeline, not a band under the axis. The blurred band, then the "crisp
+  // and quiet" band and the Rulers control, were each tried and retired; the
+  // tests that asserted them went with them.
+  test('the rulers sit in a strip at the foot, above which the controls sit', async ({ page }) => {
     await loadPage(page);
-
-    const wash = page.locator('.ch2-layer-wash');
-    await expect(wash).toBeVisible();
-
-    const style = await wash.evaluate(el => {
-      const cs = getComputedStyle(el);
-      return { filter: cs.filter, opacity: Number(cs.opacity), pointerEvents: cs.pointerEvents };
-    });
-    expect(style.filter).toContain('blur');
-    expect(style.opacity).toBeLessThan(1);
-    expect(style.pointerEvents).toBe('none');
-
-    // Nothing is focused yet, so the crisp overlay is not mounted.
-    await expect(page.locator('.ch2-layer-focus')).toHaveCount(0);
+    const strip = page.locator('.ruler-strip');
+    await expect(strip).toBeVisible();
+    await expect(page.locator('.ch2-layer-wash')).toHaveCount(0);
+    await expect(page.locator('.depth-controls')).toHaveCount(0);
+    await expect(strip.getByText('Constantius II')).toBeVisible();
+    const s = await strip.boundingBox();
+    const viewport = page.viewportSize();
+    expect(s.y + s.height).toBeGreaterThan(viewport.height - 2);
+    const controls = await page.locator('.timeline-controls').boundingBox();
+    expect(controls.y + controls.height).toBeLessThanOrEqual(s.y);
+    // A ruler in the strip opens like any figure.
+    await strip.getByText('Constantius II').click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Constantius II');
   });
 
-  test('the depth control lifts the whole background layer', async ({ page }) => {
-    await loadPage(page);
-
-    const wash = page.locator('.ch2-layer-wash');
-    // The filter is transitioned, so poll rather than sampling mid-animation.
-    const blurPx = () => wash.evaluate(el => {
-      const match = /blur\(([\d.]+)px\)/.exec(getComputedStyle(el).filter);
-      return match ? Number(match[1]) : null;
+  for (const viewport of [{ width: 820, height: 1180 }, { width: 1440, height: 900 }]) {
+    test(`ruler names in the strip never overlap one another (${viewport.width}px, real data)`, async ({ page }) => {
+      // With all five rows full a reign shares a row, and its name was
+      // written over the next one ("Decius" over "Valerian"); it is cut now.
+      await loadPage(page, { viewport, realData: true });
+      const overlaps = await page.locator('.ruler-strip').evaluate(strip => {
+        const names = [...strip.querySelectorAll('.ruler-strip-name')].map(el => el.getBoundingClientRect());
+        let n = 0;
+        names.forEach((a, i) => names.slice(i + 1).forEach(b => {
+          if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) n++;
+        }));
+        return { n, count: names.length };
+      });
+      expect(overlaps.count).toBeGreaterThan(20);
+      expect(overlaps.n).toBe(0);
     });
-    expect(await blurPx()).toBeGreaterThan(1);
+  }
 
-    await page.locator('.depth-btn', { hasText: 'Front' }).click();
-    await expect.poll(blurPx, { timeout: 3000 }).toBe(0);
+  test('the timeline starts at 100 BC', async ({ page }) => {
+    await loadPage(page);
+    // Pan far to the left: the view stops at the floor.
+    for (let i = 0; i < 6; i++) await page.locator('[title="Scroll left"]').dispatchEvent('mousedown');
+    await page.locator('.timeline-container').evaluate(el => {
+      for (let i = 0; i < 40; i++) el.dispatchEvent(new WheelEvent('wheel', { deltaX: -400, bubbles: true, cancelable: true }));
+    });
+    await expect(page.locator('.zoom-info')).toHaveText(/^100 BC/);
+  });
 
-    await page.locator('.depth-btn', { hasText: 'Off' }).click();
-    await expect(wash).toHaveCount(0);
+  test("the detail panel's title takes focus without a ring", async ({ page }) => {
+    await loadPage(page);
+    await page.locator('.timeline-search-input').first().fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    const title = page.locator('#timeline-detail-title');
+    await expect(title).toBeFocused();
+    await expect(title).toHaveCSS('outline-style', 'none');
+  });
 
-    await page.locator('.depth-btn', { hasText: 'Soft' }).click();
-    await expect(page.locator('.ch2-layer-wash')).toBeVisible();
+  test('leaving the tour, the rest of the timeline sweeps in, then settles', async ({ page }) => {
+    await loadPage(page, { dismissWelcome: false, realData: true });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await expect(page.locator('[title="Exit tour"]')).toBeVisible();
+    const during = await page.locator('.person-label').count();
+
+    await page.locator('[title="Exit tour"]').click();
+    // The newcomers arrive on a wave: their labels carry the reveal...
+    await expect.poll(() => page.locator('.person-label[style*="timeline-reveal"]').count()).toBeGreaterThan(0);
+    expect(await page.locator('.person-label').count()).toBeGreaterThan(during);
+    // ...and within a couple of seconds the timeline is still again.
+    await expect(page.locator('.person-label[style*="timeline-reveal"]')).toHaveCount(0, { timeout: 4000 });
+    // The camera glided back to the opening view (round 3).
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+  });
+
+  test('a trackpad pinch over the timeline zooms the timeline', async ({ page }) => {
+    await loadPage(page);
+    const before = await page.locator('.zoom-info').textContent();
+    const prevented = await page.locator('.timeline-container').evaluate(el => {
+      const r = el.getBoundingClientRect();
+      const e = new WheelEvent('wheel', { deltaY: -400, ctrlKey: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(prevented).toBe(true);
+    await expect(page.locator('.zoom-info')).not.toHaveText(before);
+  });
+
+  test('when the page itself is zoomed, the timeline lets the wheel scroll the page', async ({ page }) => {
+    // Pinching over the header zooms the whole page; the timeline then held
+    // every wheel, so the reader couldn't scroll back out to the header.
+    await page.addInitScript(() => {
+      Object.defineProperty(VisualViewport.prototype, 'scale', { get: () => 2, configurable: true });
+    });
+    await loadPage(page);
+    const before = await page.locator('.zoom-info').textContent();
+    const prevented = await page.locator('.timeline-container').evaluate(el => {
+      const e = new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(prevented).toBe(false);
+    await expect(page.locator('.zoom-info')).toHaveText(before);
+  });
+
+  test('on a phone the tour is a bottom sheet, leaving the timeline the top', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const sheet = await page.locator('.tour-panel').boundingBox();
+    expect(sheet.width).toBeGreaterThanOrEqual(388);
+    expect(sheet.y + sheet.height).toBeGreaterThan(844 - 2);
+    expect(sheet.height).toBeLessThanOrEqual(844 * 0.5);
+    // The timeline keeps the full width above it.
+    const timeline = await page.locator('.mobile-timeline').boundingBox();
+    expect(timeline.width).toBeGreaterThanOrEqual(388);
+    expect(timeline.y + timeline.height).toBeLessThanOrEqual(sheet.y + 1);
+  });
+
+  test('on a phone, each tour scene frames its figures in the vertical timeline', async ({ page }) => {
+    // The tour's framing only drove the horizontal timeline, so on a phone
+    // every scene stayed wherever the reader had last scrolled (round 5).
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.locator('[title="Next (→)"]').click();
+    // Scene two: Athanasius and Gregory of Nyssa, whole, inside the visible
+    // part of the timeline (above the tour sheet).
+    await expect.poll(() => page.evaluate(() => {
+      const view = document.querySelector('.mobile-timeline-scroll').getBoundingClientRect();
+      const bar = (name) => [...document.querySelectorAll('.mobile-person-name')]
+        .find(el => el.textContent === name)?.closest('.mobile-person-lane')?.getBoundingClientRect();
+      return ['Athanasius', 'Gregory of Nyssa'].every(name => {
+        const b = bar(name);
+        return b && b.top >= view.top - 1 && b.bottom <= view.bottom + 1;
+      });
+    }), { timeout: 3000 }).toBe(true);
+  });
+
+  // Scene 7 of the real tour opens Irenaeus. On a phone the full dialog, map
+  // and all, covered the timeline and half the tour sheet; it is now a short
+  // card above the sheet (owner's call, round 6c).
+  for (const layout of ['vertical', 'horizontal']) {
+    test(`on a phone (${layout}), a tour step's figure opens as a short card above the sheet`, async ({ page }) => {
+      await page.addInitScript(l => localStorage.setItem('lifelines-layout', l), layout);
+      await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: layout === 'vertical', dismissWelcome: false, realData: true });
+      await page.getByRole('button', { name: 'Take the Tour' }).click();
+      for (let i = 0; i < 6; i++) {
+        await page.locator('[title="Next (→)"]').click();
+        await page.waitForTimeout(150);
+      }
+      const card = page.locator('.timeline-modal--brief .modal-content');
+      await expect(card.getByRole('heading', { name: 'Irenaeus of Lyons' })).toBeVisible({ timeout: 3000 });
+      // No backdrop, map or works list; short, and clear of the tour sheet.
+      await expect(page.locator('.modal-backdrop')).toHaveCount(0);
+      await expect(page.locator('.historical-map-container')).toHaveCount(0);
+      await expect(card.locator('.modal-works')).toHaveCount(0);
+      const box = await card.boundingBox();
+      const sheet = await page.locator('.tour-panel').boundingBox();
+      expect(box.height).toBeLessThanOrEqual(844 * 0.45);
+      expect(box.y + box.height).toBeLessThanOrEqual(sheet.y);
+      // The tour carries on underneath it.
+      await expect(page.locator('[title="Next (→)"]')).toBeEnabled();
+
+      // "More" opens the full detail, map included.
+      await card.getByRole('button', { name: 'More about Irenaeus of Lyons' }).click();
+      await expect(page.locator('.timeline-modal--brief')).toHaveCount(0);
+      await expect(page.locator('.historical-map-container')).toHaveCount(1, { timeout: 10_000 });
+    });
+  }
+
+  test('on a phone, a figure tapped outside the tour still opens the full detail', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    await page.locator('.mobile-person-name', { hasText: 'Athanasius' }).first().click();
+    await expect(page.locator('.timeline-modal .modal-title')).toContainText('Athanasius');
+    await expect(page.locator('.timeline-modal--brief')).toHaveCount(0);
+    await expect(page.locator('.historical-map-container')).toHaveCount(1, { timeout: 10_000 });
+  });
+
+  test('the layout toggle switches between the two timelines and is remembered', async ({ page }) => {
+    await loadPage(page);
+    const toggle = page.getByRole('group', { name: 'Layout' });
+    await expect(toggle.getByRole('button', { name: 'Horizontal' })).toHaveAttribute('aria-pressed', 'true');
+
+    await toggle.getByRole('button', { name: 'Vertical' }).click();
+    await expect(page.locator('.mobile-timeline')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Vertical' }))
+      .toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    await expect(page.locator('.mobile-timeline')).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('group', { name: 'Layout' }).getByRole('button', { name: 'Horizontal' }).click();
+    await expect(page.locator('.mobile-timeline')).toHaveCount(0);
+    await expect(page.locator('canvas').first()).toBeVisible();
+  });
+
+  test('phones start vertical, with the layout toggle in the toolbar', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    await expect(page.locator('.mobile-timeline-toolbar').getByRole('group', { name: 'Layout' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Vertical' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('selecting a figure docks the detail panel beside a live timeline', async ({ page }) => {
@@ -267,9 +476,9 @@ test.describe('CH Timeline 2.0', () => {
     // The timeline stays live — a centred modal freezes it with this class.
     await expect(page.locator('body.modal-open')).toHaveCount(0);
 
-    // Athanasius's background is now in focus: his opponent, his movement and
-    // the council he is tied to are drawn crisp on the focus layer.
-    await expect(page.locator('.ch2-layer-focus')).toBeVisible();
+    // Athanasius's background is now in focus: the emperor reigning in his
+    // lifetime is marked in the rulers' strip.
+    await expect(page.locator('.ruler-strip-item.is-focus', { hasText: 'Constantius II' })).toBeVisible();
 
     // Closing gives the width back.
     await page.locator('.modal-close').click();
@@ -495,7 +704,7 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     const bg = await tour.evaluate(el => getComputedStyle(el).backgroundColor);
     const [r, g, b] = bg.match(/\d+/g).map(Number);
     expect(Math.min(r, g, b)).toBeGreaterThan(200);
-    const legend = await page.locator('.legend-label').first().evaluate(el => getComputedStyle(el).color);
+    const legend = await page.locator('.legend-slim-label').first().evaluate(el => getComputedStyle(el).color);
     const [lr, lg, lb] = legend.match(/\d+/g).map(Number);
     expect(Math.max(lr, lg, lb)).toBeLessThan(140);
   });
@@ -522,6 +731,97 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     const mid = await label.textContent();
     await zoomOut.click();
     await expect(label).not.toHaveText(mid);
+  });
+
+  test('on a phone, zooming in keeps the years on screen', async ({ page }) => {
+    // Zooming kept the scroll offset in pixels, so zooming in slid the view
+    // back towards 100 BC and empty years (M3 step 6).
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, realData: true });
+    const label = page.locator('.mobile-zoom-label');
+    await expect(label).toHaveText(/AD/);
+    const middle = (text) => {
+      const years = [...text.matchAll(/(\d+)\s*(BC|AD)?/g)].map(m => (m[2] === 'BC' ? -Number(m[1]) : Number(m[1])));
+      // "5 BC – 85 AD", or "100–150 AD" with one era for both.
+      if (/BC/.test(text) && !/AD/.test(text)) years.forEach((y, i) => { years[i] = -Math.abs(y); });
+      return (years[0] + years[years.length - 1]) / 2;
+    };
+    const before = middle(await label.textContent());
+    const zoomIn = page.locator('.mobile-zoom-controls .mobile-toolbar-btn').nth(1);
+    await zoomIn.click();
+    await zoomIn.click();
+    await expect(label).not.toHaveText(/BC/);
+    expect(Math.abs(middle(await label.textContent()) - before)).toBeLessThanOrEqual(8);
+  });
+
+  test('on a phone, landmarks are strings whose labels sit beside the axis, clear of figures and each other', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, realData: true });
+    // The old cards sat on the bars and on one another (DESIGN §7 known
+    // violation, M3 step 6).
+    await expect(page.locator('.mobile-point-marker')).toHaveCount(0);
+    expect(await page.locator('.mobile-string-mark').count()).toBeGreaterThan(50);
+    const clashes = await page.evaluate(() => {
+      const rects = (sel) => [...document.querySelectorAll(sel)].map(el => el.getBoundingClientRect());
+      const hit = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+      const labels = rects('.mobile-string-name');
+      const bars = rects('.mobile-person-lane');
+      let found = 0;
+      labels.forEach((l, i) => {
+        if (bars.some(b => hit(l, b))) found++;
+        if (labels.slice(i + 1).some(o => hit(l, o))) found++;
+      });
+      return { found, labels: labels.length };
+    });
+    expect(clashes.labels).toBeGreaterThan(3);
+    expect(clashes.found).toBe(0);
+    // Tapping a mark opens the landmark.
+    await page.locator('.mobile-string-mark').first().click();
+    await expect(page.locator('.timeline-modal .modal-title')).toBeVisible();
+  });
+
+  test('on a phone, the vertical timeline keeps the rulers, in a column at the right edge', async ({ page }) => {
+    // The vertical layout dropped every emperor and monarch while the Key
+    // still offered their switch (Codex review on PR #160). They now sit in
+    // the bottom strip's vertical twin.
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, realData: true });
+    const column = page.locator('.mobile-ruler-column');
+    await expect(column).toBeVisible();
+    const box = await column.boundingBox();
+    expect(box.x + box.width).toBeGreaterThan(388);
+    const tiberius = column.getByRole('button', { name: /^Tiberius,/ });
+    await expect(tiberius).toBeVisible();
+
+    // It scrolls with the years: Tiberius moves as far as the 25 AD gridline.
+    const yOf = () => tiberius.evaluate(el => el.getBoundingClientRect().top);
+    const before = await yOf();
+    await page.locator('.mobile-timeline-scroll').evaluate(el => { el.scrollTop += 200; });
+    await expect.poll(yOf).toBeCloseTo(before - 200, 0);
+
+    // Names never overlap one another.
+    const clashes = await column.evaluate(el => {
+      const r = [...el.querySelectorAll('.mobile-ruler-name')].map(n => n.getBoundingClientRect());
+      let n = 0;
+      r.forEach((a, i) => r.slice(i + 1).forEach(b => {
+        if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) n++;
+      }));
+      return n;
+    });
+    expect(clashes).toBe(0);
+
+    // A tap opens the ruler; the Key's switch hides the column.
+    await tiberius.click();
+    await expect(page.locator('.timeline-modal .modal-title')).toContainText('Tiberius');
+    await page.locator('.timeline-modal .modal-close').click();
+    await page.locator('.mobile-toolbar-btn', { hasText: 'Filter' }).click();
+    await page.locator('.mobile-filter-item', { hasText: 'Emperors' }).locator('input').uncheck();
+    await expect(column).toHaveCount(0);
+  });
+
+  test('on a phone, the vertical timeline is on white: toolbar and year gutter', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    const bg = (sel) => page.locator(sel).evaluate(el => getComputedStyle(el).backgroundColor);
+    const channels = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+    expect(Math.min(...channels(await bg('.mobile-timeline-toolbar')))).toBeGreaterThanOrEqual(250);
+    expect(Math.min(...channels(await bg('.mobile-year-gutter')))).toBeGreaterThanOrEqual(250);
   });
 });
 
@@ -553,5 +853,323 @@ test.describe('Lifelines as the front page (milestone 2)', () => {
     expect(response?.status()).toBe(404);
     await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Go to Lifelines' })).toHaveAttribute('href', '/');
+  });
+});
+
+test.describe('Review round fixes (milestone 3)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  test('moving into the header leaves no hover card or year chip behind', async ({ page }) => {
+    await loadPage(page);
+    // Sweep across the timeline (showing the year chip, and hovering whatever
+    // lies under the path), then up into the header. The header is a solid
+    // bar on Lifelines, so it must not hover the figures hidden behind it.
+    await page.mouse.move(300, 400);
+    await expect(page.locator('.cursor-year-display')).toBeVisible();
+    await page.mouse.move(700, 20, { steps: 8 });
+    await expect(page.locator('.cursor-year-display')).toHaveCount(0);
+    await expect(page.locator('.hover-preview')).toHaveCount(0);
+  });
+
+  test('no figure label runs into the next one in its row (real data)', async ({ page }) => {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 820, height: 1180 }]) {
+      await loadPage(page, { viewport, realData: true });
+      const boxes = await page.locator('.person-label').evaluateAll(els => els.map(el => {
+        const r = el.getBoundingClientRect();
+        return { text: el.textContent, top: Math.round(r.top), left: r.left, right: r.right };
+      }));
+      expect(boxes.length).toBeGreaterThan(20);
+      const overlaps = [];
+      // Grouped by hand: CI runs Node 20, which has no Map.groupBy.
+      const rows = new Map();
+      for (const b of boxes) rows.set(b.top, [...(rows.get(b.top) || []), b]);
+      for (const row of rows.values()) {
+        row.sort((a, b) => a.left - b.left);
+        for (let i = 1; i < row.length; i++) {
+          if (row[i].left < row[i - 1].right - 1) overlaps.push(`${row[i - 1].text} / ${row[i].text}`);
+        }
+      }
+      expect(overlaps, `at ${viewport.width}px`).toEqual([]);
+    }
+  });
+
+  test('search names results as the legend does, without the red EVENT chip', async ({ page }) => {
+    await loadPage(page);
+    const search = page.locator('.timeline-search-input').first();
+    await search.fill('Nicaea');
+    const council = page.locator('.timeline-search-dropdown [role="option"]', { hasText: 'Council of Nicaea' });
+    await expect(council.locator('.timeline-search-option-kind')).toHaveText('Council');
+    await search.fill('Athanasius');
+    await expect(page.locator('.timeline-search-option-kind').first()).toHaveText('Person');
+    await expect(page.locator('.timeline-search-option-type')).toHaveCount(0);
+  });
+
+  test('the detail panel leads with the description and a sentence-case map heading', async ({ page }) => {
+    await loadPage(page);
+    await page.locator('.timeline-search-input').first().fill('Athanasius');
+    await page.locator('.timeline-search-dropdown [role="option"]').first().click();
+    const panel = page.locator('.timeline-modal--panel');
+    await expect(panel.locator('.historical-map-section h3')).toHaveText('Historical map');
+    // boundingBox() doesn't wait; under a busy parallel run the description
+    // could still be mounting when it was measured.
+    await expect(panel.locator('.modal-description')).toBeVisible();
+    const descY = (await panel.locator('.modal-description').boundingBox()).y;
+    // The map loads on first use (LazyMaps): its placeholder is swapped for
+    // the real section, so wait for that before measuring it.
+    await expect(panel.locator('.historical-map-container:not([aria-busy])')).toBeAttached();
+    const mapY = (await panel.locator('.historical-map-section').boundingBox()).y;
+    expect(descY).toBeLessThan(mapY);
+  });
+
+  test('keyboard route: skip link, search, panel, Esc back to search', async ({ page }) => {
+    await loadPage(page, { dismissWelcome: false });
+    // The welcome dialog takes focus on its main button; Tab, Enter skips it.
+    const welcome = page.getByRole('dialog', { name: 'Welcome to Lifelines' });
+    await expect(welcome.getByRole('button', { name: 'Take the Tour' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(welcome.getByRole('button', { name: 'Skip' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(welcome).toHaveCount(0);
+
+    // Focus starts again at the top: the skip link, shown because the
+    // keyboard put it there.
+    const skip = page.getByRole('link', { name: 'Skip to search' });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press('Enter');
+    const search = page.getByLabel('Search figures, councils and texts');
+    await expect(search).toBeFocused();
+
+    // Pick a figure from the results without the mouse.
+    await page.keyboard.type('Athanasius');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const panel = page.getByRole('region', { name: 'Athanasius' });
+    await expect(panel).toBeVisible();
+    await expect(page.locator('#timeline-detail-title')).toBeFocused();
+
+    // Esc closes it and hands focus back to search.
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(search).toBeFocused();
+  });
+
+  // Harp strings are Lifelines' landmarks (owner's pick, M3 round 2).
+  test('landmarks are harp strings, and a label click opens its landmark', async ({ page }) => {
+    // Also guards the mouseup fix: a click with no settled move before it
+    // read as a drag and was swallowed, so landmarks opened nothing.
+    await loadPage(page);
+    await expect(page.locator('.point-callout')).toHaveCount(0);
+    // Strings rest on the canvas (round 3); their hit strips are the sign.
+    expect(await page.locator('.point-string-hit').count()).toBeGreaterThan(0);
+    await page.locator('.point-string-label', { hasText: 'Council of Nicaea' }).click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
+  });
+
+  // Round 3 tried short labels that grew on hover; round 4 took them back
+  // (owner's call): a label reads the same at rest and under the pointer.
+  test('labels show the full name and do not change on hover; marks follow the kind', async ({ page }) => {
+    await loadPage(page);
+    const label = page.locator('.point-string-label', { hasText: 'Council of Nicaea' });
+    await expect(label).toHaveText('Council of Nicaea');
+    await label.hover();
+    await expect(label).toHaveText('Council of Nicaea');
+    // A council's mark is a diamond, in the label and on its dots.
+    await expect(label.locator('.string-mark--diamond')).toHaveCount(1);
+    await expect(page.locator('.point-string-dot--diamond[data-point-id="council-nicaea"]').first()).toBeAttached();
+    // The Key shows the same marks.
+    await expect(page.locator('.legend-slim-rows .string-mark--diamond')).toHaveCount(1);
+    await expect(page.locator('.legend-slim-rows .string-mark--square')).toHaveCount(1);
+  });
+
+  test('major events show with a dot; minor events and councils are hidden', async ({ page }) => {
+    await loadPage(page);
+    const fire = page.locator('.point-string-label', { hasText: 'Great Fire of Rome' });
+    await expect(fire).toBeVisible();
+    await expect(fire.locator('.string-mark--dot')).toHaveCount(1);
+    await expect(page.locator('.point-string-label', { hasText: 'Hagia Sophia' })).toHaveCount(0);
+    await expect(page.locator('.point-string-label', { hasText: 'Council of Arles' })).toHaveCount(0);
+    // Minor landmarks aren't searchable either.
+    await page.locator('.timeline-search-input').first().fill('Arles');
+    await expect(page.locator('.timeline-search-option', { hasText: 'Council of Arles' })).toHaveCount(0);
+    await page.locator('.timeline-search-input').first().fill('');
+    // The Key's Events row switches them.
+    await page.getByRole('checkbox', { name: 'Events' }).click();
+    await expect(fire).toHaveCount(0);
+  });
+
+  test('hovering a string lights up the people linked to it', async ({ page }) => {
+    await loadPage(page);
+    const hit = page.locator('.point-string-hit[data-point-id="council-nicaea"]').last();
+    await hit.hover();
+    const line = page.locator('.point-string[data-point-id="council-nicaea"]');
+    await expect(line).toHaveCSS('width', '3px');
+    await expect(line).toHaveCSS('background-color', 'rgb(227, 169, 43)');
+    const rings = page.locator('.point-string-person-ring');
+    await expect(rings).toHaveCount(2);
+    expect((await rings.evaluateAll(els => els.map(e => e.dataset.personId))).sort()).toEqual(['athanasius', 'eusebius']);
+    await page.mouse.move(5, 5);
+    await expect(rings).toHaveCount(0);
+  });
+
+  test('strings rest behind the figures; the hovered one comes to the front', async ({ page }) => {
+    await loadPage(page);
+    // At rest, no string is drawn over the page: they are on the canvas,
+    // under the bars.
+    await expect(page.locator('.point-string')).toHaveCount(0);
+    await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().hover();
+    const line = page.locator('.point-string[data-point-id="council-nicaea"]');
+    await expect(line).toHaveCount(1);
+    // Over the names: it stacks above the figure labels.
+    const z = await line.evaluate(el => Number(getComputedStyle(el).zIndex));
+    const labelZ = await page.locator('.person-label').first().evaluate(el => Number(getComputedStyle(el).zIndex));
+    expect(z).toBeGreaterThan(labelZ);
+  });
+
+  test('a string turns gold under the pointer, and clicking it opens the landmark', async ({ page }) => {
+    await loadPage(page);
+    const line = page.locator('.point-string[data-point-id="council-nicaea"]');
+    await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().hover();
+    await expect(line).toHaveClass(/is-hover/);
+    await expect(line).toHaveCSS('background-color', 'rgb(227, 169, 43)');
+    await page.locator('.point-string-hit[data-point-id="council-nicaea"]').last().click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Council of Nicaea');
+  });
+
+  test("a linked landmark has a dot on each of its figures' bars", async ({ page }) => {
+    await loadPage(page);
+    // The fixture links Nicaea to Athanasius and Eusebius (CH_EventConnections).
+    const dots = page.locator('.point-string-dot[data-point-id="council-nicaea"]');
+    await expect(dots).toHaveCount(2);
+    expect((await dots.evaluateAll(els => els.map(e => e.dataset.personId))).sort()).toEqual(['athanasius', 'eusebius']);
+    const dot = page.locator('.point-string-dot[data-point-id="council-nicaea"][data-person-id="athanasius"]');
+    const d = await dot.boundingBox();
+    const label = await page.locator('.timeline-overlay').getByText('Athanasius', { exact: true }).first().boundingBox();
+    // On the bar's lower edge: just under the name, not on the axis.
+    const dotY = d.y + d.height / 2;
+    expect(dotY).toBeGreaterThan(label.y);
+    expect(dotY).toBeLessThan(label.y + label.height + 12);
+  });
+
+  test('on real data, no unlinked dot covers a figure', async ({ page }) => {
+    await loadPage(page, { realData: true });
+    const overlaps = await page.evaluate(() => {
+      const names = [...document.querySelectorAll('.timeline-overlay .person-label')]
+        .map(el => el.getBoundingClientRect());
+      return [...document.querySelectorAll('.point-string-dot:not(.is-linked)')].filter(dot => {
+        const r = dot.getBoundingClientRect();
+        return names.some(n => r.left < n.right && r.right > n.left && r.top < n.bottom && r.bottom > n.top);
+      }).map(d => d.dataset.pointId);
+    });
+    expect(overlaps).toEqual([]);
+    expect(await page.locator('.point-string-dot.is-linked').count()).toBeGreaterThan(5);
+  });
+
+  test('a click on empty timeline opens that year; a click on the controls does not', async ({ page }) => {
+    await loadPage(page);
+    // Controls and the legend are not empty timeline: no year summary.
+    await page.getByRole('button', { name: 'Zoom in' }).click();
+    await page.getByRole('checkbox', { name: 'Councils' }).click();
+    await page.getByRole('checkbox', { name: 'Councils' }).click();
+    await expect(page.getByRole('heading', { level: 2 }).filter({ hasText: /\d+ (AD|BC)/ })).toHaveCount(0);
+
+    // Empty canvas, low on the page and clear of the lanes, is.
+    const box = await page.locator('.timeline-container').boundingBox();
+    await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.85);
+    await expect(page.getByRole('heading', { level: 2 }).filter({ hasText: /\d+ (AD|BC)/ })).toBeVisible();
+  });
+});
+
+
+// Milestone 3, step 9: the desktop's horizontal timeline on a phone, chosen
+// with the layout toggle (remembered under lifelines-layout).
+// The timeline had no touch handling at all, so these drive real touch
+// events through the DevTools protocol (Chromium only, like the suite).
+test.describe('Horizontal phone prototype (milestone 3)', () => {
+  test.use({ hasTouch: true, isMobile: true });
+  const PHONE = { viewport: { width: 390, height: 844 }, realData: true };
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('lifelines-layout', 'horizontal'));
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  async function touch(page) {
+    const cdp = await page.context().newCDPSession(page);
+    const send = (type, points) => cdp.send('Input.dispatchTouchEvent', {
+      type, touchPoints: points.map(([x, y], id) => ({ x, y, id })),
+    });
+    return {
+      async drag(from, to, steps = 8) {
+        await send('touchStart', [from]);
+        for (let i = 1; i <= steps; i++) {
+          await send('touchMove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
+        }
+        await send('touchEnd', []);
+      },
+      async pinch(center, fromGap, toGap, steps = 8) {
+        const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
+        await send('touchStart', at(fromGap));
+        for (let i = 1; i <= steps; i++) await send('touchMove', at(fromGap + (toGap - fromGap) * i / steps));
+        await send('touchEnd', []);
+      },
+    };
+  }
+
+  // "30–130 AD" → [30, 130]; good enough for AD-only spans.
+  async function span(page) {
+    const text = await page.locator('.zoom-info').textContent();
+    const [a, b] = text.replace(/\s*AD$/, '').split('–').map(Number);
+    return [a, b];
+  }
+
+  test('a phone gets the horizontal timeline, opening on the apostolic age', async ({ page }) => {
+    await loadPage(page, PHONE);
+    await expect(page.locator('.mobile-timeline')).toHaveCount(0);
+    await expect(page.locator('.zoom-info')).toHaveText('1–160 AD');
+    // Touch-sized zoom buttons, still named for a screen reader.
+    const zoomIn = page.getByRole('button', { name: 'Zoom in' });
+    const box = await zoomIn.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  });
+
+  test('a finger drag pans the timeline', async ({ page }) => {
+    await loadPage(page, PHONE);
+    const [start] = await span(page);
+    const t = await touch(page);
+    // Mid-timeline: the foot of the screen holds the rulers' strip and,
+    // above it, the controls, which keep their own touch.
+    await t.drag([300, 500], [100, 500]);
+    // Dragging leftwards brings later years into view.
+    await expect.poll(async () => (await span(page))[0]).toBeGreaterThan(start + 20);
+    // A drag is not a tap: no year summary or detail opens.
+    await expect(page.locator('.timeline-modal')).toHaveCount(0);
+    // And it leaves no hover trail behind (a phone has no hover).
+    await expect(page.locator('.cursor-year-line')).toHaveCount(0);
+  });
+
+  test('a tap on a figure opens its detail as a modal', async ({ page }) => {
+    await loadPage(page, PHONE);
+    // Tap the bar just right of Polycarp's label (the label sits on the bar).
+    const label = await page.locator('.timeline-overlay').getByText('Polycarp', { exact: true }).first().boundingBox();
+    await page.touchscreen.tap(label.x + label.width + 30, label.y + label.height / 2);
+    await expect(page.locator('.timeline-modal')).toBeVisible();
+    await expect(page.locator('.timeline-modal--panel')).toHaveCount(0);
+    await expect(page.locator('#timeline-detail-title')).toHaveText(/Polycarp/);
+  });
+
+  test('a pinch zooms about the fingers', async ({ page }) => {
+    await loadPage(page, PHONE);
+    const [a0, b0] = await span(page);
+    const t = await touch(page);
+    await t.pinch([195, 500], 80, 240);
+    // Spreading the fingers threefold shows about a third as many years.
+    await expect.poll(async () => { const [a, b] = await span(page); return b - a; })
+      .toBeLessThan((b0 - a0) / 2);
   });
 });
