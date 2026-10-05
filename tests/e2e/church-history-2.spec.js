@@ -1374,7 +1374,7 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
     test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
   });
 
-  // Touches are dispatched as real TouchEvents inside the page, so the same
+  // Touches are dispatched as touch events inside the page, so the same
   // helper drives Chromium and WebKit (Safari's engine, which phones run).
   // It used to go through Chrome's DevTools protocol, which exists only in
   // Chromium (Firefox/WebKit CI, M4).
@@ -1382,14 +1382,19 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
     const send = (type, points) => page.evaluate(({ type, points }) => {
       const at = points[0] || window.__lastTouchPoint || [0, 0];
       const target = document.elementFromPoint(at[0], at[1]) || document.body;
-      const touches = points.map(([x, y], i) => new Touch({ identifier: i, target, clientX: x, clientY: y }));
       if (points.length) window.__lastTouchPoint = points[0];
-      target.dispatchEvent(new TouchEvent(type, {
-        bubbles: true, cancelable: true,
-        touches: type === 'touchend' ? [] : touches,
-        targetTouches: type === 'touchend' ? [] : touches,
-        changedTouches: touches.length ? touches : [new Touch({ identifier: 0, target, clientX: at[0], clientY: at[1] })],
-      }));
+      // Plain touch points on a plain event: desktop WebKit refuses
+      // `new Touch()` ("Illegal constructor"), and the timeline only reads
+      // identifier and clientX/Y from each point.
+      const point = ([x, y], i) => ({ identifier: i, target, clientX: x, clientY: y, pageX: x, pageY: y });
+      const touches = points.map(point);
+      const ev = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(ev, {
+        touches: { value: type === 'touchend' ? [] : touches },
+        targetTouches: { value: type === 'touchend' ? [] : touches },
+        changedTouches: { value: touches.length ? touches : [point(at, 0)] },
+      });
+      target.dispatchEvent(ev);
     }, { type, points });
     return {
       async drag(from, to, steps = 8) {
