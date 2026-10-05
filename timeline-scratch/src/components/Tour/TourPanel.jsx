@@ -3,7 +3,7 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from '../Timeline/components/Icon.jsx';
 import './TourPanel.css';
 
-function TourImage({ media, isAdmin, onCropUpdate, onError, overlayCredit = true }) {
+function TourImage({ media, isAdmin, onCropUpdate, onError, onLoad, overlayCredit = true }) {
   const [imgError, setImgError] = useState(false);
   // The image fades in once decoded, rather than painting in strips.
   const [loaded, setLoaded] = useState(false);
@@ -63,7 +63,7 @@ function TourImage({ media, isAdmin, onCropUpdate, onError, overlayCredit = true
         style={{ objectPosition: `${posX}% ${posY}%` }}
         className={loaded ? 'is-loaded' : undefined}
         decoding="async"
-        onLoad={() => setLoaded(true)}
+        onLoad={() => { setLoaded(true); onLoad?.(); }}
         onError={() => { setImgError(true); onError?.(); }}
         draggable={false}
       />
@@ -157,6 +157,9 @@ export function TourPanel({
             isAdmin={isAdmin}
             onCropUpdate={onMediaCropUpdate}
             onError={() => setFailedMediaId(media.mediaId)}
+            // Coming back to a scene retries its picture; if it loads this
+            // time, its credit comes back with it.
+            onLoad={() => setFailedMediaId(id => (id === media.mediaId ? null : id))}
             overlayCredit={!imageCredit}
           />
         )}

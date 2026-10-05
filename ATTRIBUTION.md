@@ -89,10 +89,13 @@ aren't shared with Google; the other pages still load them from Google Fonts
 
 ## Our content
 
-**Lifelines** — its own text (descriptions, notes, tour copy) and its data
-(the figures, dates, places and links in the `CH_*` tables) — is licensed
-under [Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/):
-anyone may reuse it, with credit to Windhover. This is stated to readers in
+**Lifelines** — the timeline's selection of people, dates and connections
+(the `CH_*` tables) and the tour text — is licensed under
+[Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/):
+anyone may reuse it, with credit to Matt Brown. Most of what a reader sees
+in the detail panel comes from elsewhere (Wikipedia, below); the licence
+covers the work of choosing and connecting it, so others can reuse the
+dataset without asking. This is stated to readers in
 Lifelines' About dialog. Third-party material it shows (Wikipedia text,
 maps, pictures) stays under its own licence, listed above.
 

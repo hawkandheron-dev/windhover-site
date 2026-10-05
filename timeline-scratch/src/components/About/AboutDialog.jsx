@@ -81,9 +81,10 @@ export function AboutDialog({ onClose }) {
             one generation to the next.
           </p>
           <p>
-            Lifelines&rsquo; own text, notes and data are shared under{' '}
+            The timeline&rsquo;s selection of people, dates and connections, and
+            the tour text, are shared under{' '}
             <a href="https://creativecommons.org/licenses/by/4.0/" {...ext}>CC BY 4.0</a>:
-            you may reuse them, with credit to Windhover.
+            you may reuse them, with credit to Matt Brown.
           </p>
 
           <h3 className="about-subheading">Credits</h3>

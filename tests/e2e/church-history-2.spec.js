@@ -1152,12 +1152,46 @@ test.describe('Credits, licences and privacy (milestone 7)', () => {
     await expect(page.locator('.tour-image-attribution')).toHaveCount(0);
   });
 
+  test('a picture that failed once gets its credit back when it loads on a return visit', async ({ page }) => {
+    // Found by Codex on #162: the failure stuck for the whole tour, so a
+    // picture that loaded on the second try showed without its credit.
+    const tables = {
+      ...TABLES,
+      CH_LinkedMedia: [{
+        media_id: 'm1', entity_type: 'tour_scene', entity_id: 's1', sort_order: 0,
+        media_url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Athanasius_icon.jpg',
+        alt_text: 'An icon of Athanasius', attribution: 'Public domain, Wikimedia Commons',
+      }],
+    };
+    // Commons is down until the test says otherwise (the tour also preloads
+    // pictures, so "the first request" isn't the panel's own).
+    let commonsUp = false;
+    await page.route('**/commons.wikimedia.org/**', r => {
+      return !commonsUp
+        ? r.fulfill({ status: 503, body: '' })
+        : r.fulfill({
+          status: 200, contentType: 'image/gif',
+          body: Buffer.from('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==', 'base64'),
+        });
+    });
+    await loadPage(page, { tables, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await expect(page.locator('.tour-scene-title')).toHaveText('Athanasius');
+    await expect(page.locator('.tour-image-credit')).toHaveCount(0);
+    commonsUp = true;
+    await page.locator('[title="Next (→)"]').click();
+    await page.locator('[title="Previous (←)"]').click();
+    await expect(page.locator('.tour-scene-image img')).toBeVisible();
+    await expect(page.locator('.tour-image-credit')).toContainText('Public domain, Wikimedia Commons');
+  });
+
   test('About opens from the header, closes with Escape, and gives focus back', async ({ page }) => {
     await loadPage(page);
     const about = page.getByRole('button', { name: 'About' });
     await about.click();
     const dialog = page.getByRole('dialog', { name: 'About Lifelines' });
     await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('credit to Matt Brown');
     await expect(dialog.getByRole('link', { name: 'CC BY 4.0' }))
       .toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
     await expect(dialog).toContainText('Privacy');
