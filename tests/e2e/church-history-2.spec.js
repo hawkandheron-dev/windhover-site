@@ -825,6 +825,24 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
   });
 });
 
+test.describe('Code cleanup (milestone 4)', () => {
+  test('a failed load says so in plain words, and "Try again" recovers', async ({ page }) => {
+    // It used to print the raw exception ("Error: …") with no way out.
+    await loadPage(page, { dismissWelcome: false }).catch(() => {});
+    const failing = (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' });
+    await page.route('**/*.supabase.co/**', failing);
+    await page.reload();
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText("Lifelines couldn't load the timeline");
+    await expect(alert).not.toContainText('boom');
+
+    await page.unroute('**/*.supabase.co/**', failing);
+    await alert.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+});
+
 test.describe('Lifelines as the front page (milestone 2)', () => {
   test.beforeEach(() => {
     const built = path.join(REPO_ROOT, 'apps/church-history-2.html');

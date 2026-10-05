@@ -13,9 +13,9 @@
  *           event, drawn behind the front layer as a blurred wash until the
  *           reader focuses a person or lifts the whole layer
  *
- * Eras are derived from dates (churchHistory2Eras.js), not read from
- * CH_People.era_id, so the scheme changed without a migration. CH_Eras is not
- * fetched at all.
+ * Bars are coloured by century (churchHistory2Centuries.js), a fact about the
+ * date, not by CH_People.era_id; the era scheme is dormant in
+ * churchHistory2Eras.js (DESIGN.md §9). CH_Eras is not fetched at all.
  */
 import {
   getSupabase,

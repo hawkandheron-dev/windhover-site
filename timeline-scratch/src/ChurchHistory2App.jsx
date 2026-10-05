@@ -386,10 +386,106 @@ function useMergedLayers(frontData, backData) {
   }), [frontData, backData]);
 }
 
+/** Search drives the timeline through its imperative handle. */
+function useSearchHandlers(timelineRef) {
+  return useMemo(() => ({
+    onSelectItem: (type, item) => timelineRef.current?.selectItem(type, item),
+    onHighlight: (matches, currentIdx, query) => timelineRef.current?.highlight(matches, currentIdx, query),
+    onClearHighlight: () => timelineRef.current?.clearHighlight(),
+  }), [timelineRef]);
+}
+
+/**
+ * What every reader sees: the header (search, Tour, Feedback and whatever
+ * account control the caller puts on the right), the timeline with its
+ * loading and error states, and the welcome dialog. The signed-in and
+ * signed-out apps differ only in that right-hand slot and a few timeline
+ * props, so both render this.
+ */
+function LifelinesShell({ frontData, backData, index, loading, error, onRetry, searchData, tour, timelineRef, headerRight, timelineExtra }) {
+  const search = useSearchHandlers(timelineRef);
+  const ready = !loading && !error && frontData;
+
+  return (
+    <>
+      <header className="app-header">
+        <div className="header-content">
+          <div className="header-left">
+            {frontData && (
+              <TimelineSearch
+                ranked
+                describeKind={describeSearchKind}
+                inputId="lifelines-search"
+                inputLabel="Search figures, councils and texts"
+                data={searchData}
+                {...search}
+                homeLink={
+                  // Not a link: Lifelines is the site's front page, so there
+                  // is nowhere "home" to go back to.
+                  <span className="header-bird-link">
+                    <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
+                  </span>
+                }
+              />
+            )}
+          </div>
+          <div className="header-right">
+            {/* Nothing to tour until the timeline has loaded. */}
+            {ready && (
+              <button type="button" className="btn" onClick={tour.startTour} title="Take the guided tour">
+                <Icon name="book" size={14} />
+                {' '}Tour
+              </button>
+            )}
+            <FeedbackButton />
+            {headerRight}
+          </div>
+        </div>
+      </header>
+
+      <div className="tab-content">
+        {loading && (
+          <p className="ch2-status" role="status">Loading the timeline…</p>
+        )}
+        {error && (
+          // The reader gets a plain sentence and a way out; the technical
+          // message goes to the console (DESIGN.md §8: every data area has
+          // an error state).
+          <div className="ch2-status ch2-status--error" role="alert">
+            <p>Lifelines couldn't load the timeline. Check your connection and try again.</p>
+            <button type="button" className="btn" onClick={onRetry}>Try again</button>
+          </div>
+        )}
+        {ready && (
+          <div className="timeline-wrapper ch2-timeline-wrapper">
+            <Timeline2
+              timelineRef={timelineRef}
+              frontData={frontData}
+              backData={backData}
+              index={index}
+              tour={tour}
+              {...timelineExtra}
+            />
+          </div>
+        )}
+      </div>
+
+      {tour.showWelcome && ready && (
+        <WelcomeDialog
+          onStartTour={tour.startTour}
+          onDismiss={() => { tour.dismissWelcome(); focusSkipLink(); }}
+          title="Welcome to Lifelines"
+          manageFocus
+        />
+      )}
+    </>
+  );
+}
+
 /**
  * Inner app that calls useAuth — only rendered when ClerkProvider wraps us.
  */
-function AuthenticatedApp({ frontData, backData, index, loading, error, allPeople, onReloadData, tourScenes }) {
+function AuthenticatedApp({ frontData, backData, index, loading, error, onRetry, allPeople, onReloadData, tourScenes }) {
   const { getToken, isSignedIn, userId } = useAuth();
   const { user: clerkUser } = useUser();
   const [addNoteOpen, setAddNoteOpen] = useState(false);
@@ -462,18 +558,6 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
       .catch(err => console.warn('Failed to save crop position:', err));
   }, [isAdmin, getToken]);
 
-  const handleSearchSelect = useCallback((type, item) => {
-    timelineRef.current?.selectItem(type, item);
-  }, []);
-
-  const handleSearchHighlight = useCallback((matches, currentIdx, query) => {
-    timelineRef.current?.highlight(matches, currentIdx, query);
-  }, []);
-
-  const handleSearchClearHighlight = useCallback(() => {
-    timelineRef.current?.clearHighlight();
-  }, []);
-
   const timelineProps = useMemo(() => ({
     authContext,
     allPeople,
@@ -519,85 +603,31 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
 
   return (
     <>
-      <header className="app-header">
-        <div className="header-content">
-          <div className="header-left">
-            {frontData && (
-              <TimelineSearch
-                ranked
-                describeKind={describeSearchKind}
-                inputId="lifelines-search"
-                inputLabel="Search figures, councils and texts"
-                data={searchData}
-                onSelectItem={handleSearchSelect}
-                onHighlight={handleSearchHighlight}
-                onClearHighlight={handleSearchClearHighlight}
-                homeLink={
-                  // Not a link: Lifelines is the site's front page, so there
-                  // is nowhere "home" to go back to.
-                  <span className="header-bird-link">
-                    <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
-                  </span>
-                }
-              />
-            )}
-          </div>
-          <div className="header-right">
-            <button type="button" className="btn" onClick={tour.startTour} title="Take the guided tour">
-              <Icon name="book" size={14} />
-              {' '}Tour
-            </button>
-            <FeedbackButton />
-            <ClerkAuthHeader
-              onAddNote={() => setAddNoteOpen(true)}
-              onViewNotes={() => setViewNotesOpen(true)}
-              isAdmin={isAdmin}
-              isContributor={isContributor}
-              onReviewSuggestions={() => setView('suggestions')}
-              onSuggestNew={() => setSuggestNewOpen(true)}
-              getToken={getTokenForSupabase}
-              clerkUserId={userId}
-              getPageContext={getPageContext}
-            />
-          </div>
-        </div>
-      </header>
-
-      <div className="tab-content">
-        {loading && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
-            Loading the timeline…
-          </div>
-        )}
-        {error && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-error)' }}>
-            Error: {error}
-          </div>
-        )}
-        {!loading && !error && frontData && (
-          <div className="timeline-wrapper ch2-timeline-wrapper">
-            <Timeline2
-              timelineRef={timelineRef}
-              frontData={frontData}
-              backData={backData}
-              index={index}
-              tour={tour}
-              timelineProps={timelineProps}
-              isAdmin={isAdmin}
-              onMediaCropUpdate={handleMediaCropUpdate}
-            />
-          </div>
-        )}
-      </div>
-
-      {tour.showWelcome && !loading && !error && frontData && (
-        <WelcomeDialog
-          onStartTour={tour.startTour}
-          onDismiss={() => { tour.dismissWelcome(); focusSkipLink(); }}
-          title="Welcome to Lifelines"
-          manageFocus
-        />
-      )}
+      <LifelinesShell
+        frontData={frontData}
+        backData={backData}
+        index={index}
+        loading={loading}
+        error={error}
+        onRetry={onRetry}
+        searchData={searchData}
+        tour={tour}
+        timelineRef={timelineRef}
+        headerRight={
+          <ClerkAuthHeader
+            onAddNote={() => setAddNoteOpen(true)}
+            onViewNotes={() => setViewNotesOpen(true)}
+            isAdmin={isAdmin}
+            isContributor={isContributor}
+            onReviewSuggestions={() => setView('suggestions')}
+            onSuggestNew={() => setSuggestNewOpen(true)}
+            getToken={getTokenForSupabase}
+            clerkUserId={userId}
+            getPageContext={getPageContext}
+          />
+        }
+        timelineExtra={{ timelineProps, isAdmin, onMediaCropUpdate: handleMediaCropUpdate }}
+      />
 
       {isAdmin && addNoteOpen && (
         <AddNoteModal
@@ -634,102 +664,35 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, allPeopl
 /**
  * Unauthenticated fallback (no Clerk key configured).
  */
-function UnauthenticatedApp({ frontData, backData, index, loading, error, tourScenes }) {
+function UnauthenticatedApp({ frontData, backData, index, loading, error, onRetry, tourScenes }) {
   const timelineRef = useRef(null);
 
   const searchData = useMergedLayers(frontData, backData);
   const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes, storageKey: LIFELINES_TOUR_KEY });
 
-  const handleSearchSelect = useCallback((type, item) => {
-    timelineRef.current?.selectItem(type, item);
-  }, []);
-
-  const handleSearchHighlight = useCallback((matches, currentIdx, query) => {
-    timelineRef.current?.highlight(matches, currentIdx, query);
-  }, []);
-
-  const handleSearchClearHighlight = useCallback(() => {
-    timelineRef.current?.clearHighlight();
-  }, []);
-
   return (
-    <>
-      <header className="app-header">
-        <div className="header-content">
-          <div className="header-left">
-            {frontData && (
-              <TimelineSearch
-                ranked
-                describeKind={describeSearchKind}
-                inputId="lifelines-search"
-                inputLabel="Search figures, councils and texts"
-                data={searchData}
-                onSelectItem={handleSearchSelect}
-                onHighlight={handleSearchHighlight}
-                onClearHighlight={handleSearchClearHighlight}
-                homeLink={
-                  // Not a link: Lifelines is the site's front page, so there
-                  // is nowhere "home" to go back to.
-                  <span className="header-bird-link">
-                    <img src={BIRD_LOGO} alt="Windhover" className="header-bird-logo" />
-                  </span>
-                }
-              />
-            )}
-          </div>
-          <div className="header-right">
-            <button type="button" className="btn" onClick={tour.startTour} title="Take the guided tour">
-              <Icon name="book" size={14} />
-              {' '}Tour
-            </button>
-            <FeedbackButton />
-            {ADMIN_MODE && (
-              <div className="auth-actions">
-                <button
-                  className="btn"
-                  disabled
-                  title="Auth not configured — set CLERK_PUBLISHABLE_KEY in Cloudflare Pages env vars"
-                >
-                  Sign-in unavailable
-                </button>
-              </div>
-            )}
-          </div>
+    <LifelinesShell
+      frontData={frontData}
+      backData={backData}
+      index={index}
+      loading={loading}
+      error={error}
+      onRetry={onRetry}
+      searchData={searchData}
+      tour={tour}
+      timelineRef={timelineRef}
+      headerRight={ADMIN_MODE && (
+        <div className="auth-actions">
+          <button
+            className="btn"
+            disabled
+            title="Auth not configured — set CLERK_PUBLISHABLE_KEY in Cloudflare Pages env vars"
+          >
+            Sign-in unavailable
+          </button>
         </div>
-      </header>
-      <div className="tab-content">
-        {loading && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
-            Loading the timeline…
-          </div>
-        )}
-        {error && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-error)' }}>
-            Error: {error}
-          </div>
-        )}
-        {!loading && !error && frontData && (
-          <div className="timeline-wrapper ch2-timeline-wrapper">
-            <Timeline2
-              timelineRef={timelineRef}
-              frontData={frontData}
-              backData={backData}
-              index={index}
-              tour={tour}
-            />
-          </div>
-        )}
-      </div>
-
-      {tour.showWelcome && !loading && !error && frontData && (
-        <WelcomeDialog
-          onStartTour={tour.startTour}
-          onDismiss={() => { tour.dismissWelcome(); focusSkipLink(); }}
-          title="Welcome to Lifelines"
-          manageFocus
-        />
       )}
-    </>
+    />
   );
 }
 
@@ -769,7 +732,8 @@ function ChurchHistory2App() {
         setLoading(false);
       } catch (err) {
         if (!cancelled) {
-          setError(err.message);
+          console.error('Lifelines: loading the timeline failed', err);
+          setError(err?.message || 'load failed');
           setLoading(false);
         }
       }
@@ -801,6 +765,7 @@ function ChurchHistory2App() {
           index={index}
           loading={loading}
           error={error}
+          onRetry={handleReloadData}
           allPeople={allPeople}
           onReloadData={handleReloadData}
           tourScenes={tourScenes}
@@ -812,6 +777,7 @@ function ChurchHistory2App() {
           index={index}
           loading={loading}
           error={error}
+          onRetry={handleReloadData}
           tourScenes={tourScenes}
         />
       )}
