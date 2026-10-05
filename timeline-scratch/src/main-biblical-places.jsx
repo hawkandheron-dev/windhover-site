@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/clerk-react'
+import './fonts-google.css'
 import './index.css'
 import BiblicalPlacesApp from './BiblicalPlacesApp.jsx'
 

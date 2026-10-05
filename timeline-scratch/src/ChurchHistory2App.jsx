@@ -23,6 +23,7 @@ import { Icon } from './components/Timeline/components/Icon.jsx';
 import { FeedbackButton } from './components/Feedback/FeedbackButton.jsx';
 import { useTour } from './components/Tour/useTour.js';
 import { WelcomeDialog } from './components/Tour/WelcomeDialog.jsx';
+import { AboutButton } from './components/About/AboutDialog.jsx';
 import { TourPanel } from './components/Tour/TourPanel.jsx';
 import { useMobileDetect } from './components/Timeline/hooks/useMobileDetect.js';
 import './App.css';
@@ -326,6 +327,7 @@ function Timeline2({
           onSkip={() => { exitWave.start(); tour.skipTour(); }}
           onComplete={() => { exitWave.start(); tour.completeTour(); }}
           media={tour.sceneMedia}
+          imageCredit
           isAdmin={isAdmin}
           onMediaCropUpdate={onMediaCropUpdate}
         />
@@ -438,6 +440,7 @@ function LifelinesShell({ frontData, backData, index, loading, error, onRetry, s
               </button>
             )}
             <FeedbackButton />
+            <AboutButton />
             {headerRight}
           </div>
         </div>

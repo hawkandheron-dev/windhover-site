@@ -68,6 +68,12 @@ export const churchHistory2Config = {
   /** Draw the canvas at the screen's pixel density, so names and lines are
    *  sharp on Retina screens (M4). */
   hiDpiCanvas: true,
+  /** Under a Wikipedia excerpt, the licence it is shared under (CC BY-SA
+   *  4.0), as that licence asks (M7). */
+  wikiLicenceNote: true,
+  /** A plain "Map © OpenHistoricalMap contributors (ODbL)" line under every
+   *  map, readable at any size (M7). */
+  mapCreditLine: true,
   /** Drag to pan and pinch to zoom on touch screens (iPads get this desktop
    *  timeline). */
   touchGestures: true,

@@ -2,6 +2,114 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M7 step 1: credits, licences, privacy (started 2026-10-05)
+
+**Context.** Matthew's decisions (2026-10-05):
+- **Licence:** CC BY 4.0 for his own content and data. Declaring it is all that's needed; others may reuse it with credit.
+- **Analytics:** yes to Cloudflare Web Analytics. He switches it on in the dashboard; no code is needed.
+- **Domain:** later, windhoverhistory.com/lifelines (a path, not a subdomain). The redirect and canonical URL come in M9, once the domain is pointed.
+- **The two descriptions:** he is undecided. Not part of this step; the explanation goes to him in chat.
+
+**Already done on the branch (uncommitted, lint 0):**
+- **Fonts:** self-hosted for Lifelines (`fonts-local.css`); the other apps keep Google (`fonts-google.css`).
+- **Wikipedia:** a CC BY-SA 4.0 note under the Wikipedia text (`wikiLicenceNote`).
+- **Maps:** an "OpenHistoricalMap contributors (ODbL)" line under both maps (`mapCreditLine`).
+
+**What the live data shows for the tour pictures:**
+- All 15 say "Public domain, Wikimedia Commons".
+- `source_page_url` is unreliable as a credit link. Many point at a Wikipedia article or a Commons category, not the picture's own page.
+- `media_url` is always `commons.wikimedia.org/wiki/Special:FilePath/<File>`, so the picture's own Commons page is `commons.wikimedia.org/wiki/File:<File>`.
+- Today the credit is a 10px overlay on the picture, and Lifelines hides it on phones.
+
+### Remaining steps
+1. **Tour picture credit** (opt-in `tourImageCredit` prop on `TourPanel`, passed only by `ChurchHistory2App`; 1.0 unchanged):
+   - Below the picture, show a small caption line: "<attribution> · <a>Source</a>". On phones it sits under the title row.
+   - The link goes to the Commons file page derived from `media_url` by a new helper beside `components/Tour/sizedImageUrl.js` (`commonsFilePage(url)`, unit-tested). It falls back to `sourcePageUrl` when the URL isn't a Commons FilePath.
+   - Hide the old overlay when the caption is on.
+2. **About & credits dialog:**
+   - A small "About & credits" link in the slim Key's footer (opt-in `config.aboutLink`, `TimelineLegend.jsx` `SlimLegend`). It opens a dialog built on the existing welcome dialog's pattern: focus trap, Esc, focus returns to the link.
+   - **About:** one line, followed by "Lifelines' own text and data are licensed CC BY 4.0", with a link, crediting "Windhover History". Matthew confirms the name to credit and the wording in review.
+   - **Credits:**
+     - Wikipedia text (CC BY-SA 4.0);
+     - maps (OpenHistoricalMap, ODbL; MapLibre, BSD);
+     - pictures (Wikimedia Commons, credited on each picture);
+     - fonts (Cormorant and Alegreya Sans, SIL OFL).
+   - **Privacy:**
+     - no cookies and no tracking;
+     - fonts are self-hosted;
+     - Cloudflare Web Analytics counts visits without cookies;
+     - the feedback form sends your message by email (Resend), checked by Cloudflare Turnstile;
+     - the timeline data comes from Supabase.
+   - This dialog replaces the separate privacy page from the original M7.
+3. **Docs:**
+   - **ATTRIBUTION.md:** CC BY 4.0 for Lifelines' content; self-hosted fonts; a per-image Commons licence check is still to do.
+   - **DESIGN.md §6:** the caption, the Key's About link and the dialog.
+   - Sync `docs/lifelines-release-plan.md`.
+4. **Deferred:** checking each picture's real licence on Commons needs network access (M5). It's noted in ATTRIBUTION.md.
+
+**Verification:**
+- Unit: `commonsFilePage`.
+- E2E, with the Lifelines fixture:
+  - the Wikipedia licence note shows;
+  - the map credit shows;
+  - a tour picture's caption links to its Commons file page, and is visible at 390px;
+  - the About dialog opens from the Key, closes with Esc, and returns focus.
+  - Heresies shows none of these.
+- Check that no `fonts.googleapis.com` request comes from Lifelines.
+- Build; shots (panel, tour at phone and desktop, the About dialog, dark); `ux-review`; lint 0; full e2e under Node 20.
+- Commit, open the M7 PR, and drive CI green (including Firefox and WebKit).
+
+## M4 PR #161: the first Firefox/WebKit run (2026-10-05)
+
+> **Status (2026-10-05, 15:04 UTC):** done. All five checks are green on head 1cfb950: Unit, Build, E2E (Chromium), E2E (Firefox, WebKit), Cloudflare Pages. No review threads. The PR is ready for Matthew to merge; nothing is left for Claude.
+> - **Fixed along the way:**
+>   - hover follows the real pointer, not the media query;
+>   - maps fail softly without WebGL;
+>   - the glide back from the tour re-aims when the timeline widens late;
+>   - the touch helper dispatches plain touch events;
+>   - the Firefox project leaves out the @phone block.
+> - **Also:** "Lifelines" in the Key is set in Alegreya Sans (Matthew, 2026-10-05).
+> - **Next, after the merge:** wait on Matthew's controls direction, the tour copy and the portrait images; M5 data checks come last, by his call.
+
+**Context.** [hawkandheron-dev/windhover-site#161](https://github.com/hawkandheron-dev/windhover-site/pull/161) is open. Its new **E2E (Firefox, WebKit)** job ran for the first time: 121 passed, 12 failed, 1 flaky. The Chromium jobs are green. Read from the CI log, the failures fall into four groups:
+
+1. **The test tool can't do it in that browser** (harness, not app):
+   - **Firefox:** the 4 "Horizontal phone prototype" tests use `isMobile`, which Playwright doesn't support in Firefox.
+   - **WebKit:** 2 touch tests (drag, pinch) send touches through Chrome's DevTools protocol (`newCDPSession`), which exists only in Chromium.
+2. **Firefox never shows the hover card or the cursor year chip** (4 tests: the hover test, the header-leave test, the batched pinch, the redraw count, which times out waiting).
+   - **Likely cause:** headless Firefox on Linux reports `(hover: none)`. Lifelines (`touchGestures`) then treats the mouse as a finger (`noHover()` in Timeline.jsx) and never shows hover.
+   - **Real risk:** any desktop that reports `hover: none` (some touch laptops, some Linux setups) would lose hover too.
+3. **Firefox: the detail panel's map never finishes loading** (the panel-layout test waits for `.historical-map-container:not([aria-busy])`).
+   - **Likely cause:** no WebGL in headless Firefox, so MapLibre fails to start.
+   - **Real risk:** a reader without WebGL (an old machine, blocked GPU) gets a broken map area, or worse, an error in the panel.
+   - **Also:** the Key-button test in Firefox (the button detaches mid-click) may share a cause with group 2. To confirm.
+4. **WebKit: after the tour, the view sometimes glides back to "1–650 AD"** instead of "1–500 AD". It passed on retry. A wrong final view is a real bug, not a flake (the readout held 1–650 for 5s).
+
+**Constraint:** the sandbox has only Chromium, and CLAUDE.md forbids `playwright install`. So every Firefox/WebKit fix is validated by CI. To keep CI cycles few, the first push also makes failures readable.
+
+### Steps (one push, then iterate)
+1. **Make the next run diagnosable:**
+   - Playwright `reporter` on CI adds `['html', { open: 'never' }]`, so `playwright-report/` exists and is uploaded on failure. Also upload `test-results/`, which holds each failure's `error-context.md` (a page snapshot).
+   - Add a small test, `browser capabilities`, run in all projects. It logs `matchMedia('(hover: hover)')`, `(pointer: fine)`, WebGL availability and `devicePixelRatio` to the CI log, so groups 2 and 3 are confirmed rather than guessed. It asserts only that the page loads.
+2. **Group 2, hover without the media query** (a real robustness fix, shared but behaviour-preserving):
+   - Replace `noHover()` (media query) with "a touch happened in the last ~800ms". Track `touchstart` on the container; a synthesized mouse event follows a touch within that window, a real mouse doesn't.
+   - The M3 intent is kept: a tap leaves no cursor line, year chip or hover card.
+   - Tests: the existing touch tests in Chromium, plus a new one where a mouse move with no preceding touch shows the year chip even when `matchMedia('(hover: none)')` is forced true (init script).
+3. **Group 3, a map that fails gracefully:**
+   - `HistoricalMap` and `YearDetailMap` wrap `new maplibregl.Map` in try/catch, and also handle a missing WebGL context (`maplibregl.supported?.()` where available).
+   - On failure they show the quiet fallback "Map unavailable in this browser" and clear `aria-busy`, so the panel stays usable and readable.
+   - Test: in Chromium, force a failure (an init script that makes `getContext('webgl'/'webgl2')` return null). The panel still opens, shows the fallback, and the description stays above it.
+4. **Group 4, WebKit's glide target:**
+   - Read `useTourExitWave`/`resetView`: the opening frame is probably computed from a width read mid-layout (tour panel closing) in WebKit.
+   - Fix: compute the target after the panel has closed (next frame / ResizeObserver settle), or from the final container width.
+   - Test: the existing test, unchanged; it must pass on the first attempt in WebKit in CI.
+5. **Group 1, the test tool's limits:**
+   - **WebKit touch:** replace the CDP touch helper with in-page `TouchEvent`s (`new Touch`/`new TouchEvent`, dispatched on the canvas). The same helper then works in Chromium and WebKit, so the gestures are tested in Safari's engine. That's the browser phones actually use.
+   - **Firefox phone:** Playwright can't emulate a phone in Firefox. The "Horizontal phone prototype" block is excluded from the Firefox project with `grepInvert` on a `@phone` tag, and the config comment says why. This is not skipping a failing test: the tests still run in Chromium and WebKit, and Firefox phones aren't something Playwright can emulate.
+6. **Validate locally** what the sandbox can (Chromium: unit, full e2e under Node 20, lint 0, the new tests failing before and passing after where possible). Push once. Read the new CI artifacts and the capability log, and fix anything still red. Repeat until both browser jobs are green. Then report to Matthew.
+
+**DESIGN.md:** §8 gets one line: hover follows the actual pointer, not the media query. Plus the map fallback state.
+
 ## M4: code review and cleanup (started 2026-10-05)
 
 **Context.** Matthew: "Start on M4. Data checks and copy will probably be the last thing. Need to get all the mechanics and moving parts clean and ready first." So M4 is about mechanics. No visible design change is intended, apart from sharper canvas text on Retina screens and a friendly error state.
@@ -236,6 +344,16 @@ Matthew: "I think it's just a shorter panel on mobile, maybe with no images."
 ## Added to the plan (2026-10-04): placeholder portraits
 
 > **Update 2026-10-05:** Matthew will find or make the placeholder images himself; no mock-ups from Claude (step 3's style options are dropped). The data and wiring steps stand for when his images arrive.
+
+> **Matthew's direction (2026-10-05):** placeholders come from public-domain period portraits on Wikimedia Commons, for example the Sepphoris mosaic known as the "Mona Lisa of the Galilee". Each is put through a filter that makes it plain the picture is *not* the person in the entry (for instance a soft monochrome wash or a faded duotone, plus "Illustrative portrait" in the alt text and a small caption).
+> - **Matthew:** adds reference images to this list as he finds them.
+> - **When wiring:**
+>   - store each placeholder's Commons file page and licence with it (M7 per-image credit);
+>   - pick by sex and, where possible, by period and region (a late-antique Roman face for a 4th-century bishop, not a Renaissance one);
+>   - apply the filter in CSS, so the original stays untouched and the treatment can change in one place;
+>   - the panel says "Illustrative portrait (not a likeness)", so no reader takes it for the figure.
+> - **Reference images so far:**
+>   - "Mona Lisa of the Galilee", Sepphoris mosaic (Commons; file to be confirmed).
 
 **Context.** Matthew: "we need a good placeholder portrait for male and female people who don't have images."
 

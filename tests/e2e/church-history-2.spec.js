@@ -138,12 +138,12 @@ const TABLES = {
   ],
 };
 
-async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false } = {}) {
+async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false, tables } = {}) {
   await installConfigMock(page, { clerkKey: '' });
   await installClerkMock(page);
   // realData: the snapshot of the live tables, for checks that only mean
   // something at real density (the fixture has seven people).
-  await installSupabaseTableMock(page, realData ? SNAPSHOT : TABLES);
+  await installSupabaseTableMock(page, tables ?? (realData ? SNAPSHOT : TABLES));
   await page.setViewportSize(viewport);
   // A query goes on the clean URL: the .html form redirects to it (here and on
   // Cloudflare Pages), and serve drops the query on the way.
@@ -1096,6 +1096,87 @@ test.describe('Code cleanup (milestone 4)', () => {
     await alert.getByRole('button', { name: 'Try again' }).click();
     await expect(page.locator('canvas').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+});
+
+test.describe('Credits, licences and privacy (milestone 7)', () => {
+  test("Wikipedia's text carries its licence, and the map its credit", async ({ page }) => {
+    // CC BY-SA asks for the licence beside the text; OpenHistoricalMap's
+    // ODbL asks for a credit readers can see at every size.
+    await page.route('**/en.wikipedia.org/api/rest_v1/page/summary/**', r => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({
+        extract_html: '<p>Athanasius I of Alexandria was the twentieth patriarch of Alexandria.</p>',
+        content_urls: { desktop: { page: 'https://en.wikipedia.org/wiki/Athanasius_of_Alexandria' } },
+      }),
+    }));
+    const tables = {
+      ...TABLES,
+      CH_People: TABLES.CH_People.map(p => (p.person_id === 'athanasius'
+        ? { ...p, reference_url: 'https://en.wikipedia.org/wiki/Athanasius_of_Alexandria' } : p)),
+    };
+    await loadPage(page, { tables });
+    await page.locator('.timeline-search-input').first().fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    const panel = page.locator('.timeline-modal--panel');
+    const licence = panel.locator('.modal-wiki-licence');
+    await expect(licence).toContainText('CC BY-SA 4.0');
+    await expect(licence.getByRole('link', { name: 'CC BY-SA 4.0' }))
+      .toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/');
+    await expect(panel.locator('.historical-map-credit')).toContainText('OpenHistoricalMap');
+  });
+
+  test("a tour picture's credit links to its Commons page, and a phone can read it", async ({ page }) => {
+    const tables = {
+      ...TABLES,
+      CH_LinkedMedia: [{
+        media_id: 'm1', entity_type: 'tour_scene', entity_id: 's1', sort_order: 0,
+        media_url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Athanasius_icon.jpg',
+        source_page_url: 'https://en.wikipedia.org/wiki/Athanasius_of_Alexandria',
+        alt_text: 'An icon of Athanasius', attribution: 'Public domain, Wikimedia Commons',
+      }],
+    };
+    // A tiny real image, so the picture loads and its credit stays.
+    await page.route('**/commons.wikimedia.org/**', r => r.fulfill({
+      status: 200, contentType: 'image/gif',
+      body: Buffer.from('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==', 'base64'),
+    }));
+    await loadPage(page, { tables, dismissWelcome: false, viewport: { width: 390, height: 844 }, mobile: true });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const credit = page.locator('.tour-image-credit');
+    await expect(credit).toBeVisible();
+    await expect(credit).toContainText('Public domain, Wikimedia Commons');
+    await expect(credit.getByRole('link', { name: 'Source' }))
+      .toHaveAttribute('href', 'https://commons.wikimedia.org/wiki/File:Athanasius_icon.jpg');
+    // The old overlay credit is gone, not doubled.
+    await expect(page.locator('.tour-image-attribution')).toHaveCount(0);
+  });
+
+  test('About opens from the header, closes with Escape, and gives focus back', async ({ page }) => {
+    await loadPage(page);
+    const about = page.getByRole('button', { name: 'About' });
+    await about.click();
+    const dialog = page.getByRole('dialog', { name: 'About Lifelines' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('link', { name: 'CC BY 4.0' }))
+      .toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+    await expect(dialog).toContainText('Privacy');
+    await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
+    // Tab stays inside the dialog.
+    for (let i = 0; i < 20; i++) await page.keyboard.press('Tab');
+    expect(await dialog.evaluate(d => d.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(about).toBeFocused();
+  });
+
+  test('Lifelines asks nothing of Google Fonts', async ({ page }) => {
+    // Fonts are self-hosted, so a reader's address isn't shared with Google.
+    const google = [];
+    page.on('request', req => { if (/fonts\.(googleapis|gstatic)\.com/.test(req.url())) google.push(req.url()); });
+    await loadPage(page);
+    await page.waitForLoadState('networkidle');
+    expect(google).toEqual([]);
   });
 });
 
