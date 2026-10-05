@@ -625,3 +625,13 @@ body:has(.ch2-app) {
   margin: 0;
   max-width: 32rem;
 }
+
+/* "Lifelines" in the Key is set in Alegreya Sans, the UI face, not the
+   Cormorant display face: in Cormorant it read like a genealogy site
+   (owner's call, 2026-10-05). */
+.ch2-app .timeline-legend--slim .legend-site-title {
+  font-family: var(--font-body, 'Alegreya Sans', sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}

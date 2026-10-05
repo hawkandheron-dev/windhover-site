@@ -77,6 +77,8 @@ there and to this table.
   text greys.
 - **Two typefaces**: Cormorant (display) and Alegreya Sans (body and UI),
   inherited from `index.css`. No third family, no monospace for UI labels.
+  "Lifelines" in the Key is set in Alegreya Sans, not Cormorant: in the
+  display face it read like a genealogy site (owner's call, 2026-10-05).
 - **Buttons** use the `.btn` system in `index.css` (`.btn`, `.btn-icon`,
   `.btn-sm`, `.btn-action`, `.btn-rect`, `.btn-danger`). Don't style a button
   from scratch; add a variant there if one is genuinely missing.
