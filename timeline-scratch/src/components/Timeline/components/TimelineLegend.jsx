@@ -6,7 +6,9 @@ import { Icon, ShapeIcon } from './Icon.jsx';
 import { StringMark } from './StringMark.jsx';
 import './TimelineLegend.css';
 
-const LOGO_PATH = new URL('../../../../../../resources/logos/Windhover_BLK.png', import.meta.url).href;
+// The mark is drawn at 18-22px; the small copy (96px tall) stays sharp at 3x
+// and is 3 KB, where the 2570px original is 66 KB.
+const LOGO_PATH = new URL('../../../../../../resources/logos/Windhover_BLK-small.png', import.meta.url).href;
 
 export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, config, collapsed = false, onToggleCollapsed }) {
   if (!isVisible || !legend || legend.length === 0) return null;

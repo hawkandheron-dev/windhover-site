@@ -6,6 +6,8 @@
  *   npm run build                  # the shots are of apps/, not of src/
  *   npm run shots                  # every state at every viewport
  *   npm run shots -- --only panel  # states whose name contains "panel"
+ *   npm run shots -- --share       # remake the share card image
+ *                                  # (timeline-scratch/public/lifelines-share.png)
  *
  * Output goes to .shots/lifelines/ (gitignored): one PNG per state, an
  * index.html contact sheet, and report.md with any console errors.
@@ -35,6 +37,8 @@ const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const OUT = path.resolve(ROOT, opt('out') || '.shots/lifelines');
 const ONLY = opt('only');
+const SHARE = args.includes('--share');
+const SHARE_IMAGE = path.join(ROOT, 'timeline-scratch/public/lifelines-share.png');
 
 // Widths chosen at the edges that matter: 390 is a current phone; 820 is an
 // iPad in portrait, just above the 768px mobile switch, so it gets the desktop
@@ -49,6 +53,9 @@ const VIEWPORTS = {
   // A Retina laptop: the same CSS size as laptop at twice the pixels, to see
   // the canvas drawn at full density (hiDpiCanvas, M4).
   retina:  { width: 1280, height: 720,  mobile: false, scale: 2 },
+  // The share card: Open Graph's 1200x630, drawn from a 1500x788 layout at
+  // 0.8x, so the stacks of figures above the axis have room to show.
+  share:   { width: 1500, height: 788,  mobile: false, scale: 0.8 },
 };
 
 // A figure with connections, works and a long description: the panel at its fullest.
@@ -109,7 +116,15 @@ const COMPARE_MOBILE = PHONE_LAYOUTS.flatMap(layout => [
 const COMPARE = opt('compare');
 // --compare points (flags against strings) went when strings became the
 // config default and ?points=strings stopped meaning anything (PR #160).
-const STATES = COMPARE === 'mobile' ? COMPARE_MOBILE : DEFAULT_STATES;
+// The share card: the real opening view, without the page's controls, and
+// the name set over the empty early centuries at the top left.
+const SHARE_STATE = {
+  name: 'share', viewports: ['share'], act: shareCard,
+  css: `.app-header, .timeline-legend, .timeline-controls, .zoom-controls,
+        .cursor-year-display, .ch2-skip-link { display: none !important; }`,
+};
+
+const STATES = SHARE ? [SHARE_STATE] : COMPARE === 'mobile' ? COMPARE_MOBILE : DEFAULT_STATES;
 
 // ── tiny static server over the repo root (apps/ plus node_modules fonts) ──
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
@@ -184,6 +199,36 @@ function tourExit(afterMs) {
     await page.waitForTimeout(afterMs);
   };
 }
+async function shareCard(page) {
+  const logo = 'data:image/png;base64,' +
+    fs.readFileSync(path.join(ROOT, 'resources/logos/Windhover_BLK-small.png')).toString('base64');
+  // The name goes in the empty band between the texts and the rulers' strip,
+  // where it covers no one.
+  const band = await page.evaluate(() => {
+    const strip = document.querySelector('.ruler-strip')?.getBoundingClientRect();
+    return { bottom: strip ? strip.top : innerHeight };
+  });
+  await page.evaluate(({ logo, bottom }) => {
+    const card = document.createElement('div');
+    card.innerHTML = `
+      <div style="font: 700 92px/1 'Alegreya Sans', sans-serif; color: #23231f; letter-spacing: -1px">Lifelines</div>
+      <div style="border-left: 1px solid rgba(30,28,24,0.18); padding-left: 28px">
+        <div style="font: 400 31px/1.2 'Alegreya Sans', sans-serif; color: #45453e">A church history timeline by lifespans</div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px;
+                    font: 700 18px/1 'Alegreya Sans', sans-serif; letter-spacing: 1.6px; color: #45453e">
+          <img src="${logo}" style="height: 24px" alt=""> WINDHOVER
+        </div>
+      </div>`;
+    Object.assign(card.style, {
+      position: 'fixed', left: '56px', bottom: `${innerHeight - bottom + 26}px`, zIndex: 9999,
+      display: 'flex', alignItems: 'center', gap: '28px', padding: '22px 34px',
+      background: 'rgba(255,255,255,0.96)', borderRadius: '10px',
+      boxShadow: '0 6px 28px rgba(20,20,16,0.10)', border: '1px solid rgba(30,28,24,0.12)',
+    });
+    document.body.appendChild(card);
+  }, { logo, bottom: band.bottom });
+  await page.waitForTimeout(300);
+}
 async function openAbout(page) {
   await page.getByRole('button', { name: 'About' }).click();
   await page.waitForTimeout(200);
@@ -228,6 +273,17 @@ async function shoot(browser, base, tables, state, vpName) {
     await page.route('**/*.supabase.co/**', r => r.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
   }
 
+  // A state may restyle the page from its first paint (the share card hides
+  // the page's controls, so the timeline lays out without them).
+  if (state.css) {
+    await page.addInitScript(css => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style');
+        style.textContent = css;
+        document.head.appendChild(style);
+      });
+    }, state.css);
+  }
   // A state may preset the reader's remembered layout (the layout toggle).
   if (state.layout) {
     await page.addInitScript(l => { try { localStorage.setItem('lifelines-layout', l); } catch { /* none */ } }, state.layout);
@@ -241,8 +297,9 @@ async function shoot(browser, base, tables, state, vpName) {
   const skip = page.locator('.welcome-btn-secondary');
   if (!state.welcome && await skip.count()) await skip.click();
   // Park the pointer over the header so the shot doesn't catch a hover card
-  // left behind by whatever sat under the Skip button.
-  await page.mouse.move(vp.width / 2, 4);
+  // left behind by whatever sat under the Skip button. (The share card hides
+  // the header, so there it stays where it started, off the timeline.)
+  if (!state.css) await page.mouse.move(vp.width / 2, 4);
   await page.waitForTimeout(400);
 
   let note = '';
@@ -282,6 +339,11 @@ async function main() {
   } finally {
     await browser.close();
     server.close();
+  }
+
+  if (SHARE) {
+    fs.copyFileSync(path.join(OUT, 'share--share.png'), SHARE_IMAGE);
+    console.log(`share card → ${path.relative(ROOT, SHARE_IMAGE)}`);
   }
 
   const md = ['# Lifelines screenshots', '', 'Data: real snapshot (tests/e2e/data/lifelines-snapshot.json). External services aborted.', ''];

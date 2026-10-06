@@ -2,6 +2,62 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## M9: launch readiness (started 2026-10-05)
+
+**Context.** M7 step 1 is merged (#162), and Matthew confirmed sources and licensing on his phone. He asked for the three items that need no decisions from him: the share preview, a speed check, and a device test script.
+
+**Done on the branch:**
+- **Share card.** `church-history-2.html` gains a description, canonical link, Open Graph and Twitter tags, a 64px tab icon and a 180px home-screen icon. The absolute address comes from `vite.config.js` (`LIFELINES_SITE_URL`, default `https://profile-site-bgf.pages.dev`), so moving to windhoverhistory.com is one line or one Pages variable. The image is `timeline-scratch/public/lifelines-share.png` (1200×630, 190 KB): the real opening view, laid out at 1500×788 and drawn at 0.8×, with the page's controls hidden and the name set in the empty band above the rulers. It is made by `npm run shots -- --share`.
+- **Speed** (simulated mid-range phone: 4× CPU, slow 4G, real data replayed): time to a visible timeline went from about 3.6s to 3.0s, and the download from 864 KB to 740 KB. Two fixes:
+  - **The Windhover mark** was a 2570×1865, 66 KB PNG, downloaded twice (header and tab icon) to be drawn about 22px tall. It is now 96px tall and 3 KB (`Windhover_BLK-small.png`); the Key, which is shared code, uses it too, and it looks the same at its size.
+  - **Clerk no longer loads for readers.** Mounting ClerkProvider fetched Clerk's browser script from Clerk's servers on every visit. Now it loads only for `?admin` or a browser carrying Clerk's `__client_uat` sign-in cookie (`utils/lifelinesAuth.js`, shared by the entry point and the app). The saving can't be measured in the sandbox, since Clerk's servers are blocked.
+- **Left alone, with reasons:**
+  - The data requests use `select=*` and are about 420 KB uncompressed in the mock; Supabase compresses them in production.
+  - `works.js` (51 KB raw) sits in the shared Timeline chunk; lazy-loading it would mean restructuring the shared modal for about 12 KB compressed.
+  - The ~650ms of long tasks at 4× CPU is the layout of 183 figures; it doesn't block the first paint.
+- **Device test script:** a Claude Doc for Matthew covering iPhone Safari, Android Chrome, desktop Safari and Firefox (about 20 minutes).
+
+**Verification:**
+- Unit 197; lint clean in the touched files.
+- E2E: share tags absolute, image 1200×630, icons serve, small logo only, readers make no Clerk request while `?admin` does. The ClerkProvider test now loads with `?admin`, the branch that still ships Clerk.
+- Shots: header and Key logo at 1x and Retina.
+- Data note for M5: William Tyndale has no birth year in the snapshot.
+
+## M7 PR #162: Codex review (2026-10-05)
+
+**Context.** [hawkandheron-dev/windhover-site#162](https://github.com/hawkandheron-dev/windhover-site/pull/162) is open, and its Cloudflare preview deployed. Codex left two P2 comments.
+
+1. **"Restore the Alegreya Sans 600 weight"** (`fonts-local.css:12`). **Doesn't apply:**
+   - Alegreya Sans has no 600 face. Both `@fontsource/alegreya-sans` and Google ship 100, 300, 400, 500, 700, 800 and 900.
+   - So `font-weight: 600` already resolved to the 700 face before this PR, through Google too. The old `wght@400;500;600;700` request asked for a weight the family doesn't have.
+   - Nothing changes visually.
+   - **Action:** reply on the thread with this, and resolve it. No code change.
+2. **"Clear failed-image state when a retry succeeds"** (`TourPanel.jsx:187`). **Valid:**
+   - If a picture fails once, `failedMediaId` stays set for the rest of the tour.
+   - Coming back to that scene remounts `TourImage`. If the picture then loads, the credit stays hidden, so a picture would show without its credit.
+   - **Fix:** `TourImage` gains an `onLoad` callback. `TourPanel` clears `failedMediaId` when the loaded picture is the one marked failed (`setFailedMediaId(id => (id === media.mediaId ? null : id))`).
+   - **Test (e2e, fixture):** the picture's first request fails and later ones succeed. Open the tour: no credit. Go Next, then Back: the picture loads and the credit shows.
+
+**Matthew's answers (2026-10-05):**
+- Credit **Matt Brown**. He asks whether a licence is needed at all, since the view, not his copy, is the point.
+- Analytics is switched on.
+- **Merge to main**; he tests the Sources links on mobile after that.
+
+**Licence wording:** keep CC BY 4.0, but say what it actually covers, which is his own work:
+- the selection, dates and connections (the view's data);
+- the tour text.
+
+Without a stated licence, the default is "all rights reserved", and nobody could reuse the dataset. The About line becomes: "The timeline's selection of people, dates and connections, and the tour text, are shared under CC BY 4.0: you may reuse them, with credit to Matt Brown." Update ATTRIBUTION.md to match. If he'd rather drop it, it's a one-line removal.
+
+**Then:**
+- Run unit, lint on the touched files, build, and the new and existing tour e2e tests under Node 20.
+- Reply on both threads (the commit for #2, the explanation for #1) and resolve them.
+- Push, and watch CI to green (Chromium, Firefox/WebKit, Cloudflare).
+- **Merge** #162 into main once green (Matthew asked), then tell him to test on his phone.
+
+> **Status (17:18 UTC):** done. Head 9804250 is fully green: Unit, Build, E2E (Chromium), E2E (Firefox, WebKit), Cloudflare Pages. Both Codex threads are answered and resolved.
+> - **Remaining:** merge #162 (merge commit, as with #158–#161), unsubscribe, cancel the safety-net check-in (trig_01WHtJrDjHCt9hmvS4yGKN1b), and tell Matthew to test "Source" on his phone at the live site.
+
 ## M7 step 1: credits, licences, privacy (started 2026-10-05)
 
 **Context.** Matthew's decisions (2026-10-05):
