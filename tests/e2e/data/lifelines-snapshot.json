@@ -169,7 +169,7 @@
 },
 {
 "person_id":"john-evangelist",
-"name":"John the Evangelist",
+"name":"John",
 "birth_date":"0006-01-01",
 "death_date":"0100-01-01",
 "birth_year":6,
@@ -14796,7 +14796,7 @@
 "roman-augustus"
 ],
 "title":"Jesus",
-"narrative":"Jesus is born in Roman-occupied Palestine under the reign of Caesar Augustus, who ruled the Roman Empire from 27 BC to AD 14. He was crucified outside Jerusalem around 27 AD.\n\nJesus's disciples wrote that they saw him rise from the dead, and that forty days later, he ascended into the sky. They passed this testimony down to other followers of Jesus, who then did the same in their time.",
+"narrative":"Jesus is born in Roman-occupied Palestine under the reign of Caesar Augustus, who ruled the Roman Empire from 27 BC to AD 14. He was crucified outside Jerusalem around AD 30–33.\n\nJesus's disciples wrote that they saw him rise from the dead, and that forty days later, he ascended into the sky. They passed this testimony down to other followers of Jesus, who then did the same in their time.",
 "additional_narrative":null,
 "additional_narrative_style":null,
 "third_narrative":null,
@@ -14939,7 +14939,7 @@
 "roman-antoninus"
 ],
 "title":"Polycarp",
-"narrative":"Polycarp speaks of talking with John and \"the rest of those who had seen the Lord,\" according to Irenaeus, writing a generation later. Polycarp becomes the bishop of the church in Smyrna.",
+"narrative":"Polycarp speaks of talking with John and \"the rest of those who had seen the Lord,\" according to [Irenaeus](https://www.newadvent.org/fathers/0134.htm), writing a generation later. Polycarp becomes the bishop of the church in Smyrna.",
 "additional_narrative":null,
 "additional_narrative_style":null,
 "third_narrative":null,
@@ -14998,7 +14998,7 @@
 "roman-septimius-severus"
 ],
 "title":"Irenaeus of Lyons",
-"narrative":"As a boy growing up in Smyrna (in what is now Izmir, Turkey), Irenaeus sits under Polycarp's teachings about the words of Jesus and his miracles. He writes: \"Polycarp having thus received [them] from the eye-witnesses of the Word of life, would recount them all in harmony with the Scriptures.\"",
+"narrative":"As a boy growing up in Smyrna (in what is now Izmir, Turkey), Irenaeus sits under Polycarp's teachings about the words of Jesus and his miracles. He [writes](https://www.newadvent.org/fathers/0134.htm): \"Polycarp having thus received [them] from the eye-witnesses of the Word of life, would recount them all in harmony with the Scriptures.\"",
 "additional_narrative":null,
 "additional_narrative_style":null,
 "third_narrative":null,
@@ -15060,7 +15060,7 @@
 "roman-septimius-severus"
 ],
 "title":"Irenaeus of Lyons",
-"narrative":"As a boy growing up in Smyrna (in what is now Izmir, Turkey), Irenaeus sits under Polycarp's teachings about the words of Jesus and his miracles. He writes: \"Polycarp having thus received [them] from the eye-witnesses of the Word of life, would recount them all in harmony with the Scriptures.\"",
+"narrative":"As a boy growing up in Smyrna (in what is now Izmir, Turkey), Irenaeus sits under Polycarp's teachings about the words of Jesus and his miracles. He [writes](https://www.newadvent.org/fathers/0134.htm): \"Polycarp having thus received [them] from the eye-witnesses of the Word of life, would recount them all in harmony with the Scriptures.\"",
 "additional_narrative":"Irenaeus later becomes a bishop in Gaul, far from his home in Smyrna.",
 "additional_narrative_style":null,
 "third_narrative":null,
@@ -15123,7 +15123,7 @@
 "roman-septimius-severus"
 ],
 "title":"Irenaeus of Lyons",
-"narrative":"As a boy growing up in Smyrna (in what is now Izmir, Turkey), Irenaeus sits under Polycarp's teachings about the words of Jesus and his miracles. He writes: \"Polycarp having thus received [them] from the eye-witnesses of the Word of life, would recount them all in harmony with the Scriptures.\"",
+"narrative":"As a boy growing up in Smyrna (in what is now Izmir, Turkey), Irenaeus sits under Polycarp's teachings about the words of Jesus and his miracles. He [writes](https://www.newadvent.org/fathers/0134.htm): \"Polycarp having thus received [them] from the eye-witnesses of the Word of life, would recount them all in harmony with the Scriptures.\"",
 "additional_narrative":"Irenaeus later becomes a bishop in Gaul, far from his home in Smyrna.",
 "additional_narrative_style":null,
 "third_narrative":"Hippolytus is another early bishop in Rome. He is later called a disciple of Irenaeus by Photius (c. 810-895), and is influenced by Irenaeus' teachings.",

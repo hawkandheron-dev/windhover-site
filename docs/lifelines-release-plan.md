@@ -12,6 +12,42 @@ Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thick
 - `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
 - Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
 
+## Now: "Yes to all" follow-ups (2026-10-08). Code is written, not yet committed
+
+**Context.** PR #168 is merged and live. Matthew said yes to all three follow-ups.
+
+**Already in the working tree:**
+- `components/Tour/tourLinks.jsx` (`withLinks`): renders `[words](https://…)` as a link that opens in a new tab; http(s) only.
+- `TourPanel` takes an opt-in `textLinks` prop, which only `ChurchHistory2App` passes. The link style is in `TourPanel.css`.
+- Migration `20261008230000_tour_links_and_john.sql`:
+  - scene 2 says "around AD 30–33";
+  - Matthew's Irenaeus links come back (scene 5's "Irenaeus", "writes" in scenes 6–8);
+  - `CH_People.name` becomes 'John' for `john-evangelist`.
+- Snapshot updated to match.
+- **Checked safe to rename:**
+  - John's works come from `CH_Works` by `person_id` (5 rows), not by name;
+  - his Wikipedia text comes from `reference_url` (John_the_Apostle), not by name.
+
+**Remaining:**
+1. Unit test `tests/unit/tour-links.test.js`:
+   - a link becomes an `<a>`;
+   - a non-http address stays as plain text;
+   - text with no links comes back unchanged.
+2. E2E (real data): scene 5's "Irenaeus" is a link to newadvent, with `target=_blank`; the timeline shows "John".
+3. Build, then unit, full e2e (Node 20), and lint on the touched files; a shot of tour scene 5.
+4. DESIGN.md §6 Tour row: scene text may carry links (opt-in `textLinks`).
+5. Commit, open a PR, watch CI to green, and merge (Matthew already said "yes to all"; merge once green).
+6. Tell Matthew it's live once the migration lands.
+
+## Now: merge PR #168 (Matthew: "merge it", then "Merged yet?", 2026-10-08)
+
+The check suite on head c4ec702 completed with nothing failed. Codex's two threads are answered and resolved.
+
+1. Re-read the check runs on c4ec702 and confirm all 5 are green.
+2. Merge (merge commit) and unsubscribe.
+3. Confirm the migration ran: query `CH_TourScenes` (`title` for `john` and `cappadocians`, `map_from` for `irenaeus-2`) once CI's migrations job has finished.
+4. Tell Matthew it's live and what to check (scene 2's paragraphs, scene 7's map, the Key icon).
+
 ## M6 tour copy PR: Matthew's edits, the Irenaeus map, scene 1's event, "John" (2026-10-08)
 
 **Context.**

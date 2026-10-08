@@ -297,6 +297,15 @@
   }
 }
 
+/* Links in the scene text (opt-in `textLinks`). */
+.tour-scene-narrative a {
+  /* Ink and an underline, like the detail panel's links: action blue is kept
+     for the one filled primary button (DESIGN.md §3). */
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* The picture's credit, under the text (opt-in `imageCredit`). */
 .tour-image-credit {
   margin: 12px 0 0;

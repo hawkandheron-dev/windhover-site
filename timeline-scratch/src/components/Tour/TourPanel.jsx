@@ -1,6 +1,7 @@
 import { sizedImageUrl, commonsFilePage, TOUR_IMAGE_WIDTH } from './sizedImageUrl.js';
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from '../Timeline/components/Icon.jsx';
+import { splitLinks } from './tourLinks.js';
 import './TourPanel.css';
 
 function TourImage({ media, isAdmin, onCropUpdate, onError, onLoad, overlayCredit = true }) {
@@ -106,7 +107,14 @@ export function TourPanel({
   // Credit the picture in a line under the text, linked to its Commons page,
   // instead of the small overlay on the picture (which phones can't read).
   imageCredit = false,
+  // Turn [words](https://…) in the scene text into links (Lifelines).
+  textLinks = false,
 }) {
+  const text = (t) => (textLinks && typeof t === 'string'
+    ? splitLinks(t).map((part, i) => (typeof part === 'string'
+      ? part
+      : <a key={i} href={part.href} target="_blank" rel="noopener noreferrer">{part.text}</a>))
+    : t);
   const [failedMediaId, setFailedMediaId] = useState(null);
   const showImage = media && failedMediaId !== media.mediaId;
   const creditHref = media ? (commonsFilePage(media.mediaUrl) || media.sourcePageUrl) : null;
@@ -115,6 +123,13 @@ export function TourPanel({
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
+    // Enter on a link or button does what that control does (opens the link,
+    // presses the button); it must not also turn the page. Typing in a field
+    // keeps its own arrow keys.
+    const control = e.target instanceof Element
+      ? e.target.closest('a[href], button, input, textarea, select, [contenteditable="true"]')
+      : null;
+    if (control && (e.key === 'Enter' || control.matches('input, textarea, select, [contenteditable="true"]'))) return;
     if (e.key === 'ArrowRight' || e.key === 'Enter') {
       e.preventDefault();
       if (isLast) onComplete();
@@ -164,7 +179,7 @@ export function TourPanel({
           />
         )}
         <h3 className="tour-scene-title">{scene.title}</h3>
-        <p className="tour-scene-narrative">{scene.narrative}</p>
+        <p className="tour-scene-narrative">{text(scene.narrative)}</p>
         {scene.additionalNarrative && (
           <p
             className={
@@ -172,7 +187,7 @@ export function TourPanel({
               (scene.additionalNarrativeStyle === 'italic' ? ' tour-scene-italic' : '')
             }
           >
-            {scene.additionalNarrative}
+            {text(scene.additionalNarrative)}
           </p>
         )}
         {scene.thirdNarrative && (
@@ -183,7 +198,7 @@ export function TourPanel({
                     ? part
                     : <span key={i} className="tour-inline-highlight">{part.highlight}</span>
                 )
-              : scene.thirdNarrative
+              : text(scene.thirdNarrative)
             }
           </p>
         )}
