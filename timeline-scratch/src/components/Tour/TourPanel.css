@@ -297,6 +297,13 @@
   }
 }
 
+/* Links in the scene text (opt-in `textLinks`). */
+.tour-scene-narrative a {
+  color: var(--color-accent, #3f63d0);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* The picture's credit, under the text (opt-in `imageCredit`). */
 .tour-image-credit {
   margin: 12px 0 0;

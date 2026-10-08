@@ -1468,6 +1468,21 @@ test.describe('Tour polish (2026-10-08)', () => {
     await expect(map).not.toHaveAttribute('data-map-at', /.+/);
   });
 
+  test("the tour's copy carries its links, and John's figure reads \"John\" (real data)", async ({ page }) => {
+    // Owner, 2026-10-08: the links he put in the copy doc, and the rename.
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const next = () => page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    for (let i = 0; i < 4; i++) { await next(); await page.waitForTimeout(200); }
+    await expect(page.locator('.tour-panel')).toContainText('5 of 20');
+    const link = page.locator('.tour-scene-narrative a', { hasText: 'Irenaeus' });
+    await expect(link).toHaveAttribute('href', 'https://www.newadvent.org/fathers/0134.htm');
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(page.locator('.tour-scene-narrative').first()).not.toContainText('](');
+    await expect(page.locator('.person-label', { hasText: /^John\s*\d/ }).first()).toBeAttached();
+    await expect(page.locator('.person-label', { hasText: 'John the Evangelist' })).toHaveCount(0);
+  });
+
   test("the tour's copy keeps its paragraph breaks (real data)", async ({ page }) => {
     await loadPage(page, { realData: true, dismissWelcome: false });
     await page.getByRole('button', { name: 'Take the Tour' }).click();

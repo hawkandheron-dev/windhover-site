@@ -338,6 +338,7 @@ function Timeline2({
           onComplete={() => { exitWave.start(); tour.completeTour(); }}
           media={tour.sceneMedia}
           imageCredit
+          textLinks
           isAdmin={isAdmin}
           onMediaCropUpdate={onMediaCropUpdate}
         />
