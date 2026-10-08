@@ -40,3 +40,21 @@ export function nextBarStartInRow(people, viewportStartYear, yearsPerPixel) {
   }
   return next;
 }
+
+/**
+ * Room a harp string's label takes beside its line (pointStyle 'string'):
+ * 4px off the line, the 8px mark and its gap (22px with the label's padding),
+ * then the name at 600 12px. The layout stacks labels by this, and the
+ * overlay places them by it, so the two agree about what collides.
+ */
+export function stringLabelWidth(point) {
+  return 4 + 22 + measureLabel(point.name || '', '600 12px');
+}
+
+/** Clear space between one string label and the next in its row. */
+export const STRING_LABEL_GAP = 8;
+
+/** stringLabelWidth plus the gap: what one label claims in its row. */
+export function stringLabelSpan(point) {
+  return stringLabelWidth(point) + STRING_LABEL_GAP;
+}

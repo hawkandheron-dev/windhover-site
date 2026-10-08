@@ -18,6 +18,7 @@ import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
 import { RulerStrip } from './components/RulerStrip.jsx';
 import { rulerStripHeight } from './utils/rulerStrip.js';
+import { stringLabelSpan } from './utils/labelFit.js';
 import { getYear, formatYearSpan } from './utils/dateUtils.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import { createPointerStore } from './utils/pointerStore.js';
@@ -298,14 +299,17 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     yearsPerPixel,
     {
       personRowHeight: 34,
-      pointRowHeight: 20,
+      // String labels are a 12px line each, so their rows sit closer.
+      pointRowHeight: defaultConfig.pointStyle === 'string' && defaultConfig.pointLabelRows ? 18 : 20,
       periodRowHeight: 40,
       lanePadding: 8,
       axisHeight: 30,
-      // Bare pins collide at the pin's own width, not a label's. Harp strings
-      // (config.pointStyle === 'string') need no stacking at all: one row on
-      // each side of the axis holds their labels.
-      pointMarkerWidth: defaultConfig.pointStyle === 'string' ? 0 : (showPointLabels ? null : 24),
+      // Bare pins collide at the pin's own width, not a label's. Harp
+      // strings (config.pointStyle === 'string') stack by their labels'
+      // measured width into config.pointLabelRows rows on each side of the
+      // axis (default 1: a single row, one label dropped where two collide).
+      pointMarkerWidth: defaultConfig.pointStyle === 'string' ? stringLabelSpan : (showPointLabels ? null : 24),
+      pointMaxRows: defaultConfig.pointStyle === 'string' ? (defaultConfig.pointLabelRows ?? 1) : Infinity,
       ...layoutSizes,
     }
   );

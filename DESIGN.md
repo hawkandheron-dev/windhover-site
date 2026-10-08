@@ -125,9 +125,12 @@ Every UI change is still checked in the `default-dark` screenshots.
 
 - **Landmarks are harp strings** (`pointStyle: 'string'`, owner's pick, M3):
   a thin line through the whole timeline at the landmark's year, drawn
-  **behind** every bar and name, with a label in one row beside the axis
-  (councils above, texts below). A label that would collide with the one
-  before it is dropped.
+  **behind** every bar and name, with its title beside the axis: councils
+  and events above, texts below. Titles stack into rows by their measured
+  width (`pointLabelRows`: 3 above, 5 below; owner, 2026-10-08: "titles for
+  all the events, and texts and councils too"). Each band keeps its height at
+  every zoom, so figures never jump as rows fill. Only where every row is
+  full is a title dropped; its line and mark stay, and hover names it.
 - Each kind has one **mark**, the same size everywhere (dots, labels, Key,
   search): a **diamond** for a council, a **square** for a text, a **dot**
   for anything else (`StringMark.jsx`).

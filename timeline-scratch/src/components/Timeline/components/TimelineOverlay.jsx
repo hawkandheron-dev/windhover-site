@@ -11,7 +11,7 @@ import { placeStringDots } from '../utils/stringDots.js';
 import { StringMark } from './StringMark.jsx';
 import { markForPoint } from '../utils/stringMark.js';
 import { usePointer } from '../hooks/usePointer.js';
-import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow } from '../utils/labelFit.js';
+import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow, stringLabelWidth, STRING_LABEL_GAP } from '../utils/labelFit.js';
 
 export function TimelineOverlay({
   width,
@@ -341,29 +341,33 @@ export function TimelineOverlay({
   /**
    * Harp strings (config.pointStyle === 'string', Lifelines). Each landmark
    * is a thin line through the whole timeline at its year, so it reads
-   * against every life it crosses, with a short label in a single row beside
-   * the axis: councils above, texts below. A label that would collide with
-   * the one before it is dropped. Each string also has a dot, its handle:
+   * against every life it crosses, with a label beside the axis: councils
+   * and events above, texts below, in config.pointLabelRows rows a side (the
+   * layout stacks them by width; see stringLabelWidth). A label that still
+   * collides with the one before it in its row is dropped. Each string also has a dot, its handle:
    * on a linked figure's bar, or in open space (utils/stringDots.js). The
    * line, label and dot all hover gold together and open the landmark.
    */
   function renderPointStrings() {
     const points = layout.stackedPoints || [];
     const focusActive = focusIds && focusIds.size > 0;
-    const lastRight = { above: -Infinity, below: -Infinity };
+    // Right edge of the last label placed, per side and row.
+    const lastRight = new Map();
     const axisScreenY = (layout.axisY ?? 0) - panOffsetY;
     const visible = points
       .map(point => ({ point, x: yearToPixel(getYearRange(point.date).start, viewportStartYear, yearsPerPixel) }))
       .filter(({ x }) => x >= -20 && x <= width + 20)
       .sort((a, b) => a.x - b.x);
 
-    // Labels first: one row per side, a label dropped if it would collide.
+    // Labels first, in the rows the layout gave them; one that would still
+    // collide with its neighbour (more labels than rows) is dropped.
     const labelled = visible.map(({ point, x }) => {
       const side = point.aboveTimeline === false ? 'below' : 'above';
       const rowY = point.y - panOffsetY + point.height / 2;
-      const labelWidth = 22 + measureLabel(point.name, '600 12px');
-      const showLabel = x + 4 >= lastRight[side] + 8 && x + 4 + labelWidth <= width;
-      if (showLabel) lastRight[side] = x + 4 + labelWidth;
+      const labelWidth = stringLabelWidth(point) - 4;
+      const rowKey = `${side}:${point.row ?? 0}`;
+      const showLabel = x + 4 >= (lastRight.get(rowKey) ?? -Infinity) + STRING_LABEL_GAP && x + 4 + labelWidth <= width;
+      if (showLabel) lastRight.set(rowKey, x + 4 + labelWidth);
       return { point, x, side, rowY, showLabel, labelRect: showLabel ? { x0: x, x1: x + 4 + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
     });
 
@@ -399,9 +403,10 @@ export function TimelineOverlay({
         ],
         axisY: axisScreenY,
         top: 0,
-        // Below the axis a dot stays within the texts' label row; past it, it
-        // would float among the rulers or below them, far from its line.
-        bottom: axisScreenY + (layout.sizes?.axisHeight ?? 30) + 44,
+        // Below the axis a dot stays within the texts' label rows; past them,
+        // it would float among the rulers or below them, far from its line.
+        bottom: axisScreenY + (layout.sizes?.axisHeight ?? 30) + 24
+          + (layout.sizes?.pointRowHeight ?? 20) * Math.max(1, ...visible.filter(v => v.point.aboveTimeline === false).map(v => (v.point.row ?? 0) + 1)),
       },
     );
 

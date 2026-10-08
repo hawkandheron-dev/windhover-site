@@ -68,3 +68,27 @@ describe('stackPoints', () => {
     expect(stackPoints(null, 150, 1, 16)).toEqual([]);
   });
 });
+
+// Lifelines' harp string labels (config.pointLabelRows, 2026-10-08): stacked
+// by each label's measured width into a fixed number of rows, so every title
+// that fits is shown, and the band never grows past its rows.
+describe('stackPoints for string labels', () => {
+  it('sizes each point by a width function', () => {
+    // 100px labels at one year per pixel, events eight years apart: every
+    // label overlaps the next twelve, so each needs its own row.
+    const stacked = stackPoints(CLUSTER, 150, 1, () => 100);
+    expect(rowCount(stacked)).toBe(CLUSTER.length);
+    // 4px labels never touch: one row.
+    expect(rowCount(stackPoints(CLUSTER, 150, 1, () => 4))).toBe(1);
+  });
+
+  it('never uses more than maxRows rows; the overflow shares the last', () => {
+    const stacked = stackPoints(CLUSTER, 150, 1, () => 100, 3);
+    expect(Math.max(...stacked.map(p => p.row))).toBe(2);
+    expect(stacked.filter(p => p.row === 2).length).toBe(CLUSTER.length - 2);
+  });
+
+  it('with one row, puts everything on it, as before the option existed', () => {
+    expect(rowCount(stackPoints(CLUSTER, 150, 1, () => 100, 1))).toBe(1);
+  });
+});

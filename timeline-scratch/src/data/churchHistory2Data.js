@@ -65,6 +65,12 @@ export const churchHistory2Config = {
   /** Landmarks as harp strings: a line through the timeline at each year,
    *  with a dot on a linked figure or in open space (owner's pick, M3). */
   pointStyle: 'string',
+  /** Rows of string labels on each side of the axis, so every event,
+   *  council and text can carry its title, not only one in each crowded
+   *  stretch (owner, 2026-10-08). Texts are the densest and below the axis
+   *  there is room, so they get more. Each band keeps its height at every
+   *  zoom, so the figures don't jump as rows fill. */
+  pointLabelRows: { above: 3, below: 5 },
   /** Draw the canvas at the screen's pixel density, so names and lines are
    *  sharp on Retina screens (M4). */
   hiDpiCanvas: true,
