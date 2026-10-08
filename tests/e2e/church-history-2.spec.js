@@ -1345,6 +1345,10 @@ test.describe('Tour polish (2026-10-08)', () => {
     await page.locator('[title="Next (→)"]').click();
     const augustus = page.locator('.ruler-strip-item.is-new', { hasText: 'Augustus' });
     await expect(augustus).toBeVisible();
+    // The strip itself arrives in the arrival gold, then settles to white.
+    const strip = page.locator('.ruler-strip');
+    expect(await strip.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgb(255, 255, 255)');
+    await expect.poll(() => strip.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe('rgb(255, 255, 255)');
     // Only the newcomer, not every ruler on screen.
     await expect(page.locator('.ruler-strip-item.is-new')).toHaveCount(1);
   });

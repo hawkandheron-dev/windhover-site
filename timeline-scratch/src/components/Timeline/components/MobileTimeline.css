@@ -632,3 +632,20 @@
     animation: none;
   }
 }
+
+/* As the horizontal strip: the column glows in the arrival gold when it
+   first appears, then fades to white (RulerStrip.css). */
+.mobile-ruler-column {
+  animation: mobileRulersIn 420ms cubic-bezier(.2, .7, .2, 1) both, mobileRulersGlow 2600ms ease-out backwards;
+}
+
+@keyframes mobileRulersGlow {
+  0%, 35% { background: color-mix(in srgb, var(--color-arrival) 40%, var(--color-parchment-light)); }
+  100% { background: var(--color-parchment-light); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-ruler-column {
+    animation: mobileRulersGlow 2600ms ease-out backwards;
+  }
+}

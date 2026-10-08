@@ -654,6 +654,22 @@ body:has(.ch2-app) {
   z-index: 9500;
 }
 
+/* Every dialog that dims the page sits over the timeline's controls (z-index
+   9000) too: under the welcome dialog they stayed bright while everything
+   else darkened (owner's screenshot, 2026-10-08). */
+.ch2-app .welcome-overlay,
+.ch2-app .feedback-overlay,
+.ch2-app .about-overlay {
+  z-index: 9500;
+}
+
+/* Feedback and About open from inside the header, whose own stacking level
+   (z-index 100) capped theirs: the page behind didn't dim and the controls
+   drew over the dialog. While one is open, the header rises with it. */
+.ch2-app .app-header:has(.feedback-overlay, .about-overlay) {
+  z-index: 9500;
+}
+
 /* Sized to the room it is given (beside the tour panel, that's less than
    the window), not to the window. */
 .ch2-app .timeline-modal:not(.timeline-modal--panel):not(.timeline-modal--brief) .modal-content {

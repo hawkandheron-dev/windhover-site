@@ -140,3 +140,32 @@
     animation: none;
   }
 }
+
+/* The whole strip glows in the arrival gold when it first appears, and
+   fades to white, the same "this is new" as a newcomer's name (owner,
+   2026-10-08: "make new elements stand out for a second"). Not motion, so
+   reduced motion keeps it. */
+.ruler-strip {
+  animation: rulerStripGlow 2600ms ease-out backwards;
+}
+
+@keyframes rulerStripGlow {
+  0%, 35% { background: color-mix(in srgb, var(--color-arrival) 40%, var(--color-parchment-light)); }
+  100% { background: var(--color-parchment-light); }
+}
+
+/* Its tab glows with it, so the two read as one piece. */
+.ruler-strip-tab {
+  animation: rulerTabGlow 2600ms ease-out backwards;
+}
+
+@keyframes rulerTabGlow {
+  0%, 35% {
+    background: color-mix(in srgb, var(--color-arrival) 40%, var(--color-parchment-light));
+    border-bottom-color: color-mix(in srgb, var(--color-arrival) 40%, var(--color-parchment-light));
+  }
+  100% {
+    background: var(--color-parchment-light);
+    border-bottom-color: var(--color-parchment-light);
+  }
+}
