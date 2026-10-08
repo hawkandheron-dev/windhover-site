@@ -29,6 +29,9 @@
   --color-action-hover:    #3352b4;
   /* Harp string hover: the line, label and dot under the pointer. */
   --color-string-hover:    #e3a92b;
+  /* Arrival: something the tour just brought in (a ruler's name glows in
+     it, then fades). Its own token, not the string hover's. */
+  --color-arrival:         #e8b23a;
 
   background: #ffffff;
 }

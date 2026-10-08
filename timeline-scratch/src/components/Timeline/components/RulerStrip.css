@@ -13,7 +13,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--color-parchment-light);
   border-top: 1px solid var(--color-border-hover);
 }
 
@@ -30,9 +30,9 @@
   height: 24px;
   padding: 0 10px;
   border: 1px solid var(--color-border-hover);
-  border-bottom-color: #ffffff;
+  border-bottom-color: var(--color-parchment-light);
   border-radius: 6px 6px 0 0;
-  background: #ffffff;
+  background: var(--color-parchment-light);
   font: 600 12px/1 'Alegreya Sans', sans-serif;
   color: var(--color-ink-light);
   cursor: pointer;
@@ -94,8 +94,8 @@
 /* Arrival (owner, 2026-10-08: the strip "needs some kind of a highlight or
    indicator to let the user know that it rendered"). The strip slides up
    from the foot of the screen when it appears; a ruler the tour brings in
-   grows its reign bar and glows gold, the colour Lifelines uses for "look
-   here", fading over two seconds. */
+   grows its reign bar and its name glows in the arrival gold
+   (--color-arrival), fading over two seconds. */
 .ruler-strip-wrap {
   animation: rulerStripIn 420ms cubic-bezier(.2, .7, .2, 1) both;
 }
@@ -124,8 +124,8 @@
 
 @keyframes rulerNameGlow {
   0%, 45% {
-    background: color-mix(in srgb, var(--color-string-hover, #e3a92b) 50%, transparent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-string-hover, #e3a92b) 50%, transparent);
+    background: color-mix(in srgb, var(--color-arrival) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-arrival) 50%, transparent);
     color: var(--color-ink);
   }
   100% {
