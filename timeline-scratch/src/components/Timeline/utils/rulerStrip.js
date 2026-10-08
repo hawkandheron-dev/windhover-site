@@ -2,9 +2,14 @@
 import { getYear } from './dateUtils.js';
 import { measureLabel } from './labelFit.js';
 
-export const RULER_ROW_HEIGHT = 18;
+export const RULER_ROW_HEIGHT = 22;
 const MAX_ROWS = 5;
 export const RULER_STRIP_PAD = 6;
+/** The strip's names: big enough to read at a glance (owner, 2026-10-08:
+ *  Augustus's first appearance in the tour was hard to see). */
+export const RULER_NAME_FONT = '600 13px';
+/** Folded, the strip is one line of reign bars and no names. */
+export const RULER_FOLDED_HEIGHT = 14;
 
 const reignOf = (p) => ({
   start: p.reignStartYear ?? getYear(p.startDate),
@@ -12,12 +17,12 @@ const reignOf = (p) => ({
 });
 
 /** Greedy rows by reign start; a reign takes room for its name too. */
-export function packRulerRows(people, yearsPerPixel, maxRows = MAX_ROWS) {
+export function packRulerRows(people, yearsPerPixel, maxRows = MAX_ROWS, nameFont = '600 11px') {
   const sorted = [...people].sort((a, b) => reignOf(a).start - reignOf(b).start || a.name.localeCompare(b.name));
   const rowEnds = [];
   const packed = sorted.map(person => {
     const { start, end } = reignOf(person);
-    const nameYears = (measureLabel(person.name, '600 11px') + 24) * yearsPerPixel;
+    const nameYears = (measureLabel(person.name, nameFont) + 24) * yearsPerPixel;
     const reach = Math.max(end, start + nameYears);
     let row = rowEnds.findIndex(e => e + 4 * yearsPerPixel <= start);
     if (row === -1 && rowEnds.length < maxRows) row = rowEnds.length;
@@ -39,9 +44,10 @@ export function packRulerRows(people, yearsPerPixel, maxRows = MAX_ROWS) {
   return packed;
 }
 
-export function rulerStripHeight(people, yearsPerPixel) {
+export function rulerStripHeight(people, yearsPerPixel, folded = false) {
   if (!people?.length) return 0;
-  const rows = Math.max(...packRulerRows(people, yearsPerPixel).map(r => r.row)) + 1;
+  if (folded) return RULER_FOLDED_HEIGHT;
+  const rows = Math.max(...packRulerRows(people, yearsPerPixel, MAX_ROWS, RULER_NAME_FONT).map(r => r.row)) + 1;
   return rows * RULER_ROW_HEIGHT + RULER_STRIP_PAD * 2;
 }
 

@@ -32,12 +32,16 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
     // point collisions are sized by the marker instead of by a label they
     // never render (see stackPoints).
     pointMarkerWidth = null,
+    // At most this many rows of points on each side (see stackPoints), and
+    // always room for that many while a side has any: the band keeps its
+    // height at every zoom, so the people don't jump as rows fill and empty.
+    pointMaxRows = Infinity,
   } = sizes;
 
   // Stack all items with above/below separation
   const stacked = useMemo(() => {
-    return stackTimelineItems(data, 120, yearsPerPixel, { pointMarkerWidth });
-  }, [data, yearsPerPixel, pointMarkerWidth]);
+    return stackTimelineItems(data, 120, yearsPerPixel, { pointMarkerWidth, pointMaxRows });
+  }, [data, yearsPerPixel, pointMarkerWidth, pointMaxRows]);
 
   // Calculate layout with positions
   // Layout: People (outer) → Period brackets → Points inside period area → Axis
@@ -48,11 +52,16 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
     // Calculate row counts for each section
     const abovePeriodRows = above.periods.length > 0 ? Math.max(...above.periods.map(p => p.row)) + 1 : 0;
     const abovePeopleRows = above.people.length > 0 ? Math.max(...above.people.map(p => p.row)) + 1 : 0;
-    const abovePointRows = above.points.length > 0 ? Math.max(...above.points.map(p => p.row)) + 1 : 0;
+    // pointMaxRows: one number for both sides, or { above, below }.
+    const reserved = (side) => {
+      const n = typeof pointMaxRows === 'object' ? pointMaxRows[side] : pointMaxRows;
+      return Number.isFinite(n) ? n : 0;
+    };
+    const abovePointRows = above.points.length > 0 ? Math.max(reserved('above'), ...above.points.map(p => p.row + 1)) : 0;
 
     const belowPeriodRows = below.periods.length > 0 ? Math.max(...below.periods.map(p => p.row)) + 1 : 0;
     const belowPeopleRows = below.people.length > 0 ? Math.max(...below.people.map(p => p.row)) + 1 : 0;
-    const belowPointRows = below.points.length > 0 ? Math.max(...below.points.map(p => p.row)) + 1 : 0;
+    const belowPointRows = below.points.length > 0 ? Math.max(reserved('below'), ...below.points.map(p => p.row + 1)) : 0;
 
     // Points live inside the period area, so period height includes space for points
     // Period area = bracket height + points area
@@ -111,7 +120,9 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
 
     // Calculate max rows for reversing above-timeline items
     const maxAbovePeopleRow = above.people.length > 0 ? Math.max(...above.people.map(p => p.row)) : 0;
-    const maxAbovePointsRow = above.points.length > 0 ? Math.max(...above.points.map(p => p.row)) : 0;
+    // The top row of the band, which with reserved rows may sit above the
+    // last one used; row 0 stays next to the axis either way.
+    const maxAbovePointsRow = Math.max(0, abovePointRows - 1);
     const maxAbovePeriodsRow = above.periods.length > 0 ? Math.max(...above.periods.map(p => p.row)) : 0;
 
     // Add y positions to items
@@ -182,7 +193,7 @@ export function useTimelineLayout(data, laneOrder, yearsPerPixel, sizes = {}) {
         axisHeight
       }
     };
-  }, [stacked, personRowHeight, pointRowHeight, periodRowHeight, periodBracketHeight, lanePadding, axisHeight, peopleInsidePeriods]);
+  }, [stacked, personRowHeight, pointRowHeight, periodRowHeight, periodBracketHeight, lanePadding, axisHeight, peopleInsidePeriods, pointMaxRows]);
 
   return layout;
 }

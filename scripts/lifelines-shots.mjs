@@ -76,6 +76,8 @@ const DEFAULT_STATES = [
   // The tour itself, a few scenes in (a bottom sheet on phones).
   { name: 'tour',           viewports: ['phone', 'desktop'], welcome: true, act: tourScene(2) },
   { name: 'tour-later',     viewports: ['phone'], welcome: true, act: tourScene(6) },
+  // The scene that opens a figure's detail (Irenaeus), after its grow-in.
+  { name: 'tour-detail',    viewports: ['laptop', 'desktop'], welcome: true, act: tourScene(7) },
   { name: 'tour-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(2) },
   // Scene 7 opens Irenaeus: on a phone, a short card above the sheet.
   { name: 'tour-later-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(6) },

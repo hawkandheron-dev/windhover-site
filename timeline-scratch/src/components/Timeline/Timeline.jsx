@@ -18,7 +18,9 @@ import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
 import { RulerStrip } from './components/RulerStrip.jsx';
 import { rulerStripHeight } from './utils/rulerStrip.js';
-import { getYear, formatYearSpan } from './utils/dateUtils.js';
+import { stringLabelSpan } from './utils/labelFit.js';
+import { getYear, getYearRange, formatYearSpan } from './utils/dateUtils.js';
+import { yearToPixel } from './utils/coordinates.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
 import { createPointerStore } from './utils/pointerStore.js';
 import { CursorLine, CursorYearChip } from './components/CursorGuide.jsx';
@@ -254,6 +256,17 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // Lifelines' prototype: rulers in a strip at the foot of the screen rather
   // than a band below the axis (config.rulerStyle === 'strip').
   const rulerStripOn = defaultConfig.rulerStyle === 'strip' && Boolean(filteredBackData?.people?.length);
+  // The strip's fold tab (owner, 2026-10-08): folded to one line of reign
+  // bars, remembered on this device under config.rulerFoldKey.
+  const [rulersFolded, setRulersFolded] = useState(() => {
+    if (!defaultConfig.rulerFoldKey) return false;
+    try { return localStorage.getItem(defaultConfig.rulerFoldKey) === '1'; } catch { return false; }
+  });
+  const toggleRulersFolded = useCallback(() => {
+    const next = !rulersFolded;
+    setRulersFolded(next);
+    try { localStorage.setItem(defaultConfig.rulerFoldKey, next ? '1' : '0'); } catch { /* not stored */ }
+  }, [rulersFolded, defaultConfig.rulerFoldKey]);
 
 
   const itemIndex = useMemo(() => {
@@ -298,14 +311,17 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     yearsPerPixel,
     {
       personRowHeight: 34,
-      pointRowHeight: 20,
+      // String labels are a 12px line each, so their rows sit closer.
+      pointRowHeight: defaultConfig.pointStyle === 'string' && defaultConfig.pointLabelRows ? 18 : 20,
       periodRowHeight: 40,
       lanePadding: 8,
       axisHeight: 30,
-      // Bare pins collide at the pin's own width, not a label's. Harp strings
-      // (config.pointStyle === 'string') need no stacking at all: one row on
-      // each side of the axis holds their labels.
-      pointMarkerWidth: defaultConfig.pointStyle === 'string' ? 0 : (showPointLabels ? null : 24),
+      // Bare pins collide at the pin's own width, not a label's. Harp
+      // strings (config.pointStyle === 'string') stack by their labels'
+      // measured width into config.pointLabelRows rows on each side of the
+      // axis (default 1: a single row, one label dropped where two collide).
+      pointMarkerWidth: defaultConfig.pointStyle === 'string' ? stringLabelSpan : (showPointLabels ? null : 24),
+      pointMaxRows: defaultConfig.pointStyle === 'string' ? (defaultConfig.pointLabelRows ?? 1) : Infinity,
       ...layoutSizes,
     }
   );
@@ -1021,9 +1037,33 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     }
   }, [viewportStartYear, yearsPerPixel, dimensions.width, onViewportChange]);
 
+  // Where the open figure's bar is on screen, for the dialog to grow out of
+  // (config.detailGrowFromBar, TimelineModal growFrom); null when the bar is
+  // off screen or the item isn't a figure.
+  const detailOrigin = () => {
+    if (selectedItem?.type !== 'person') return null;
+    const person = layout.stackedPeople?.find(p => p.id === selectedItem.item.id);
+    const box = containerRef.current?.getBoundingClientRect();
+    if (!person || !box) return null;
+    const { start, end } = getYearRange(person.startDate, person.endDate);
+    const x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
+    const x1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), x0 + 60);
+    const y = person.y - panOffsetY;
+    if (x1 < 0 || x0 > dimensions.width || y + person.height < 0 || y > dimensions.height) return null;
+    const left = box.left + Math.max(0, x0);
+    return {
+      left,
+      top: box.top + y,
+      width: box.left + Math.min(dimensions.width, x1) - left,
+      height: person.height - 6,
+      color: person.color || selectedItem.item.color || '#5b7ee8',
+    };
+  };
+
   const detail = (
     <TimelineModal
       isOpen={selectedItem !== null}
+      growFrom={defaultConfig.detailGrowFromBar ? detailOrigin : null}
       variant={detailVariant}
       brief={detailBrief}
       item={selectedItem?.item}
@@ -1048,7 +1088,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     <div
       ref={containerRef}
       className={`timeline-container${phoneLayout ? ' timeline-container--phone' : ''}${rulerStripOn ? ' timeline-container--ruler-strip' : ''}`}
-      style={rulerStripOn ? { '--ruler-strip-height': `${rulerStripHeight(filteredBackData.people, yearsPerPixel)}px` } : undefined}
+      style={rulerStripOn ? { '--ruler-strip-height': `${rulerStripHeight(filteredBackData.people, yearsPerPixel, rulersFolded)}px` } : undefined}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -1174,6 +1214,8 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           onItemHover={handleItemHover}
           onItemClick={handleItemClickInternal}
           wasDraggingRef={wasDraggingRef}
+          folded={rulersFolded}
+          onToggleFold={defaultConfig.rulerFoldKey ? toggleRulersFolded : undefined}
         />
       )}
 

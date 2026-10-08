@@ -583,9 +583,16 @@ body:has(.ch2-app) {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Rulers in a strip (rulerStyle: 'strip'): the controls sit above it. */
+/* Rulers in a strip (rulerStyle: 'strip'): the controls sit above it, and
+   above its 24px fold tab, which on a phone runs under the Layout toggle. */
 .ch2-app .timeline-container--ruler-strip .timeline-controls {
   bottom: calc(var(--ruler-strip-height, 0px) + 12px);
+}
+
+@media (max-width: 768px) {
+  .ch2-app .timeline-container--ruler-strip .timeline-controls {
+    bottom: calc(var(--ruler-strip-height, 0px) + 32px);
+  }
 }
 
 /* The panel's title takes focus when the panel opens, so a keyboard or
@@ -634,4 +641,24 @@ body:has(.ch2-app) {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.005em;
+}
+
+/* The centred detail dialog (the tour opens it on desktop) sits above the
+   timeline's controls, which otherwise drew over its lower left, and, while
+   the tour panel is docked, centres in the room left of it rather than
+   running under it (found rendering the grow transition, 2026-10-08). */
+.ch2-app .timeline-modal:not(.timeline-modal--panel):not(.timeline-modal--brief) {
+  z-index: 9500;
+}
+
+/* Sized to the room it is given (beside the tour panel, that's less than
+   the window), not to the window. */
+.ch2-app .timeline-modal:not(.timeline-modal--panel):not(.timeline-modal--brief) .modal-content {
+  width: min(calc(100% - 48px), 1000px);
+}
+
+@media (min-width: 769px) {
+  .ch2-app:has(.tour-panel) .timeline-modal:not(.timeline-modal--panel):not(.timeline-modal--brief) {
+    right: 320px;
+  }
 }

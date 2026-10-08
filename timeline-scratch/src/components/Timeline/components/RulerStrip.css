@@ -1,20 +1,54 @@
 /* The rulers' strip (RulerStrip.jsx): quiet chrome at the foot of the
    timeline, white like every surface that floats over the canvas. */
-.ruler-strip {
+.ruler-strip-wrap {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   /* Above the overlay (10), whose string hit strips run the full height. */
   z-index: 11;
+}
+
+.ruler-strip {
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: #ffffff;
   border-top: 1px solid var(--color-border-hover);
 }
 
+/* The fold tab sits on the strip's top edge at the right, clear of the
+   zoom controls at the left. */
+.ruler-strip-tab {
+  position: absolute;
+  right: 16px;
+  bottom: 100%;
+  margin-bottom: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-hover);
+  border-bottom-color: #ffffff;
+  border-radius: 6px 6px 0 0;
+  background: #ffffff;
+  font: 600 12px/1 'Alegreya Sans', sans-serif;
+  color: var(--color-ink-light);
+  cursor: pointer;
+}
+
+.ruler-strip-tab:hover {
+  color: var(--color-ink);
+}
+
+.ruler-strip-tab-chevron {
+  font-size: 10px;
+}
+
 .ruler-strip-item {
   position: absolute;
-  height: 18px;
+  height: 22px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -24,10 +58,10 @@
 
 .ruler-strip-bar {
   display: block;
-  height: 3px;
+  height: 4px;
   border-radius: 2px;
   background: var(--ruler-color, #6d4c41);
-  opacity: 0.45;
+  opacity: 0.6;
 }
 
 .ruler-strip-name {
@@ -35,10 +69,10 @@
   align-items: center;
   gap: 3px;
   margin-top: 1px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.1;
-  color: var(--color-ink-faded);
+  line-height: 1.15;
+  color: var(--color-ink-light);
   min-width: 0;
 }
 

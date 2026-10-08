@@ -1165,3 +1165,18 @@
 .historical-map-credit a {
   color: inherit;
 }
+
+/* growFrom (Lifelines' tour): the figure's bar opening out into the dialog,
+   and the dialog's border in that figure's colour. */
+.modal-grow-ghost {
+  position: fixed;
+  /* Over the dialog it grows into (Lifelines lifts that to 9500). */
+  z-index: 9600;
+  border-radius: 6px;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.modal-content.modal-content--accent {
+  border: 2px solid var(--detail-accent);
+}

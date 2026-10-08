@@ -1271,6 +1271,77 @@ test.describe('Share card and speed (milestone 9)', () => {
   });
 });
 
+test.describe('String labels in rows (2026-10-08)', () => {
+  test('events, councils and texts get their titles, in rows that never overlap (real data)', async ({ page }) => {
+    // One row a side dropped every label that touched its neighbour: at the
+    // opening view, the Destruction of the Temple lost its title to the
+    // Great Fire of Rome six years before it (owner's screenshot).
+    await loadPage(page, { realData: true });
+    const labels = page.locator('.point-string-label');
+    await expect(labels.filter({ hasText: 'Great Fire of Rome' })).toBeVisible();
+    await expect(labels.filter({ hasText: 'Destruction of the Temple' })).toBeVisible();
+    await expect(labels.filter({ hasText: 'The Didache composed' })).toBeVisible();
+
+    const boxes = (await labels.evaluateAll(els => els.map(el => {
+      const r = el.getBoundingClientRect();
+      return { name: el.textContent, x0: r.left, x1: r.right, y0: r.top, y1: r.bottom };
+    })));
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        const overlap = a.x0 < b.x1 - 1 && b.x0 < a.x1 - 1 && a.y0 < b.y1 - 1 && b.y0 < a.y1 - 1;
+        expect(overlap, `${a.name} overlaps ${b.name}`).toBe(false);
+      }
+    }
+    // Most of what's on screen is named, not just a dot.
+    expect(boxes.length).toBeGreaterThan(30);
+  });
+});
+
+test.describe('Tour polish (2026-10-08)', () => {
+  test("the rulers' strip folds to a line of reigns, and the fold is remembered", async ({ page }) => {
+    await loadPage(page);
+    const strip = page.locator('.ruler-strip-wrap');
+    const tab = page.getByRole('button', { name: /Emperors/ });
+    await expect(page.locator('.ruler-strip-name').first()).toBeVisible();
+    const open = (await strip.boundingBox()).height;
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('.ruler-strip-name')).toHaveCount(0);
+    expect((await strip.boundingBox()).height).toBeLessThan(open);
+    await page.reload();
+    await expect(page.getByRole('button', { name: /Emperors/ })).toHaveAttribute('aria-expanded', 'false');
+    await page.getByRole('button', { name: /Emperors/ }).click();
+    await expect(page.locator('.ruler-strip-name').first()).toBeVisible();
+  });
+
+  test("a figure's detail grows out of their bar, edged in their colour", async ({ page }) => {
+    // Slow the opening so the test can see it.
+    await page.addInitScript(() => {
+      const animate = Element.prototype.animate;
+      Element.prototype.animate = function (frames, opts) {
+        return animate.call(this, frames, typeof opts === 'object' ? { ...opts, duration: (opts.duration || 0) * 10 } : opts);
+      };
+    });
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    const lane = page.locator('.mobile-person-lane[data-person-id="athanasius"]');
+    await lane.click();
+    await expect(page.locator('.modal-grow-ghost')).toHaveCount(1);
+    const content = page.locator('.modal-content--accent');
+    await expect(content).toBeVisible();
+    await expect(page.locator('.modal-grow-ghost')).toHaveCount(0, { timeout: 10_000 });
+    expect(await content.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('2px');
+  });
+
+  test('with reduced motion the detail just appears, still edged in colour', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    await page.locator('.mobile-person-lane[data-person-id="athanasius"]').click();
+    await expect(page.locator('.modal-content--accent')).toBeVisible();
+    await expect(page.locator('.modal-grow-ghost')).toHaveCount(0);
+  });
+});
+
 test.describe('Lifelines as the front page (milestone 2)', () => {
   test.beforeEach(() => {
     const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
