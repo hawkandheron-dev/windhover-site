@@ -1298,6 +1298,50 @@ test.describe('String labels in rows (2026-10-08)', () => {
   });
 });
 
+test.describe('Tour polish (2026-10-08)', () => {
+  test("the rulers' strip folds to a line of reigns, and the fold is remembered", async ({ page }) => {
+    await loadPage(page);
+    const strip = page.locator('.ruler-strip-wrap');
+    const tab = page.getByRole('button', { name: /Emperors/ });
+    await expect(page.locator('.ruler-strip-name').first()).toBeVisible();
+    const open = (await strip.boundingBox()).height;
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('.ruler-strip-name')).toHaveCount(0);
+    expect((await strip.boundingBox()).height).toBeLessThan(open);
+    await page.reload();
+    await expect(page.getByRole('button', { name: /Emperors/ })).toHaveAttribute('aria-expanded', 'false');
+    await page.getByRole('button', { name: /Emperors/ }).click();
+    await expect(page.locator('.ruler-strip-name').first()).toBeVisible();
+  });
+
+  test("a figure's detail grows out of their bar, edged in their colour", async ({ page }) => {
+    // Slow the opening so the test can see it.
+    await page.addInitScript(() => {
+      const animate = Element.prototype.animate;
+      Element.prototype.animate = function (frames, opts) {
+        return animate.call(this, frames, typeof opts === 'object' ? { ...opts, duration: (opts.duration || 0) * 10 } : opts);
+      };
+    });
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    const lane = page.locator('.mobile-person-lane[data-person-id="athanasius"]');
+    await lane.click();
+    await expect(page.locator('.modal-grow-ghost')).toHaveCount(1);
+    const content = page.locator('.modal-content--accent');
+    await expect(content).toBeVisible();
+    await expect(page.locator('.modal-grow-ghost')).toHaveCount(0, { timeout: 10_000 });
+    expect(await content.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('2px');
+  });
+
+  test('with reduced motion the detail just appears, still edged in colour', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    await page.locator('.mobile-person-lane[data-person-id="athanasius"]').click();
+    await expect(page.locator('.modal-content--accent')).toBeVisible();
+    await expect(page.locator('.modal-grow-ghost')).toHaveCount(0);
+  });
+});
+
 test.describe('Lifelines as the front page (milestone 2)', () => {
   test.beforeEach(() => {
     const built = path.join(REPO_ROOT, 'apps/church-history-2.html');

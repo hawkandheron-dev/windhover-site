@@ -10,7 +10,7 @@
  *  - Wikipedia/Britannica attribution moved to top ("From Wikipedia")
  */
 
-import { useEffect, useMemo, useCallback, useState, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { formatDateRange, formatYear, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
 import { EditableText } from './EditableText.jsx';
@@ -146,7 +146,7 @@ function linkifyDescription(description, itemIndex, currentItemId) {
  *   "More" button that opens the rest. No backdrop, so what is behind stays
  *   visible. Lifelines uses it for the figure a tour step opens on a phone.
  */
-export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false }) {
+export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false, growFrom = null }) {
   const isPanel = variant === 'panel';
   // "More" lifts a brief card to the full detail, until another item opens.
   const [expanded, setExpanded] = useState(false);
@@ -223,6 +223,44 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   useEffect(() => {
     if (manageFocus && isOpen) titleRef.current?.focus({ preventScroll: true });
   }, [manageFocus, isOpen, item?.id]);
+
+  // growFrom (Lifelines, the tour): the figure's bar opens out into the
+  // dialog, so a reader sees where it came from (owner, 2026-10-08: a dialog
+  // appearing from nowhere was unclear). growFrom() returns the bar's screen
+  // rect and colour, or null when the bar is off screen. A block in the bar's
+  // colour grows from the bar to the dialog's place and fades as the dialog
+  // fades in; the dialog keeps a border in the figure's colour.
+  const contentRef = useRef(null);
+  const growing = Boolean(isOpen && item && variant !== 'panel' && growFrom);
+  const accentColor = growing && itemType === 'person' ? item.color : null;
+  // Once per item shown; growFrom changes as the timeline pans, which must
+  // not replay the opening.
+  const growFromRef = useRef(growFrom);
+  useLayoutEffect(() => { growFromRef.current = growFrom; });
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    const origin = growing ? growFromRef.current?.() : null;
+    if (!origin || !el || typeof el.animate !== 'function') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const to = el.getBoundingClientRect();
+    const ghost = document.createElement('div');
+    ghost.className = 'modal-grow-ghost';
+    Object.assign(ghost.style, {
+      left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`,
+      background: origin.color,
+    });
+    document.body.appendChild(ghost);
+    const sx = Math.max(origin.width, 1) / to.width;
+    const sy = Math.max(origin.height, 1) / to.height;
+    const grow = ghost.animate([
+      { transform: `translate(${origin.left - to.left}px, ${origin.top - to.top}px) scale(${sx}, ${sy})`, opacity: 1 },
+      { transform: 'none', opacity: 1, offset: 0.7 },
+      { transform: 'none', opacity: 0 },
+    ], { duration: 520, easing: 'cubic-bezier(.2,.7,.2,1)' });
+    const appear = el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.55 }, { opacity: 1 }], { duration: 520, easing: 'ease-out' });
+    grow.onfinish = () => ghost.remove();
+    return () => { grow.cancel(); appear.cancel(); ghost.remove(); };
+  }, [growing, item?.id]);
 
   // Handle escape key
   useEffect(() => {
@@ -567,7 +605,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     >
       {!isPanel && !isBrief && <div className="modal-backdrop" />}
       <div
-        className="modal-content"
+        ref={contentRef}
+        className={`modal-content${accentColor ? ' modal-content--accent' : ''}`}
+        style={accentColor ? { '--detail-accent': accentColor } : undefined}
         onClick={e => e.stopPropagation()}
         {...(manageFocus && (isPanel || isBrief
           ? { role: 'region', 'aria-labelledby': 'timeline-detail-title' }

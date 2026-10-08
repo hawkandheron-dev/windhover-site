@@ -4,6 +4,10 @@
 
 ## M9: launch readiness (started 2026-10-05)
 
+> **Status (2026-10-05, 21:58 UTC):** [hawkandheron-dev/windhover-site#163](https://github.com/hawkandheron-dev/windhover-site/pull/163) is open and green on every check: Unit, Build, E2E (Chromium), E2E (Firefox, WebKit), Cloudflare Pages. There are no review threads.
+> - **Waiting on:** Matthew's go-ahead to merge (he merged #162 through me; same here once he says so).
+> - **After the merge:** he runs the device test script (https://claude.ai/code/artifact/4aaff49e-fa47-421d-a8c1-f953453151b1) and checks the share card on a draft Substack post.
+
 **Context.** M7 step 1 is merged (#162), and Matthew confirmed sources and licensing on his phone. He asked for the three items that need no decisions from him: the share preview, a speed check, and a device test script.
 
 **Done on the branch:**

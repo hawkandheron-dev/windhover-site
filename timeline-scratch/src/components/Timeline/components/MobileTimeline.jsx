@@ -496,6 +496,17 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     });
   }
 
+  // Where the open figure's lane is on screen, for the detail to grow out of
+  // (config.detailGrowFromBar, TimelineModal growFrom); null when it's off
+  // screen or the item isn't a figure.
+  const growFromLane = () => {
+    if (selectedItem?.type !== 'person') return null;
+    const lane = document.querySelector(`.mobile-person-lane[data-person-id="${CSS.escape(String(selectedItem.item.id))}"]`);
+    const r = lane?.getBoundingClientRect();
+    if (!r || r.bottom < 0 || r.top > window.innerHeight || r.width === 0) return null;
+    return { left: r.left, top: r.top, width: r.width, height: r.height, color: selectedItem.item.color || '#5b7ee8' };
+  };
+
   return (
     <div className="mobile-timeline">
       {/* Toolbar */}
@@ -580,6 +591,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
                 <button
                   key={person.id}
                   className={`mobile-person-lane${isHighlighted ? ' highlighted' : ''}${isCurrent ? ' current-highlight' : ''}${person.emphasis ? ' emphasised' : ''}`}
+                  data-person-id={person.id}
                   style={{
                     top: `${topY}px`,
                     height: `${Math.max(height, 28)}px`,
@@ -729,6 +741,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
       {/* Modals */}
       <TimelineModal
         isOpen={selectedItem !== null}
+        growFrom={defaultConfig.detailGrowFromBar ? growFromLane : null}
         item={selectedItem?.item}
         itemType={selectedItem?.type}
         config={defaultConfig}
