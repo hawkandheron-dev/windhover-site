@@ -23,7 +23,7 @@ const DEFAULT_STORAGE_KEY = 'windhover-timeline-tour-completed';
  *   never sees another's welcome.
  * @returns tour state and controls
  */
-export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_STORAGE_KEY }) {
+export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_STORAGE_KEY, buildOutWave }) {
   const TOUR_SCENES = scenes ?? FALLBACK_SCENES;
 
   // Compute the set of all person IDs featured in the tour (for build-out filtering)
@@ -323,6 +323,24 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
   useEffect(() => {
     if (!tourActive || !currentScene?.isBuildOut || !fullData) return;
 
+    // buildOutWave (ms, opt-in; Lifelines): everything arrives in one layout,
+    // and the figures the tour hadn't shown grow in a single left-to-right
+    // sweep, as when leaving the tour. Adding batches of eight every 120ms
+    // re-sorted every row each time, so bars jumped about and slower machines
+    // dropped frames (owner, 2026-10-08: "janky/stuttery").
+    if (buildOutWave) {
+      const prev = TOUR_SCENES[sceneIndex - 1];
+      // The background layer (rulers) arrives without the grow; only the
+      // front layer's figures sweep in.
+      const isFront = (item) => item.layer !== 'back';
+      setBuildOutIds(null);
+      setNewlyAddedIds(new Set((fullData.people || []).filter(p => isFront(p) && !tourPersonIds.has(p.id)).map(p => p.id)));
+      setNewlyAddedPointIds(prev?.includePeriodsAndPoints
+        ? new Set()
+        : new Set((fullData.points || []).filter(isFront).map(p => p.id)));
+      return;
+    }
+
     // Gather all IDs not yet shown, grouped by type
     const remainingPeople = (fullData.people || [])
       .filter(p => !tourPersonIds.has(p.id))
@@ -382,7 +400,7 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
 
     buildOutTimerRef.current = interval;
     return () => clearInterval(interval);
-  }, [tourActive, sceneIndex, currentScene, fullData, tourPersonIds]);
+  }, [tourActive, sceneIndex, currentScene, fullData, tourPersonIds, buildOutWave, TOUR_SCENES]);
 
   // ── Compute filtered data for the timeline ───────────────────────────
   const tourData = useMemo(() => {
@@ -526,6 +544,8 @@ export function useTour({ fullData, timelineRef, scenes, storageKey = DEFAULT_ST
     tourData,
     newlyAddedIds,
     newlyAddedPointIds,
+    // The sweep's length while the build-out scene plays (buildOutWave).
+    buildOutWave: tourActive && currentScene?.isBuildOut ? buildOutWave : undefined,
     sceneMedia,
 
     // Controls

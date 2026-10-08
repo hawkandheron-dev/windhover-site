@@ -1198,7 +1198,7 @@
 .modal-type-band {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0 14px;
   margin: 0 calc(-1 * var(--band-x)) 20px;
   padding: 7px var(--band-x) 8px;
@@ -1213,6 +1213,34 @@
 
 .modal-type-band-detail {
   font-weight: 400;
+}
+
+.modal-type-band-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.modal-type-band-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.modal-type-band-bar {
+  width: 15px;
+  height: 7px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.modal-type-band-line {
+  width: 3px;
+  height: 14px;
+  border-radius: 1px;
+  background: #fff;
 }
 
 .modal-type-band-detail {

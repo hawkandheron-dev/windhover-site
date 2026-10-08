@@ -95,8 +95,10 @@
    indicator to let the user know that it rendered"). The strip slides up
    from the foot of the screen when it appears; a ruler the tour brings in
    grows its reign bar and its name glows in the arrival gold
-   (--color-arrival), fading over two seconds. */
-.ruler-strip-wrap {
+   (--color-arrival), fading over two seconds. Only when the strip appears
+   during the tour (.is-arriving): on first load it sits behind the welcome
+   dialog, where the flash is noise (owner, 2026-10-08). */
+.ruler-strip-wrap.is-arriving {
   animation: rulerStripIn 420ms cubic-bezier(.2, .7, .2, 1) both;
 }
 
@@ -135,7 +137,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ruler-strip-wrap,
+  .ruler-strip-wrap.is-arriving,
   .ruler-strip-item.is-new .ruler-strip-bar {
     animation: none;
   }
@@ -145,7 +147,7 @@
    fades to white, the same "this is new" as a newcomer's name (owner,
    2026-10-08: "make new elements stand out for a second"). Not motion, so
    reduced motion keeps it. */
-.ruler-strip {
+.ruler-strip-wrap.is-arriving .ruler-strip {
   animation: rulerStripGlow 2600ms ease-out backwards;
 }
 
@@ -155,7 +157,7 @@
 }
 
 /* Its tab glows with it, so the two read as one piece. */
-.ruler-strip-tab {
+.ruler-strip-wrap.is-arriving .ruler-strip-tab {
   animation: rulerTabGlow 2600ms ease-out backwards;
 }
 

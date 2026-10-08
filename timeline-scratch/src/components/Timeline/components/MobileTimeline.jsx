@@ -47,7 +47,7 @@ function lightenColor(hex, floor = 160) {
   return `rgb(${lr}, ${lg}, ${lb})`;
 }
 
-export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false, backData, newRulerIds }, ref) {
+export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false, backData, newRulerIds, rulerArrives = false }, ref) {
   const scrollRef = useRef(null);
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR);
   // The years currently on screen, for the 'years' zoom readout. Read from the
@@ -139,6 +139,12 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     [defaultConfig.rulerStyle, backData, filters]
   );
   const rulerColumn = rulerPeople.length ? RULER_COLUMN : 0;
+  // The column slides in and glows only when it appears during the tour, as
+  // the horizontal strip does; decided each time it appears.
+  const [rulerArrival, setRulerArrival] = useState({ shown: false, arriving: false });
+  if ((rulerColumn > 0) !== rulerArrival.shown) {
+    setRulerArrival({ shown: rulerColumn > 0, arriving: rulerColumn > 0 && rulerArrives });
+  }
 
   const itemIndex = useMemo(() => {
     const map = new Map();
@@ -715,7 +721,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
 
       {rulerColumn > 0 && (
         <div
-          className="mobile-ruler-column"
+          className={`mobile-ruler-column${rulerArrival.arriving ? ' is-arriving' : ''}`}
           style={{ width: `${RULER_COLUMN}px`, top: `${scrollBox.top}px`, height: `${scrollBox.height}px`, right: `${scrollBox.scrollbar}px`, '--ruler-color': defaultConfig.rulerColor }}
           aria-label="Emperors and monarchs"
         >

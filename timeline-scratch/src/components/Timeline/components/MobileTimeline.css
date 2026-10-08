@@ -590,7 +590,7 @@
 /* Arrival, as in the horizontal strip (RulerStrip.css): the column slides in
    from the right edge, and a ruler the tour brings in grows its reign bar
    down and glows gold for a moment. */
-.mobile-ruler-column {
+.mobile-ruler-column.is-arriving {
   animation: mobileRulersIn 420ms cubic-bezier(.2, .7, .2, 1) both;
 }
 
@@ -635,7 +635,7 @@
 
 /* As the horizontal strip: the column glows in the arrival gold when it
    first appears, then fades to white (RulerStrip.css). */
-.mobile-ruler-column {
+.mobile-ruler-column.is-arriving {
   animation: mobileRulersIn 420ms cubic-bezier(.2, .7, .2, 1) both, mobileRulersGlow 2600ms ease-out backwards;
 }
 
@@ -645,7 +645,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mobile-ruler-column {
+  .mobile-ruler-column.is-arriving {
     animation: mobileRulersGlow 2600ms ease-out backwards;
   }
 }

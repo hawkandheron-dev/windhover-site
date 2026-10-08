@@ -16,7 +16,7 @@
  * reader who wants the room (`folded`, remembered by the parent); the Key's
  * switch still hides it outright.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { yearToPixel } from '../utils/coordinates.js';
 import {
   packRulerRows, RULER_ROW_HEIGHT, RULER_STRIP_PAD as PAD, RULER_NAME_FONT, RULER_FOLDED_HEIGHT,
@@ -24,14 +24,18 @@ import {
 import { Icon } from './Icon.jsx';
 import './RulerStrip.css';
 
-export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, color, focusIds, onItemHover, onItemClick, wasDraggingRef, folded = false, onToggleFold, newIds, colorByRuler = false }) {
+export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, color, focusIds, onItemHover, onItemClick, wasDraggingRef, folded = false, onToggleFold, newIds, colorByRuler = false, arriving = false }) {
+  // Only a strip that appears during the tour slides in and glows (owner,
+  // 2026-10-08): on first load it sits behind the welcome dialog, out of
+  // focus, where the flash is noise. Decided once, when the strip mounts.
+  const [arrives] = useState(arriving);
   const packed = useMemo(() => packRulerRows(people || [], yearsPerPixel, undefined, RULER_NAME_FONT), [people, yearsPerPixel]);
   if (!packed.length) return null;
   const rows = Math.max(...packed.map(r => r.row)) + 1;
   const height = folded ? RULER_FOLDED_HEIGHT : rows * RULER_ROW_HEIGHT + PAD * 2;
 
   return (
-    <div className={`ruler-strip-wrap${folded ? ' is-folded' : ''}`} style={{ height, '--ruler-color': color }}>
+    <div className={`ruler-strip-wrap${folded ? ' is-folded' : ''}${arrives ? ' is-arriving' : ''}`} style={{ height, '--ruler-color': color }}>
       {onToggleFold && (
         <button
           type="button"

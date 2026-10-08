@@ -12,6 +12,12 @@ Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thick
 - `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
 - Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
 
+## Strip glow on first load, band icons, smoother Full Picture (2026-10-08)
+
+- The strip's slide and glow happen only when the tour brings it in (`arriving` / `rulerArrives`), not behind the welcome dialog.
+- Each band leads with its mark in white: bar, diamond, square, dot, crown, line.
+- "The Full Picture" (`buildOutWave`, 1.4s): one layout, then one sweep. Measured at 4× slowed CPU: long frames went from 33 (worst 433ms) to 3, and bars moved once instead of 5–7 times.
+
 ## Tour copy: queued edits (Matthew)
 
 - Rename the scene "The Grandchildren" to "The Cappadocians" (2026-10-08). Apply it with the rest of the tour copy edits (M6): a migration on `CH_TourScenes` plus a snapshot refresh.

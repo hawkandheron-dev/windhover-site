@@ -44,6 +44,10 @@ export const REALM_STYLES = {
 };
 
 const POINT_TYPE_LABELS = { councils: 'Council', documents: 'Text', events: 'Event' };
+// Each kind's band carries the mark a reader already knows from the Key and
+// the canvas (owner, 2026-10-08): a council's diamond, a text's square, an
+// event's dot, a ruler's crown, a figure's bar, and a year's line.
+const POINT_TYPE_MARKS = { councils: 'diamond', documents: 'square', events: 'dot' };
 
 /**
  * The band across the top of a detail dialog: what kind of entry this is, in
@@ -57,15 +61,16 @@ export function detailTypeBand(item, itemType) {
     const realm = REALM_STYLES[item.monarchType];
     return {
       label: BACK_STYLES.emperors.label,
+      mark: 'crown',
       detail: realm?.label || null,
       color: readableOnWhite(realm?.color || BACK_STYLES.emperors.color),
     };
   }
-  if (itemType === 'person') return { label: 'Church figure', color: readableOnWhite(item.color) };
+  if (itemType === 'person') return { label: 'Church figure', mark: 'bar', color: readableOnWhite(item.color) };
   if (itemType === 'point' && POINT_TYPE_LABELS[item.itemType]) {
-    return { label: POINT_TYPE_LABELS[item.itemType], color: readableOnWhite(item.color) };
+    return { label: POINT_TYPE_LABELS[item.itemType], mark: POINT_TYPE_MARKS[item.itemType], color: readableOnWhite(item.color) };
   }
-  if (itemType === 'year') return { label: 'Year', color: readableOnWhite(colorForCentury(centuryOf(item.year))) };
+  if (itemType === 'year') return { label: 'Year', mark: 'line', color: readableOnWhite(colorForCentury(centuryOf(item.year))) };
   return null;
 }
 

@@ -316,7 +316,7 @@ function Timeline2({
         detailVariant={tour.tourActive ? 'modal' : 'panel'}
         animatingIds={tour.tourActive ? tour.newlyAddedIds : exitWave.people}
         animatingPointIds={tour.tourActive ? tour.newlyAddedPointIds : exitWave.points}
-        animationWave={!tour.tourActive && exitWave.people ? EXIT_WAVE_MS : undefined}
+        animationWave={tour.tourActive ? tour.buildOutWave : exitWave.people ? EXIT_WAVE_MS : undefined}
         hideLegend={tour.tourActive && !tour.currentScene?.isBuildOut}
         isTourMode={tour.tourActive}
         {...timelineProps}
@@ -349,6 +349,10 @@ function Timeline2({
  * Reduced motion skips the growing (TimelineCanvas) and the fades (CSS).
  */
 const EXIT_WAVE_MS = 800;
+/** The tour's last scene, "The Full Picture": one sweep across the screen as
+ *  everyone the tour hadn't shown grows in (useTour buildOutWave). Slower
+ *  than the exit's, since it is the scene's whole point. */
+const BUILD_OUT_WAVE_MS = 1400;
 function useTourExitWave(tourLayers, frontData, timelineRef) {
   const [wave, setWave] = useState({ people: undefined, points: undefined });
   const timer = useRef(null);
@@ -508,7 +512,7 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, onRetry,
   const timelineRef = useRef(null);
 
   const searchData = useMergedLayers(frontData, backData);
-  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes, storageKey: LIFELINES_TOUR_KEY });
+  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes, storageKey: LIFELINES_TOUR_KEY, buildOutWave: BUILD_OUT_WAVE_MS });
 
   // Auto-register user on sign-in, then check their role.
   const clerkUserLoaded = clerkUser && clerkUser.id;
@@ -675,7 +679,7 @@ function UnauthenticatedApp({ frontData, backData, index, loading, error, onRetr
   const timelineRef = useRef(null);
 
   const searchData = useMergedLayers(frontData, backData);
-  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes, storageKey: LIFELINES_TOUR_KEY });
+  const tour = useTour({ fullData: searchData, timelineRef, scenes: tourScenes, storageKey: LIFELINES_TOUR_KEY, buildOutWave: BUILD_OUT_WAVE_MS });
 
   return (
     <LifelinesShell

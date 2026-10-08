@@ -1353,11 +1353,14 @@ test.describe('Tour polish (2026-10-08)', () => {
 
     await search('Athanasius');
     await expect(band).toHaveText('Church figure');
+    // Each kind leads with its mark from the Key (a figure's bar here).
+    await expect(band.locator('.modal-type-band-mark .modal-type-band-bar')).toHaveCount(1);
     // The band replaces the "Era:" line.
     await expect(page.locator('.modal-period')).toHaveCount(0);
 
     await search('Nicaea');
     await expect(band).toHaveText('Council');
+    await expect(band.locator('.modal-type-band-mark .string-mark--diamond')).toHaveCount(1);
 
     // Rulers: their realm's colour, in the strip and on the band, which
     // names the realm (the unified Roman Empire is maroon).
@@ -1368,6 +1371,34 @@ test.describe('Tour polish (2026-10-08)', () => {
     await expect(band.locator('.modal-type-band-label')).toHaveText('Emperors & monarchs');
     await expect(band.locator('.modal-type-band-detail')).toHaveText('Roman Empire');
     expect(await bandColour()).toBe('rgb(122, 31, 43)');
+    await expect(band.locator('.modal-type-band-mark .icon')).toHaveCount(1);
+  });
+
+  test('"The Full Picture" lays everyone out once and sweeps them in (real data)', async ({ page }) => {
+    // It used to add eight figures every 120ms, re-sorting every row each
+    // time: bars jumped about and slow machines stuttered (owner,
+    // 2026-10-08). Now the layout changes once and the newcomers grow in.
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const next = () => page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    for (let i = 0; i < 18; i++) { await next(); await page.waitForTimeout(150); }
+    await expect(page.locator('.tour-panel')).toContainText('19 of 20');
+    await page.waitForTimeout(1500);
+    const counts = new Set();
+    const sample = page.evaluate(async () => {
+      const seen = [];
+      const end = performance.now() + 2500;
+      while (performance.now() < end) {
+        seen.push(document.querySelectorAll('.person-label').length);
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      return seen;
+    });
+    await next();
+    for (const n of await sample) counts.add(n);
+    await expect(page.locator('.tour-panel')).toContainText('The Full Picture');
+    // Before the step and after it: two layouts, nothing in between.
+    expect([...counts].length).toBeLessThanOrEqual(2);
   });
 
   test('white band text always reads: a light colour is darkened to 4.5:1', async ({ page }) => {
@@ -1403,8 +1434,13 @@ test.describe('Tour polish (2026-10-08)', () => {
     // Augustus arrives with Jesus in the tour's second scene, at the foot of
     // the screen, where the owner found him easy to miss.
     await loadPage(page, { realData: true, dismissWelcome: false });
+    // Behind the welcome dialog on first load, the strip is out of focus: no
+    // slide, no glow (owner, 2026-10-08). Only the tour brings it in.
+    await expect(page.locator('.ruler-strip-wrap')).not.toHaveClass(/is-arriving/);
+    expect(await page.locator('.ruler-strip').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
     await page.getByRole('button', { name: 'Take the Tour' }).click();
     await page.locator('[title="Next (→)"]').click();
+    await expect(page.locator('.ruler-strip-wrap')).toHaveClass(/is-arriving/);
     const augustus = page.locator('.ruler-strip-item.is-new', { hasText: 'Augustus' });
     await expect(augustus).toBeVisible();
     // The strip itself arrives in the arrival gold, then settles to white.
