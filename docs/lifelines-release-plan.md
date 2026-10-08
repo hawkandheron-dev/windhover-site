@@ -12,6 +12,67 @@ Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thick
 - `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
 - Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
 
+## M6 tour copy PR: Matthew's edits, the Irenaeus map, scene 1's event, "John" (2026-10-08)
+
+**Context.**
+- Matthew has finished editing the tour copy doc (https://claude.ai/code/artifact/f9b9d0f2-dd34-455a-9b13-e9408c23c6e2).
+- Comments in the doc ask for:
+  - keeping the Irenaeus build-up (scenes 6–8), already answered;
+  - adding Jesus's death and resurrection to scene 1;
+  - "John the Evangelist" → "John" (thread `cd82469b-df58`, still unanswered).
+- New ask: on Irenaeus's map, "start in Smyrna, but when it loads scene 7, the map moves to Lyons". Scene 7 (`irenaeus-2`) is the scene that opens his dialog: its text adds "Irenaeus then becomes a bishop in Gaul". Scene 8 keeps the dialog open.
+
+### 1. Copy into the database (one migration)
+- **Compare the doc with the live table.** Read the doc's 20 scenes (title, narrative, additional and third narrative per scene id) and the live `CH_TourScenes` rows (Supabase connector, read-only), then compare field by field.
+- **Write the migration**, `supabase/migrations/20261008…_tour_copy_m6.sql`. It updates only the changed fields, `where scene_id = …`, using dollar-quoted strings so apostrophes and quotes stay exact. It includes:
+  - "The Cappadocians" (formerly "The Grandchildren");
+  - scene 3's title "John";
+  - scene 1 `jesus-intro`: `point_ids = '{event-crucifixion}'`.
+- **"John" on the timeline too:** `CH_People.name = 'John'` for John's row, so the bar, search and the dialog match the tour. Find his `person_id` first, and check no other figure is named plain "John".
+- **Snapshot:** apply the same changes to `tests/e2e/data/lifelines-snapshot.json` (a small script) so shots and e2e use the new copy.
+- Show Matthew the field-level diff in the PR body, so he can check every changed line.
+
+### 2. Irenaeus's map travels from Smyrna to Lyons (opt-in)
+- **Data:**
+  - add `map_from text` to `CH_TourScenes` (nullable) and set `'Smyrna'` on `irenaeus-2`;
+  - the adapter (`fetchTourScenes`, `data/churchHistorySupabaseAdapter.js`) maps it to `scene.mapFrom`;
+  - other apps never set it.
+- **Wiring:**
+  - `ChurchHistory2App` passes `detailMapFrom = { personId: scene.openPersonId, location: scene.mapFrom }` while that scene is showing;
+  - `Timeline` → `TimelineModal` → `HistoricalMap` get a `fromLocation` prop, given only when the dialog's item is that person.
+- **HistoricalMap** (`components/Timeline/components/HistoricalMap.jsx`):
+  - With `fromLocation`, the map starts centred on Smyrna with its pin there.
+  - About 0.8s after the map loads, it `flyTo`s Lyons over about 2.5s, arcing out and back in, and the pin moves to Lyons.
+  - `fromLocation` is read once, through a ref, when the map is created. Scene 8, which keeps the same dialog open, does not rebuild or replay the map.
+  - Reduced motion: no flight, it starts at Lyons.
+  - Without the prop, nothing changes for any other dialog or app.
+- **Coordinates:** both places already exist in `data/locationCoordinates.js` (`Smyrna`, `Lyons, Gaul`).
+
+### 3. Doc replies
+In thread `cd82469b-df58`, reply that the scene title and the figure become "John" in this PR. One reply only.
+
+### Verification
+- **Unit:** the adapter maps `map_from`.
+- **E2E (fixture):**
+  - a tour scene with `map_from` shows the map's pin at Smyrna first, then at Lyons;
+  - reduced motion starts at Lyons;
+  - a normal dialog's map is unchanged.
+  - Test it through a `data-map-center` attribute set when the map moves; MapLibre itself can't draw without WebGL in some browsers.
+- **Shots:** the tour at scenes 1, 3, 7 and 13 (desktop and phone).
+- Unit, full e2e under Node 20, and lint on the touched files.
+- Commit, open the PR, and watch it go green. The migration is applied by CI on merge, as before.
+- **DESIGN.md §6 Tour row:** a scene may move a figure's map from where they started to where they settled.
+
+## Next step: merge PR #167 (Matthew: "Merge it", 2026-10-08)
+
+[hawkandheron-dev/windhover-site#167](https://github.com/hawkandheron-dev/windhover-site/pull/167) is green on cba7ec6 (check suite completed, no failures), and Codex found nothing.
+
+1. Re-check the check runs on the head and confirm all are green.
+2. Merge (merge commit, as with #158–#166).
+3. Unsubscribe from the PR.
+4. Fast-forward `claude/clever-curie-0627ec` to main.
+5. Tell Matthew it's live, and remind him the tour copy doc (https://claude.ai/artifact/XqZP6PXrHoJTorkDuNumAy) is his to edit next.
+
 ## Band icons: a portrait for figures, an hourglass for years (2026-10-08)
 
 **Context.** Matthew: church figures' band icon should be "a profile or portrait icon (looks like a person)", and Year's "an hourglass, maybe". Today the band shows the Key's marks: a bar for figures, a line for years.
@@ -82,7 +143,15 @@ Matthew: point both windhoverhistory.com and windhoverhistory.com/lifelines to L
 
 ## Tour copy: queued edits (Matthew)
 
-- Rename the scene "The Grandchildren" to "The Cappadocians" (2026-10-08). Apply it with the rest of the tour copy edits (M6): a migration on `CH_TourScenes` plus a snapshot refresh.
+- Rename the scene "The Grandchildren" to "The Cappadocians" (2026-10-08).
+- Scene 1 (`jesus-intro`): add the event `event-crucifixion` ("Crucifixion and Resurrection of Jesus") to `point_ids`. Today the scene shows Jesus only (Matthew, doc comment, 2026-10-08).
+- Scenes 6–8 (Irenaeus): keep the paragraph-at-a-time build-up (Matthew, 2026-10-08).
+- "John the Evangelist" → "John" (Matthew, doc comment on scene 3, 2026-10-08). He already retitled the scene heading in the doc to "3. John". Still to do:
+  - with the tour migration, set the scene title to "John";
+  - also rename the figure (`CH_People.name` for the John row) to "John", so the bar, search and popup match the tour;
+  - refresh the snapshot;
+  - search the 20 scenes' copy for "John the Evangelist" and change any left.
+  - **Now:** reply in the doc thread `cd82469b-df58`: the heading already says John, and the figure and scene title will be renamed with the copy edits. Change nothing else in the doc. Apply it with the rest of the tour copy edits (M6): a migration on `CH_TourScenes` plus a snapshot refresh.
 
 ## The grow-in's backdrop: no strobe (2026-10-08)
 

@@ -208,7 +208,7 @@ export const churchHistory2Config = {
   publisherStrapline: "Get a bird's eye view",
 
   legend: [
-    { type: 'people', id: 'people', name: 'Church figures', color: CENTURY_COLORS[3], filterKey: 'people' },
+    { type: 'people', id: 'people', name: 'Church figures', color: CENTURY_COLORS[3], filterKey: 'people', icon: 'profile' },
 
     { type: 'point', id: 'councils',  name: POINT_STYLES.councils.label,  color: POINT_STYLES.councils.color,  shape: 'cross', mark: 'diamond', filterKey: 'councils' },
     // The major events, back since M3 round 5; a dot, like their strings.

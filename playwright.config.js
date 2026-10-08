@@ -23,8 +23,11 @@ export default defineConfig({
     // Chromium, and `npm run test:e2e` should not ask for browsers it lacks.
     ...(process.env.PW_ALL_BROWSERS ? [
       // Firefox has no phone emulation in Playwright (no isMobile), so it leaves
-      // out the @phone block; Chromium and WebKit run it.
-      { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /church-history-2\.spec\.js/, grepInvert: /@phone/ },
+      // out the @phone block; Chromium and WebKit run it. Headless Firefox in
+      // CI has no WebGL either, so its maps show the "can't be shown" fallback
+      // (tested on its own) and the @webgl tests, which watch a map move, run
+      // in Chromium and WebKit only.
+      { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /church-history-2\.spec\.js/, grepInvert: /@phone|@webgl/ },
       { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /church-history-2\.spec\.js/ },
     ] : []),
   ],

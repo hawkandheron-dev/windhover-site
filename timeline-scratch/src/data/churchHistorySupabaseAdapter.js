@@ -268,6 +268,7 @@ export async function fetchTourScenes() {
     if (row.open_person_id) scene.openPersonId = row.open_person_id;
     if (row.highlight_connection_id) scene.highlightConnectionId = row.highlight_connection_id;
     if (row.keep_modal_open) scene.keepModalOpen = true;
+    if (row.map_from) scene.mapFrom = row.map_from;
     if (row.open_year_summary != null) scene.openYearSummary = row.open_year_summary;
     if (row.point_ids && row.point_ids.length > 0) scene.pointIds = row.point_ids;
     if (row.include_periods_and_points) scene.includePeriodsAndPoints = true;

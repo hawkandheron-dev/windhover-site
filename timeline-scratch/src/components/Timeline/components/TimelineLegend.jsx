@@ -253,7 +253,11 @@ function SlimLegend({ legend, filters, onToggle, onMouseEnter, onMouseLeave, sit
                     ? <StringMark mark={item.mark} color={item.color} size={10} />
                     : <ShapeIcon shape={item.shape} color={item.color} size={16} />)}
                   {item.isMonarch && <Icon name="crown" size={14} color={item.color} />}
-                  {item.type === 'people' && !item.isMonarch && <span className="legend-slim-bar" />}
+                  {/* A legend row may name an icon (Lifelines: a portrait for
+                      figures, matching the detail band); else the neutral bar. */}
+                  {item.type === 'people' && !item.isMonarch && (item.icon
+                    ? <span className="legend-slim-icon"><Icon name={item.icon} size={16} /></span>
+                    : <span className="legend-slim-bar" />)}
                 </span>
                 <span className="legend-slim-label">{item.name}</span>
               </label>

@@ -207,6 +207,8 @@ test.describe('CH Timeline 2.0', () => {
     const rows = (await legend.locator('.legend-slim-label').allTextContents()).map(t => t.trim());
     // Round 5 brought the major events back, with their own switch.
     expect(rows).toEqual(['Church figures', 'Councils', 'Events', 'Texts & creeds', 'Emperors & monarchs']);
+    // Figures carry the portrait icon of their detail band (owner, 2026-10-08).
+    await expect(legend.locator('.legend-slim-row', { hasText: 'Church figures' }).locator('.legend-slim-icon svg')).toHaveCount(1);
 
     // No colour key and no eras, ramp or period rows.
     await expect(page.locator('.legend-century-bar')).toHaveCount(0);
@@ -1399,7 +1401,8 @@ test.describe('Tour polish (2026-10-08)', () => {
     });
     await next();
     for (const n of await sample) counts.add(n);
-    await expect(page.locator('.tour-panel')).toContainText('The Full Picture');
+    // The build-out scene, retitled "A light in the dark" in the copy edits (M6).
+    await expect(page.locator('.tour-panel')).toContainText('A light in the dark');
     // Before the step and after it: two layouts, nothing in between.
     expect([...counts].length).toBeLessThanOrEqual(2);
   });
@@ -1433,6 +1436,47 @@ test.describe('Tour polish (2026-10-08)', () => {
     await expect(band).toHaveText('Year');
     // An hourglass leads it.
     await expect(band.locator('.modal-type-band-mark .icon svg')).toHaveCount(1);
+  });
+
+  test("Irenaeus's map starts in Smyrna and flies to Lyons when his dialog opens (real data) @webgl", async ({ page }) => {
+    // Scene 7 opens his dialog as its text moves him from Smyrna to Gaul
+    // (CH_TourScenes.map_from, owner 2026-10-08).
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const next = () => page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    for (let i = 0; i < 6; i++) { await next(); await page.waitForTimeout(200); }
+    await expect(page.locator('.tour-panel')).toContainText('7 of 20');
+    const map = page.locator('.timeline-modal .historical-map-container');
+    await expect(map).toHaveAttribute('data-map-at', 'from', { timeout: 10_000 });
+    await expect(map).toHaveAttribute('data-map-at', 'to', { timeout: 10_000 });
+    // Scene 8 keeps the dialog open: the map stays in Lyons, no second flight.
+    await next();
+    await expect(page.locator('.tour-panel')).toContainText('8 of 20');
+    await page.waitForTimeout(1200);
+    await expect(map).toHaveAttribute('data-map-at', 'to');
+  });
+
+  test('with reduced motion the map simply starts in Lyons; other maps never travel', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const next = () => page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    for (let i = 0; i < 6; i++) { await next(); await page.waitForTimeout(200); }
+    const map = page.locator('.timeline-modal .historical-map-container');
+    await expect(map).toBeAttached({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    await expect(map).not.toHaveAttribute('data-map-at', /.+/);
+  });
+
+  test("the tour's copy keeps its paragraph breaks (real data)", async ({ page }) => {
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    const text = page.locator('.tour-scene-narrative').first();
+    await expect(text).toContainText('ascended');
+    expect(await text.evaluate(el => getComputedStyle(el).whiteSpace)).toBe('pre-line');
+    // Two paragraphs: the box is taller than one run-on block would be.
+    expect(await text.evaluate(el => el.textContent.includes('\n\n'))).toBe(true);
   });
 
   test('a ruler the tour brings in is marked new: it grows and glows (real data)', async ({ page }) => {

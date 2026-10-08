@@ -49,7 +49,7 @@ const DEPTH_MODES = [
   { id: 'forward',     label: 'Front',  title: 'Bring the whole background into focus — or hold Alt' },
 ];
 
-export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle, animationWave }, ref) {
+export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle, animationWave, detailMapFrom }, ref) {
   const isMobile = useMobileDetect();
 
   // Which timeline to draw. By default the vertical one on small screens and
@@ -71,6 +71,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
         data={data}
         backData={backData}
         newRulerIds={isTourMode ? animatingIds : undefined}
+        detailMapFrom={detailMapFrom}
         rulerArrives={isTourMode}
         config={config}
         onItemClick={onItemClick}
@@ -93,6 +94,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       phoneLayout={horizontalOnPhone}
       layoutToggle={layoutToggle}
       animationWave={animationWave}
+      detailMapFrom={detailMapFrom}
       onViewportChange={onViewportChange}
       onItemClick={onItemClick}
       suppressModal={suppressModal}
@@ -136,7 +138,7 @@ if (typeof window !== 'undefined') {
 }
 const noHover = () => Date.now() - lastTouchAt < TOUCH_ECHO_MS;
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false }, ref) {
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false, detailMapFrom }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -1066,6 +1068,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     <TimelineModal
       isOpen={selectedItem !== null}
       growFrom={defaultConfig.detailGrowFromBar ? detailOrigin : null}
+      mapFrom={detailMapFrom}
       variant={detailVariant}
       brief={detailBrief}
       item={selectedItem?.item}
