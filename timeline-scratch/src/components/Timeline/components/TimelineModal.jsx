@@ -592,7 +592,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   return (
     <div
-      className={isPanel ? 'timeline-modal timeline-modal--panel' : isBrief ? 'timeline-modal timeline-modal--brief' : 'timeline-modal'}
+      className={`${isPanel ? 'timeline-modal timeline-modal--panel' : isBrief ? 'timeline-modal timeline-modal--brief' : 'timeline-modal'}${growing ? ' timeline-modal--grow' : ''}`}
       // Clicking outside dismisses the centred dialog. The docked panel has no
       // "outside" — it is part of the layout — so it closes from its own button,
       // and so does the brief card, whose "outside" is the live page.

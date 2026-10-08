@@ -1180,3 +1180,29 @@
 .modal-content.modal-content--accent {
   border: 2px solid var(--detail-accent);
 }
+
+/* While the dialog grows out of a bar (growFrom), the page behind stays
+   clear and only darkens once the dialog has opened, slowly: dimming and
+   blurring the screen in the same instant as the block moved read as a
+   strobe (owner, 2026-10-08). */
+.timeline-modal--grow {
+  animation: none;
+}
+
+.timeline-modal--grow .modal-backdrop {
+  animation: modalBackdropSettle 700ms ease-out 480ms both;
+}
+
+@keyframes modalBackdropSettle {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-modal--grow {
+    animation: modalFadeIn 0.2s ease-out;
+  }
+  .timeline-modal--grow .modal-backdrop {
+    animation: none;
+  }
+}

@@ -1327,6 +1327,10 @@ test.describe('Tour polish (2026-10-08)', () => {
     const lane = page.locator('.mobile-person-lane[data-person-id="athanasius"]');
     await lane.click();
     await expect(page.locator('.modal-grow-ghost')).toHaveCount(1);
+    // The page behind stays clear while the block grows, and darkens only
+    // after (owner: dimming at the same moment read as a strobe).
+    expect(Number(await page.locator('.modal-backdrop').evaluate(el => getComputedStyle(el).opacity))).toBeLessThan(0.1);
+    await expect.poll(() => page.locator('.modal-backdrop').evaluate(el => Number(getComputedStyle(el).opacity)), { timeout: 4000 }).toBeGreaterThan(0.95);
     const content = page.locator('.modal-content--accent');
     await expect(content).toBeVisible();
     await expect(page.locator('.modal-grow-ghost')).toHaveCount(0, { timeout: 10_000 });
