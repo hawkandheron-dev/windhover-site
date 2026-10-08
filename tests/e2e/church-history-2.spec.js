@@ -1713,6 +1713,24 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(page.locator('.legend-slim-rows .string-mark--square')).toHaveCount(1);
   });
 
+  test("a string's mark sits on its line, and hovering draws the line 3px wide there", async ({ page }) => {
+    // Owner, 2026-10-08: the mark sat ~12px right of its line (the
+    // Crucifixion looked later than Jesus' death), and the hovered line was
+    // drawn at the left edge of the screen, so hovering seemed to do nothing.
+    await loadPage(page);
+    const label = page.locator('.point-string-label', { hasText: 'Council of Nicaea' });
+    await label.hover();
+    const line = page.locator('.point-string.is-hover[data-point-id="council-nicaea"]');
+    await expect(line).toBeVisible();
+    const lineBox = await line.boundingBox();
+    expect(lineBox.width).toBeCloseTo(3, 0);
+    const mark = await label.locator('.string-mark').boundingBox();
+    const dot = await page.locator('.point-string-dot[data-point-id="council-nicaea"]').first().boundingBox();
+    const lineX = lineBox.x + lineBox.width / 2;
+    expect(Math.abs(mark.x + mark.width / 2 - lineX)).toBeLessThan(1.5);
+    expect(Math.abs(dot.x + dot.width / 2 - lineX)).toBeLessThan(1.5);
+  });
+
   test('major events show with a dot; minor events and councils are hidden', async ({ page }) => {
     await loadPage(page);
     const fire = page.locator('.point-string-label', { hasText: 'Great Fire of Rome' });

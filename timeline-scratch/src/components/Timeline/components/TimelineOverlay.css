@@ -196,7 +196,8 @@
   position: absolute;
   width: 9px;
   height: 9px;
-  margin: -4.5px 0 0 -4.5px;
+  /* Centred with its 2px rim, so the dot sits on its line. */
+  margin: -6.5px 0 0 -6.5px;
   box-sizing: content-box;
   border: 2px solid #ffffff;
   border-radius: 50%;

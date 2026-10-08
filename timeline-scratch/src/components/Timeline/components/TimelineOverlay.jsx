@@ -13,6 +13,12 @@ import { markForPoint } from '../utils/stringMark.js';
 import { usePointer } from '../hooks/usePointer.js';
 import { LABEL_GAP, LABEL_PADDING, MIN_LABEL_ROOM, measureLabel, nextBarStartInRow, stringLabelWidth, STRING_LABEL_GAP } from '../utils/labelFit.js';
 
+// A string's label starts so that its mark (8px, after the label's 4px
+// padding) sits centred on the line: the mark reads as the string's own
+// marker at its year (owner, 2026-10-08: the Crucifixion's mark sat ~12px
+// right of the line, so it looked later than the end of Jesus' bar).
+const LABEL_OFFSET = -8;
+
 export function TimelineOverlay({
   width,
   height,
@@ -366,9 +372,10 @@ export function TimelineOverlay({
       const rowY = point.y - panOffsetY + point.height / 2;
       const labelWidth = stringLabelWidth(point) - 4;
       const rowKey = `${side}:${point.row ?? 0}`;
-      const showLabel = x + 4 >= (lastRight.get(rowKey) ?? -Infinity) + STRING_LABEL_GAP && x + 4 + labelWidth <= width;
-      if (showLabel) lastRight.set(rowKey, x + 4 + labelWidth);
-      return { point, x, side, rowY, showLabel, labelRect: showLabel ? { x0: x, x1: x + 4 + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
+      const left = x + LABEL_OFFSET;
+      const showLabel = left >= (lastRight.get(rowKey) ?? -Infinity) + STRING_LABEL_GAP && left + labelWidth <= width;
+      if (showLabel) lastRight.set(rowKey, left + labelWidth);
+      return { point, x, side, rowY, showLabel, labelRect: showLabel ? { x0: left, x1: left + labelWidth, y0: rowY - 11, y1: rowY + 11 } : null };
     });
 
     // Then the dots (utils/stringDots.js): on a linked figure's bar, or in
@@ -439,7 +446,7 @@ export function TimelineOverlay({
               when its figure is in focus (TimelineCanvas, pointStyle
               'string'). Only the hovered one is drawn here, over everything. */}
           {hovered && (
-            <div className="point-string is-hover" data-point-id={point.id} />
+            <div className="point-string is-hover" data-point-id={point.id} style={{ left: `${x}px` }} />
           )}
           {/* While a string is hovered, the figures linked to it light up: a
               gold ring around each one's bar (owner's call, round 5). */}
@@ -461,7 +468,7 @@ export function TimelineOverlay({
           {showLabel && (
             <div
               className={`point-string-label${inFocus ? ' is-focus' : ''}${hovered ? ' is-hover' : ''}`}
-              style={{ left: `${x + 4}px`, top: `${rowY}px`, opacity: focusActive && !inFocus ? 0.5 : 1 }}
+              style={{ left: `${x + LABEL_OFFSET}px`, top: `${rowY}px`, opacity: focusActive && !inFocus ? 0.5 : 1 }}
               {...handlers}
             >
               <StringMark mark={mark} color={point.color} size={8} />
