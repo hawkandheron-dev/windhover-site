@@ -207,6 +207,8 @@ test.describe('CH Timeline 2.0', () => {
     const rows = (await legend.locator('.legend-slim-label').allTextContents()).map(t => t.trim());
     // Round 5 brought the major events back, with their own switch.
     expect(rows).toEqual(['Church figures', 'Councils', 'Events', 'Texts & creeds', 'Emperors & monarchs']);
+    // Figures carry the portrait icon of their detail band (owner, 2026-10-08).
+    await expect(legend.locator('.legend-slim-row', { hasText: 'Church figures' }).locator('.legend-slim-icon svg')).toHaveCount(1);
 
     // No colour key and no eras, ramp or period rows.
     await expect(page.locator('.legend-century-bar')).toHaveCount(0);

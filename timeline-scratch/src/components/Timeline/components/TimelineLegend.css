@@ -284,6 +284,12 @@
 .legend-slim-row.is-off .legend-slim-label { color: var(--color-ink-faded); }
 .legend-slim-row.is-off .legend-slim-mark { opacity: 0.45; }
 
+.legend-slim-icon {
+  /* Neutral, like the bar it replaces: the Key does not explain colour. */
+  display: inline-flex;
+  color: var(--color-ink-faded);
+}
+
 .legend-slim-bar {
   /* A lifespan, drawn neutral: the row says "bars are figures", not what
      their colours mean (the colour key was removed, DESIGN.md §3). */
