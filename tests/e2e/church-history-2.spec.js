@@ -1436,7 +1436,7 @@ test.describe('Tour polish (2026-10-08)', () => {
     await expect(band.locator('.modal-type-band-mark .icon svg')).toHaveCount(1);
   });
 
-  test("Irenaeus's map starts in Smyrna and flies to Lyons when his dialog opens (real data)", async ({ page }) => {
+  test("Irenaeus's map starts in Smyrna and flies to Lyons when his dialog opens (real data) @webgl", async ({ page }) => {
     // Scene 7 opens his dialog as its text moves him from Smyrna to Gaul
     // (CH_TourScenes.map_from, owner 2026-10-08).
     await loadPage(page, { realData: true, dismissWelcome: false });

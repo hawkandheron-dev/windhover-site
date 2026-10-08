@@ -183,7 +183,15 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
     }
   }, [isOpen, filtered, activeIdx, setActiveIdx, query, findResults, selectEntry, performFind, navigateFind, clearFind]);
 
+  // The close that follows a blur is delayed (so a click on a result lands
+  // first); coming back to the box, or typing, inside that delay cancels it.
+  // Without this, focus returning to the box (Esc from the panel) and quick
+  // typing could see the new results shut under them (seen in Firefox).
+  const blurTimer = useRef(null);
+  useEffect(() => () => clearTimeout(blurTimer.current), []);
+
   const handleChange = useCallback((e) => {
+    clearTimeout(blurTimer.current);
     const val = e.target.value;
     setQuery(val);
     setIsOpen(val.trim().length > 0);
@@ -195,12 +203,14 @@ export function TimelineSearch({ data, onSelectItem, onHighlight, onClearHighlig
   }, [findResults, onClearHighlight]);
 
   const handleFocus = useCallback(() => {
+    clearTimeout(blurTimer.current);
     if (query.trim()) setIsOpen(true);
   }, [query]);
 
   const handleBlur = useCallback(() => {
     // Delay close so click on dropdown item registers first
-    setTimeout(() => setIsOpen(false), 180);
+    clearTimeout(blurTimer.current);
+    blurTimer.current = setTimeout(() => setIsOpen(false), 180);
   }, []);
 
   const isFindMode = findResults !== null;
