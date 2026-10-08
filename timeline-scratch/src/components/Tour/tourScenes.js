@@ -219,6 +219,9 @@ export const TOUR_SCENES = [
     additionalNarrative:
       'Irenaeus carried that apostolic witness westward, becoming bishop of Lyon in Gaul \u2014 bringing the good news of Jesus from the heart of Asia Minor to the frontiers of the Roman world.',
     openPersonId: 'irenaeus',
+    // His map starts where he grew up and flies to Lyons (Lifelines only
+    // acts on it; matches CH_TourScenes.map_from).
+    mapFrom: 'Smyrna',
   },
   {
     id: 'irenaeus-3',
