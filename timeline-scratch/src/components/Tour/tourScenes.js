@@ -276,7 +276,7 @@ export const TOUR_SCENES = [
     id: 'cappadocians',
     personIds: ['jesus', 'john-evangelist', 'polycarp', 'irenaeus', 'hippolytus', 'origen', 'gregory-thaumaturgus', 'macrina-elder', 'macrina-younger', 'gregory-nyssa', 'basil-great', ...EMPERORS_CAPPADOCIANS],
     pointIds: POINTS_CAPPADOCIANS,
-    staggerIds: ['macrina-younger', 'gregory-nyssa', 'basil-great'],
+    staggerIds: ['macrina-younger', 'basil-great', 'gregory-nyssa'],
     title: 'The Grandchildren',
     narrative:
       'Macrina the Younger, Gregory of Nyssa, and Basil the Great were grandchildren of Macrina the Elder. She passed the faith directly to them, and they became three of the most important theologians of the fourth century.',
