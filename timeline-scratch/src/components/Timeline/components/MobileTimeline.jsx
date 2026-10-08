@@ -733,7 +733,11 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
                   // A ruler the tour just brought in grows and glows for a
                   // moment, as in the horizontal strip (RulerStrip.css).
                   className={`mobile-ruler${newRulerIds?.has(person.id) ? ' is-new' : ''}`}
-                  style={{ top: `${top}px`, left: `${4 + row * RULER_SUBCOLUMN}px`, width: `${RULER_SUBCOLUMN}px` }}
+                  style={{
+                    top: `${top}px`, left: `${4 + row * RULER_SUBCOLUMN}px`, width: `${RULER_SUBCOLUMN}px`,
+                    // rulerColorByRealm (Lifelines): each reign in its realm's colour.
+                    ...(defaultConfig.rulerColorByRealm === true && person.color && { '--ruler-color': person.color }),
+                  }}
                   aria-label={`${person.name}, ${formatEraYear(start)} – ${formatEraYear(end)}`}
                   onClick={() => handleItemClick('person', person)}
                 >

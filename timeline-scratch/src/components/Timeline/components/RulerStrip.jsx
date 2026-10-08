@@ -24,7 +24,7 @@ import {
 import { Icon } from './Icon.jsx';
 import './RulerStrip.css';
 
-export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, color, focusIds, onItemHover, onItemClick, wasDraggingRef, folded = false, onToggleFold, newIds }) {
+export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, color, focusIds, onItemHover, onItemClick, wasDraggingRef, folded = false, onToggleFold, newIds, colorByRuler = false }) {
   const packed = useMemo(() => packRulerRows(people || [], yearsPerPixel, undefined, RULER_NAME_FONT), [people, yearsPerPixel]);
   if (!packed.length) return null;
   const rows = Math.max(...packed.map(r => r.row)) + 1;
@@ -56,12 +56,14 @@ export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, co
           const isNew = newIds?.has(person.id);
           // Under 28px of room there is no name; hovering still names it.
           const roomPx = room / yearsPerPixel - 4;
+          // colorByRuler (Lifelines): each reign in its own (realm's) colour.
+          const rulerColor = colorByRuler && person.color ? person.color : color;
           const showName = !folded && roomPx >= 28;
           return (
             <div
               key={person.id}
               className={`ruler-strip-item${focused ? ' is-focus' : ''}${isNew ? ' is-new' : ''}`}
-              style={{ left: `${x0}px`, top: folded ? '4px' : `${PAD + row * RULER_ROW_HEIGHT}px` }}
+              style={{ left: `${x0}px`, top: folded ? '4px' : `${PAD + row * RULER_ROW_HEIGHT}px`, ...(rulerColor !== color && { '--ruler-color': rulerColor }) }}
               onMouseEnter={() => onItemHover?.('person', person)}
               onMouseLeave={() => onItemHover?.(null, null)}
               onClick={(e) => { e.stopPropagation(); if (!wasDraggingRef?.current) onItemClick?.('person', person); }}
@@ -69,7 +71,7 @@ export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, co
               <span className="ruler-strip-bar" style={{ width: `${Math.max(x1 - x0, 3)}px` }} />
               {showName && (
                 <span className="ruler-strip-name" style={Number.isFinite(roomPx) ? { maxWidth: `${roomPx}px` } : undefined}>
-                  <Icon name="crown" size={12} color={color} />
+                  <Icon name="crown" size={12} color={rulerColor} />
                   <span className="ruler-strip-name-text">{person.name}</span>
                 </span>
               )}

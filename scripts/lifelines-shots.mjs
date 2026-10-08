@@ -83,6 +83,11 @@ const DEFAULT_STATES = [
   { name: 'tour-later-horizontal', viewports: ['phone'], welcome: true, layout: 'horizontal', act: tourScene(6) },
   { name: 'horizontal',    viewports: ['phone'], layout: 'horizontal' },
   // The data fails to load: a plain sentence and "Try again" (M4).
+  // The detail frame's type band, one per kind of entry (2026-10-08).
+  { name: 'detail-ruler',  viewports: ['phone', 'desktop'], act: openResult('Justinian', 'Emperor') },
+  { name: 'detail-text',   viewports: ['desktop'], act: openResult('Didache') },
+  { name: 'year',          viewports: ['desktop'], act: openYear },
+  { name: 'cursor',        viewports: ['desktop'], act: hoverYear },
   { name: 'about',         viewports: ['phone', 'desktop'], act: openAbout },
   { name: 'error',         viewports: ['phone', 'desktop'], failData: true },
 ];
@@ -183,6 +188,43 @@ async function openSearch(page) {
   await input.click();
   await input.fill(PANEL_QUERY.slice(0, 4));
   await page.waitForTimeout(250);
+}
+/** Open the first search result for `query` (whose row mentions `hint`). */
+function openResult(query, hint) {
+  return async (page) => {
+    const input = page.locator('.timeline-search-input').first();
+    await input.click();
+    await input.fill(query);
+    await page.waitForTimeout(300);
+    const options = page.locator('.timeline-search-dropdown [role="option"]');
+    const option = hint ? options.filter({ hasText: hint }).first() : options.first();
+    await (await option.count() ? option : options.first()).click();
+    await page.waitForTimeout(900);
+  };
+}
+/** A spot on the canvas above the rulers' strip, clear of figures. */
+async function emptySpot(page) {
+  return page.evaluate(() => {
+    const strip = document.querySelector('.ruler-strip-wrap')?.getBoundingClientRect();
+    const top = (strip?.top ?? innerHeight) - 90;
+    for (let x = innerWidth * 0.55; x < innerWidth - 40; x += 13) {
+      const el = document.elementFromPoint(x, top);
+      if (el && (el.tagName === 'CANVAS' || el.classList.contains('timeline-container'))) return { x, y: top };
+    }
+    return { x: innerWidth * 0.55, y: top };
+  });
+}
+async function hoverYear(page) {
+  const { x, y } = await emptySpot(page);
+  await page.mouse.move(x - 40, y - 20);
+  await page.mouse.move(x, y, { steps: 4 });
+  await page.waitForTimeout(250);
+}
+async function openYear(page) {
+  const { x, y } = await emptySpot(page);
+  await page.mouse.move(x, y, { steps: 3 });
+  await page.mouse.click(x, y);
+  await page.waitForTimeout(900);
 }
 function tourScene(n) {
   return async (page) => {

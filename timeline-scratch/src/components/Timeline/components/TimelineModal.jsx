@@ -13,6 +13,7 @@
 import { useEffect, useLayoutEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { formatDateRange, formatYear, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
+import { DetailTypeBand } from './DetailTypeBand.jsx';
 import { EditableText } from './EditableText.jsx';
 import { sanitizeHtml } from '../../../utils/sanitize.js';
 import { getWorksForAuthor } from '../../../data/works.js';
@@ -232,7 +233,13 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   // fades in; the dialog keeps a border in the figure's colour.
   const contentRef = useRef(null);
   const growing = Boolean(isOpen && item && variant !== 'panel' && growFrom);
-  const accentColor = growing && itemType === 'person' ? item.color : null;
+  // config.detailTypeBand (Lifelines): the dialog is framed in the entry's
+  // colour, with a band across the top naming the kind of entry ("Church
+  // figure", "Council"…). It replaces the "Era:" line.
+  const typeBand = isOpen && item && typeof config?.detailTypeBand === 'function'
+    ? config.detailTypeBand(item, itemType)
+    : null;
+  const accentColor = typeBand?.color || (growing && itemType === 'person' ? item.color : null);
   // Once per item shown; growFrom changes as the timeline pans, which must
   // not replay the opening.
   const growFromRef = useRef(growFrom);
@@ -606,13 +613,14 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
       {!isPanel && !isBrief && <div className="modal-backdrop" />}
       <div
         ref={contentRef}
-        className={`modal-content${accentColor ? ' modal-content--accent' : ''}`}
+        className={`modal-content${accentColor ? ' modal-content--accent' : ''}${typeBand ? ' modal-content--banded' : ''}`}
         style={accentColor ? { '--detail-accent': accentColor } : undefined}
         onClick={e => e.stopPropagation()}
         {...(manageFocus && (isPanel || isBrief
           ? { role: 'region', 'aria-labelledby': 'timeline-detail-title' }
           : { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'timeline-detail-title' }))}
       >
+        {typeBand && <DetailTypeBand band={typeBand} />}
         <button
           className="modal-close"
           onClick={onClose}
@@ -684,7 +692,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
         {!compactLayout && !isBrief && mapBlock}
 
-        {item.periodName && !isBrief && (
+        {item.periodName && !isBrief && !typeBand && (
           <p className="modal-period">
             Era:{' '}
             {periodEntry ? (

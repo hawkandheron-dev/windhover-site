@@ -27,7 +27,7 @@ import {
   buildEventConnectionMap,
 } from './churchHistoryShared.js';
 import { colorForLifespan, centuryOf, ordinal } from './churchHistory2Centuries.js';
-import { BACK_STYLES, POINT_STYLES } from './churchHistory2Data.js';
+import { BACK_STYLES, POINT_STYLES, REALM_STYLES } from './churchHistory2Data.js';
 
 // Tour scenes, linked media and the media-crop mutation are identical to 1.0;
 // re-export rather than duplicate so there is one implementation to maintain.
@@ -68,19 +68,6 @@ const isActive = (row) => row.active !== false;
 export const isShownEvent = (row) => isActive(row) && row.significance !== 'minor';
 
 // ── Presentation ──────────────────────────────────────────────────────────
-
-/** Emperors keep the per-empire colouring from the 1.0 timeline. */
-const monarchColorMap = {
-  'roman-unified': '#7b4a8e',
-  'roman-western': '#a1443a',
-  'roman-eastern': '#3a6ea1',
-  'frankish':      '#b07a2a',
-  'hre':           '#a35a2a',
-  'english':       '#2f7a6a',
-  'spanish':       '#9c3a63',
-  'french':        '#43509b',
-  'russian':       '#6b4a3a',
-};
 
 const EVENT_STYLES = {
   council:  { color: POINT_STYLES.councils.color,  shape: 'cross',     filterKey: 'councils',  itemType: 'councils' },
@@ -259,7 +246,7 @@ export function transformToTimelineFormat(db) {
         periodId: 'roman-emperors',
         periodName: BACK_STYLES.emperors.label,
         preview: formatReignYears(reignStart, reignEnd),
-        color: monarchColorMap[p.monarch_type] || BACK_STYLES.emperors.color,
+        color: REALM_STYLES[p.monarch_type]?.color || BACK_STYLES.emperors.color,
         aboveTimeline: false,
         isMonarch: true,
         filterKey: 'emperors',

@@ -1334,7 +1334,69 @@ test.describe('Tour polish (2026-10-08)', () => {
     const content = page.locator('.modal-content--accent');
     await expect(content).toBeVisible();
     await expect(page.locator('.modal-grow-ghost')).toHaveCount(0, { timeout: 10_000 });
-    expect(await content.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('2px');
+    // The frame is the figure's colour; its top edge is the type band (it
+    // was a plain 2px edge until the band came in, 2026-10-08).
+    expect(await content.evaluate(el => getComputedStyle(el).borderLeftWidth)).toBe('3px');
+    await expect(content.locator('.modal-type-band')).toHaveText('Church figure');
+  });
+
+  test("every detail is framed in its entry's colour, under a band naming its kind", async ({ page }) => {
+    await loadPage(page);
+    const band = page.locator('.modal-type-band');
+    const bandColour = () => band.evaluate(el => getComputedStyle(el).backgroundColor);
+    const search = async (q) => {
+      await page.keyboard.press('Escape');
+      const input = page.locator('.timeline-search-input').first();
+      await input.fill(q);
+      await page.getByRole('option', { name: new RegExp(q) }).first().click();
+    };
+
+    await search('Athanasius');
+    await expect(band).toHaveText('Church figure');
+    // The band replaces the "Era:" line.
+    await expect(page.locator('.modal-period')).toHaveCount(0);
+
+    await search('Nicaea');
+    await expect(band).toHaveText('Council');
+
+    // Rulers: their realm's colour, in the strip and on the band, which
+    // names the realm (the unified Roman Empire is maroon).
+    const ruler = page.locator('.ruler-strip-item', { hasText: 'Constantius II' });
+    expect(await ruler.locator('.ruler-strip-bar').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(122, 31, 43)');
+    await page.keyboard.press('Escape');
+    await ruler.click();
+    await expect(band.locator('.modal-type-band-label')).toHaveText('Emperors & monarchs');
+    await expect(band.locator('.modal-type-band-detail')).toHaveText('Roman Empire');
+    expect(await bandColour()).toBe('rgb(122, 31, 43)');
+  });
+
+  test('white band text always reads: a light colour is darkened to 4.5:1', async ({ page }) => {
+    await loadPage(page);
+    const input = page.locator('.timeline-search-input').first();
+    await input.fill('Incarnation');
+    await page.locator('.timeline-search-dropdown [role="option"]').first().click();
+    const band = page.locator('.modal-type-band');
+    await expect(band).toHaveText('Text');
+    const ratio = await band.evaluate(el => {
+      const [r, g, b] = getComputedStyle(el).backgroundColor.match(/\d+/g).map(Number)
+        .map(v => v / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+    });
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test("the pointer's year line is 3px in the century's colour, and so is the year's dialog", async ({ page }) => {
+    await loadPage(page);
+    await page.mouse.move(300, 450);
+    await page.mouse.move(310, 455);
+    const line = page.locator('.cursor-year-line');
+    await expect(line).toBeVisible();
+    const style = await line.evaluate(el => ({ width: getComputedStyle(el).width, bg: getComputedStyle(el).backgroundColor }));
+    expect(style.width).toBe('3px');
+    expect(style.bg).not.toBe('rgba(100, 100, 100, 0.5)');
+    await page.mouse.click(310, 455);
+    const band = page.locator('.year-summary-modal .modal-type-band');
+    await expect(band).toHaveText('Year');
   });
 
   test('a ruler the tour brings in is marked new: it grows and glows (real data)', async ({ page }) => {

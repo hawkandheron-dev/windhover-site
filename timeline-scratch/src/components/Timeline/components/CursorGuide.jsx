@@ -1,19 +1,30 @@
 import { formatYear } from '../utils/dateUtils.js';
 import { usePointer } from '../hooks/usePointer.js';
 
-/** The thin vertical line under the pointer, behind everything. */
-export function CursorLine({ store }) {
+/**
+ * The thin vertical line under the pointer, behind everything.
+ *
+ * `style` (config.cursorLine, opt-in) sets a width in px and a colour for the
+ * year under the pointer; Lifelines colours it by century. Without it, the
+ * line is the old 1px grey.
+ */
+export function CursorLine({ store, style: lineStyle, viewportStartYear = 0, yearsPerPixel = 1 }) {
   const { x } = usePointer(store);
+  const width = lineStyle?.width || 1;
+  const color = lineStyle?.color
+    ? lineStyle.color(Math.round(viewportStartYear + x * yearsPerPixel))
+    : 'rgba(100, 100, 100, 0.5)';
   return (
     <div
       className="cursor-year-line"
       style={{
         position: 'absolute',
-        left: `${x}px`,
+        left: `${x - (width - 1) / 2}px`,
         top: 0,
-        width: '1px',
+        width: `${width}px`,
         height: '100%',
-        backgroundColor: 'rgba(100, 100, 100, 0.5)',
+        backgroundColor: color,
+        opacity: lineStyle?.color ? 0.75 : undefined,
         pointerEvents: 'none',
         zIndex: 1
       }}

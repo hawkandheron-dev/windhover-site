@@ -2,6 +2,16 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Detail frame, realm colours, century cursor line (2026-10-08)
+
+Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thicker top band naming the type in white ("Emperors & monarchs", "Church figure", "Council", "Text", "Event", "Year"); colour monarchs by realm, with the unified empire maroon; check contrast. Then: the pointer's year line in the century's colour, 2–3px thicker.
+
+**Done (on PR #165):**
+- `detailTypeBand` (config): a 3px frame plus a band; light colours are darkened to 4.5:1 by `readableOnWhite`; the band replaces "Era:".
+- `REALM_STYLES`: maroon `#7a1f2b` (Roman Empire), purple `#5b3a86` (Eastern), rust `#9a4a1e` (Western), slate `#4a5a6a` (later kingdoms). The strip and the phone column use them (`rulerColorByRealm`).
+- `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
+- Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
+
 ## Tour copy: queued edits (Matthew)
 
 - Rename the scene "The Grandchildren" to "The Cappadocians" (2026-10-08). Apply it with the rest of the tour copy edits (M6): a migration on `CH_TourScenes` plus a snapshot refresh.

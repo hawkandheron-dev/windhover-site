@@ -12,7 +12,8 @@
  * from churchHistory2Centuries.js. The legend no longer explains them: it is
  * a slim panel of the four things a reader can switch (legendLayout below).
  */
-import { CENTURY_COLORS } from './churchHistory2Centuries.js';
+import { CENTURY_COLORS, centuryOf, colorForCentury } from './churchHistory2Centuries.js';
+import { readableOnWhite } from '../components/Timeline/utils/readableColor.js';
 
 /**
  * Back-layer colours. The background is reigns only now — heresiarchs are
@@ -22,6 +23,51 @@ import { CENTURY_COLORS } from './churchHistory2Centuries.js';
 export const BACK_STYLES = {
   emperors: { color: '#6d4c41', label: 'Emperors & monarchs' },
 };
+
+/**
+ * Reigns are coloured by realm (owner, 2026-10-08): the unified Roman Empire
+ * in maroon, the Eastern (Byzantine) emperors in purple, the Western in rust,
+ * and every later kingdom in slate. All four take white text at 6:1 or more,
+ * so the detail band can sit on them unaltered. The band names the realm,
+ * which is where a reader learns what the colour means.
+ */
+export const REALM_STYLES = {
+  'roman-unified': { color: '#7a1f2b', label: 'Roman Empire' },
+  'roman-eastern': { color: '#5b3a86', label: 'Eastern Roman Empire' },
+  'roman-western': { color: '#9a4a1e', label: 'Western Roman Empire' },
+  frankish: { color: '#4a5a6a', label: 'Franks' },
+  hre:      { color: '#4a5a6a', label: 'Holy Roman Empire' },
+  english:  { color: '#4a5a6a', label: 'England' },
+  spanish:  { color: '#4a5a6a', label: 'Spain' },
+  french:   { color: '#4a5a6a', label: 'France' },
+  russian:  { color: '#4a5a6a', label: 'Russia' },
+};
+
+const POINT_TYPE_LABELS = { councils: 'Council', documents: 'Text', events: 'Event' };
+
+/**
+ * The band across the top of a detail dialog: what kind of entry this is, in
+ * the colour of its bar or mark (owner, 2026-10-08). White text, so the colour
+ * is darkened where it is too light for that (the texts' gold, the middle
+ * centuries' greens). Returns null for anything it does not know.
+ */
+export function detailTypeBand(item, itemType) {
+  if (!item) return null;
+  if (itemType === 'person' && item.isMonarch) {
+    const realm = REALM_STYLES[item.monarchType];
+    return {
+      label: BACK_STYLES.emperors.label,
+      detail: realm?.label || null,
+      color: readableOnWhite(realm?.color || BACK_STYLES.emperors.color),
+    };
+  }
+  if (itemType === 'person') return { label: 'Church figure', color: readableOnWhite(item.color) };
+  if (itemType === 'point' && POINT_TYPE_LABELS[item.itemType]) {
+    return { label: POINT_TYPE_LABELS[item.itemType], color: readableOnWhite(item.color) };
+  }
+  if (itemType === 'year') return { label: 'Year', color: readableOnWhite(colorForCentury(centuryOf(item.year))) };
+  return null;
+}
 
 /** Foreground point styling, drawn as 1.0's pin-and-flag callouts. */
 export const POINT_STYLES = {
@@ -137,6 +183,15 @@ export const churchHistory2Config = {
    *  first dialog, Irenaeus, appeared from nowhere). Not the docked panel. */
   detailGrowFromBar: true,
   rulerColor: BACK_STYLES.emperors.color,
+  /** Each reign in the strip and the phone column takes its realm's colour
+   *  (REALM_STYLES, set on the item by the adapter), not rulerColor. */
+  rulerColorByRealm: true,
+  /** Detail dialogs are framed in the entry's colour, with a band naming the
+   *  kind of entry; the band replaces the "Era:" line (owner, 2026-10-08). */
+  detailTypeBand,
+  /** The line under the pointer takes the colour of the century it marks and
+   *  is 3px wide (owner, 2026-10-08), so it reads as a year to click. */
+  cursorLine: { width: 3, color: (year) => colorForCentury(centuryOf(year)) },
 
   /**
    * The legend (DESIGN.md §6): Lifelines' name at the top, the four switches,
@@ -155,6 +210,6 @@ export const churchHistory2Config = {
     { type: 'point', id: 'events',    name: POINT_STYLES.events.label,    color: POINT_STYLES.events.color,    shape: 'reference', mark: 'dot', filterKey: 'events' },
     { type: 'point', id: 'documents', name: POINT_STYLES.documents.label, color: POINT_STYLES.documents.color, shape: 'book',  mark: 'square',  filterKey: 'documents' },
 
-    { type: 'people', id: 'back-emperors', name: BACK_STYLES.emperors.label, color: BACK_STYLES.emperors.color, filterKey: 'emperors', isMonarch: true },
+    { type: 'people', id: 'back-emperors', name: BACK_STYLES.emperors.label, color: REALM_STYLES['roman-unified'].color, filterKey: 'emperors', isMonarch: true },
   ],
 };

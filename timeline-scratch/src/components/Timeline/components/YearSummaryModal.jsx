@@ -4,6 +4,7 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
+import { DetailTypeBand } from './DetailTypeBand.jsx';
 import { YearDetailMap } from './LazyMaps.jsx';
 import './TimelineModal.css';
 import { formatYear as formatEraYear } from '../utils/dateUtils.js';
@@ -67,10 +68,19 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
     onClose();
   }, [itemIndex, onSelectItem, onClose]);
 
+  const typeBand = typeof config?.detailTypeBand === 'function'
+    ? config.detailTypeBand({ year }, 'year')
+    : null;
+
   return (
     <div className="timeline-modal" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content year-summary-modal" onClick={e => e.stopPropagation()}>
+      <div
+        className={`modal-content year-summary-modal${typeBand ? ' modal-content--accent modal-content--banded' : ''}`}
+        style={typeBand ? { '--detail-accent': typeBand.color } : undefined}
+        onClick={e => e.stopPropagation()}
+      >
+        {typeBand && <DetailTypeBand band={typeBand} />}
         <button
           className="modal-close"
           onClick={onClose}
