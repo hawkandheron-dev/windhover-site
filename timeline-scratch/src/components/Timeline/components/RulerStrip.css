@@ -90,3 +90,53 @@
 .ruler-strip-item.is-focus .ruler-strip-name {
   color: var(--color-ink);
 }
+
+/* Arrival (owner, 2026-10-08: the strip "needs some kind of a highlight or
+   indicator to let the user know that it rendered"). The strip slides up
+   from the foot of the screen when it appears; a ruler the tour brings in
+   grows its reign bar and glows gold, the colour Lifelines uses for "look
+   here", fading over two seconds. */
+.ruler-strip-wrap {
+  animation: rulerStripIn 420ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes rulerStripIn {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+.ruler-strip-item.is-new .ruler-strip-bar {
+  transform-origin: left center;
+  animation: rulerBarGrow 900ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes rulerBarGrow {
+  from { transform: scaleX(0); opacity: 1; }
+  to { transform: none; }
+}
+
+.ruler-strip-item.is-new .ruler-strip-name {
+  /* Hug the name, not the whole reign (the item is a column flex). */
+  align-self: flex-start;
+  border-radius: 4px;
+  animation: rulerNameGlow 2600ms ease-out both;
+}
+
+@keyframes rulerNameGlow {
+  0%, 45% {
+    background: color-mix(in srgb, var(--color-string-hover, #e3a92b) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-string-hover, #e3a92b) 50%, transparent);
+    color: var(--color-ink);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ruler-strip-wrap,
+  .ruler-strip-item.is-new .ruler-strip-bar {
+    animation: none;
+  }
+}

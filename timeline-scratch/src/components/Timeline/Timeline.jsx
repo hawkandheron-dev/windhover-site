@@ -70,6 +70,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
         detailBrief={detailBrief}
         data={data}
         backData={backData}
+        newRulerIds={isTourMode ? animatingIds : undefined}
         config={config}
         onItemClick={onItemClick}
         authContext={authContext}
@@ -1216,6 +1217,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           wasDraggingRef={wasDraggingRef}
           folded={rulersFolded}
           onToggleFold={defaultConfig.rulerFoldKey ? toggleRulersFolded : undefined}
+          newIds={isTourMode ? animatingIds : undefined}
         />
       )}
 

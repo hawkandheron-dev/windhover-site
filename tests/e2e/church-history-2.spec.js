@@ -1333,6 +1333,30 @@ test.describe('Tour polish (2026-10-08)', () => {
     expect(await content.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('2px');
   });
 
+  test('a ruler the tour brings in is marked new: it grows and glows (real data)', async ({ page }) => {
+    // Augustus arrives with Jesus in the tour's second scene, at the foot of
+    // the screen, where the owner found him easy to miss.
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.locator('[title="Next (→)"]').click();
+    const augustus = page.locator('.ruler-strip-item.is-new', { hasText: 'Augustus' });
+    await expect(augustus).toBeVisible();
+    // Only the newcomer, not every ruler on screen.
+    await expect(page.locator('.ruler-strip-item.is-new')).toHaveCount(1);
+  });
+
+  test('on a phone, the new ruler is marked and in reach (real data)', async ({ page }) => {
+    // His reign began before anyone else on screen was born, and the
+    // vertical timeline's top stopped short of it.
+    await loadPage(page, { realData: true, dismissWelcome: false, viewport: { width: 390, height: 844 }, mobile: true });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.locator('[title="Next (→)"]').click();
+    const augustus = page.locator('.mobile-ruler.is-new', { hasText: 'Augustus' });
+    await expect(augustus).toBeVisible();
+    const column = await page.locator('.mobile-ruler-column').boundingBox();
+    await expect.poll(async () => (await augustus.boundingBox()).y).toBeGreaterThanOrEqual(column.y - 1);
+  });
+
   test('with reduced motion the detail just appears, still edged in colour', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });

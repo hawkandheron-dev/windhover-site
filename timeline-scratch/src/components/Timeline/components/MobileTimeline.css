@@ -586,3 +586,49 @@
     color: #a09888;
   }
 }
+
+/* Arrival, as in the horizontal strip (RulerStrip.css): the column slides in
+   from the right edge, and a ruler the tour brings in grows its reign bar
+   down and glows gold for a moment. */
+.mobile-ruler-column {
+  animation: mobileRulersIn 420ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes mobileRulersIn {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+.mobile-ruler.is-new .mobile-ruler-bar {
+  transform-origin: center top;
+  animation: mobileRulerGrow 900ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes mobileRulerGrow {
+  from { transform: scaleY(0); }
+  to { transform: none; }
+}
+
+.mobile-ruler.is-new .mobile-ruler-name {
+  border-radius: 4px;
+  animation: mobileRulerGlow 2600ms ease-out both;
+}
+
+@keyframes mobileRulerGlow {
+  0%, 45% {
+    background: color-mix(in srgb, var(--color-string-hover, #e3a92b) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-string-hover, #e3a92b) 50%, transparent);
+    color: var(--color-ink, #23231f);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-ruler-column,
+  .mobile-ruler.is-new .mobile-ruler-bar {
+    animation: none;
+  }
+}

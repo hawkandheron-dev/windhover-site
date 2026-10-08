@@ -47,7 +47,7 @@ function lightenColor(hex, floor = 160) {
   return `rgb(${lr}, ${lg}, ${lb})`;
 }
 
-export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false, backData }, ref) {
+export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false, backData, newRulerIds }, ref) {
   const scrollRef = useRef(null);
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR);
   // The years currently on screen, for the 'years' zoom readout. Read from the
@@ -111,13 +111,23 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
       if (s != null && s < minYear) minYear = s;
       if (e != null && e > maxYear) maxYear = e;
     }
+    // The rulers' column (rulerStyle 'strip') counts too: in the tour,
+    // Augustus's reign began before anyone else on screen was born, and
+    // his reign was out of reach above the top (found 2026-10-08).
+    if (config?.rulerStyle === 'strip') {
+      for (const p of backData?.people || []) {
+        const s = p.reignStartYear ?? getYear(p.startDate), e = p.reignEndYear ?? getYear(p.endDate);
+        if (s != null && s < minYear) minYear = s;
+        if (e != null && e > maxYear) maxYear = e;
+      }
+    }
     if (!isFinite(minYear)) { minYear = 0; maxYear = 200; }
     const span = maxYear - minYear;
     const pad = Math.max(span * 0.05, 10);
     // A page may set its own floor (Lifelines starts at 100 BC).
     const floor = config?.minYear ?? -Infinity;
     return { minYear: Math.max(Math.floor(minYear - pad), floor), maxYear: Math.ceil(maxYear + pad) };
-  }, [data, config?.minYear]);
+  }, [data, backData, config?.minYear, config?.rulerStyle]);
 
   const filteredData = useMemo(() => applyFilters(data, filters), [data, filters]);
   const stringStyle = defaultConfig.pointStyle === 'string';
@@ -720,7 +730,9 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
                 <button
                   key={person.id}
                   type="button"
-                  className="mobile-ruler"
+                  // A ruler the tour just brought in grows and glows for a
+                  // moment, as in the horizontal strip (RulerStrip.css).
+                  className={`mobile-ruler${newRulerIds?.has(person.id) ? ' is-new' : ''}`}
                   style={{ top: `${top}px`, left: `${4 + row * RULER_SUBCOLUMN}px`, width: `${RULER_SUBCOLUMN}px` }}
                   aria-label={`${person.name}, ${formatEraYear(start)} – ${formatEraYear(end)}`}
                   onClick={() => handleItemClick('person', person)}

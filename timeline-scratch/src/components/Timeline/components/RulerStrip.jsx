@@ -8,6 +8,10 @@
  * each, panning sideways with the timeline but never up or down. Hovering
  * names the ruler; clicking opens them, as anywhere else.
  *
+ * It slides up from the foot of the screen when it appears, and a ruler the
+ * tour brings in grows in and glows briefly (`newIds`), so a reader sees
+ * that something arrived down there (owner, 2026-10-08).
+ *
  * A tab on its top edge folds it to a single line of reign bars, for a
  * reader who wants the room (`folded`, remembered by the parent); the Key's
  * switch still hides it outright.
@@ -20,7 +24,7 @@ import {
 import { Icon } from './Icon.jsx';
 import './RulerStrip.css';
 
-export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, color, focusIds, onItemHover, onItemClick, wasDraggingRef, folded = false, onToggleFold }) {
+export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, color, focusIds, onItemHover, onItemClick, wasDraggingRef, folded = false, onToggleFold, newIds }) {
   const packed = useMemo(() => packRulerRows(people || [], yearsPerPixel, undefined, RULER_NAME_FONT), [people, yearsPerPixel]);
   if (!packed.length) return null;
   const rows = Math.max(...packed.map(r => r.row)) + 1;
@@ -47,13 +51,16 @@ export function RulerStrip({ people, viewportStartYear, yearsPerPixel, width, co
           const x1 = yearToPixel(end, viewportStartYear, yearsPerPixel);
           if (x1 < -200 || x0 > width + 10) return null;
           const focused = focusIds?.has(person.id);
+          // A ruler the tour has just brought in: its bar grows and its name
+          // glows gold for a moment, so a reader notices it arrive.
+          const isNew = newIds?.has(person.id);
           // Under 28px of room there is no name; hovering still names it.
           const roomPx = room / yearsPerPixel - 4;
           const showName = !folded && roomPx >= 28;
           return (
             <div
               key={person.id}
-              className={`ruler-strip-item${focused ? ' is-focus' : ''}`}
+              className={`ruler-strip-item${focused ? ' is-focus' : ''}${isNew ? ' is-new' : ''}`}
               style={{ left: `${x0}px`, top: folded ? '4px' : `${PAD + row * RULER_ROW_HEIGHT}px` }}
               onMouseEnter={() => onItemHover?.('person', person)}
               onMouseLeave={() => onItemHover?.(null, null)}
