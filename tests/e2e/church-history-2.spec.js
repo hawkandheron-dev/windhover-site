@@ -1355,8 +1355,9 @@ test.describe('Tour polish (2026-10-08)', () => {
 
     await search('Athanasius');
     await expect(band).toHaveText('Church figure');
-    // Each kind leads with its mark from the Key (a figure's bar here).
-    await expect(band.locator('.modal-type-band-mark .modal-type-band-bar')).toHaveCount(1);
+    // Each kind leads with an icon: a portrait for a figure (owner,
+    // 2026-10-08; it was the Key's bar until he asked for a person).
+    await expect(band.locator('.modal-type-band-mark .icon svg')).toHaveCount(1);
     // The band replaces the "Era:" line.
     await expect(page.locator('.modal-period')).toHaveCount(0);
 
@@ -1430,6 +1431,8 @@ test.describe('Tour polish (2026-10-08)', () => {
     await page.mouse.click(310, 455);
     const band = page.locator('.year-summary-modal .modal-type-band');
     await expect(band).toHaveText('Year');
+    // An hourglass leads it.
+    await expect(band.locator('.modal-type-band-mark .icon svg')).toHaveCount(1);
   });
 
   test('a ruler the tour brings in is marked new: it grows and glows (real data)', async ({ page }) => {

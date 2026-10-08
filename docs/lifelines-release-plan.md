@@ -12,6 +12,57 @@ Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thick
 - `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
 - Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
 
+## Band icons: a portrait for figures, an hourglass for years (2026-10-08)
+
+**Context.** Matthew: church figures' band icon should be "a profile or portrait icon (looks like a person)", and Year's "an hourglass, maybe". Today the band shows the Key's marks: a bar for figures, a line for years.
+
+**Change (Lifelines only, in the band; the Key keeps its marks):**
+- **Church figure:** the existing `universal/profile.svg`, a classical bust: a head over the shoulders, on a pedestal line. It's already in the icon set, in the same stroke style as the crown. Add `'profile'` to `iconMap` in `components/Timeline/components/Icon.jsx`.
+- **Year:** a new `universal/hourglass.svg` in the set's style (24×24 viewBox, 1.5 stroke, round caps): two bulbs between a top and a bottom bar, with a little sand in the lower bulb.
+  - Add it to both identical copies, `icons/universal/` (served at `/icons/`) and `timeline-scratch/public/icons/universal/`.
+  - Add an `index.json` entry in both.
+  - Add `'hourglass'` to `iconMap`.
+- **Wiring:**
+  - `detailTypeBand` in `data/churchHistory2Data.js`: `mark: 'profile'` for figures and `mark: 'hourglass'` for years.
+  - `DetailTypeBand.jsx`: render `Icon` (white, 15px) for crown, profile and hourglass; `StringMark` for diamond, square and dot.
+  - Remove the now-unused `.modal-type-band-bar` / `-line` CSS.
+- **DESIGN.md §3 Detail frame:** the band leads with an icon: a portrait for a figure, an hourglass for a year, the crown for a ruler, and the Key's diamond, square or dot for councils, texts and events.
+
+**Verification:**
+- Update the e2e band test: the figure band holds the profile icon (`.icon` inside `.modal-type-band-mark`); the year band holds an icon.
+- Shots: `detail-ruler`, `panel` and `year`; read the crops of the band at 2×.
+- Unit, the full e2e under Node 20, and lint on the touched files.
+- Commit, open a PR, watch it go green, and merge when Matthew says.
+
+## Tour copy: how Matthew edits it
+
+The doc already exists: **Lifelines tour copy**, https://claude.ai/artifact/XqZP6PXrHoJTorkDuNumAy (made 2026-10-04, all 20 scenes).
+- Matthew edits the text directly in the doc. "The Grandchildren" → "The Cappadocians" goes there too.
+- When he's done, he tells me. I read the doc, diff it against `CH_TourScenes`, and write one migration (`supabase/migrations/…_tour_copy.sql`) that updates the changed scenes by `scene_id`. I refresh the snapshot and send screenshots of the changed scenes.
+- CI applies the migration on merge.
+- First, check that the doc still matches the live rows: scenes may have changed since 2026-10-04. Check with the Supabase connector (read-only).
+
+## Status after the domain switch (2026-10-08, 13:45 UTC)
+
+**Context.** [hawkandheron-dev/windhover-site#165](https://github.com/hawkandheron-dev/windhover-site/pull/165) and [hawkandheron-dev/windhover-site#166](https://github.com/hawkandheron-dev/windhover-site/pull/166) are both merged.
+
+**Domain and keys:**
+- windhoverhistory.com and www are attached to the profile-site project; hawkandheronmews.com is being removed.
+- Clerk: the production instance's primary domain is windhoverhistory.com, and it is verified.
+- Cloudflare: Production uses `pk_live_` and Preview uses `pk_test_`. That's correct; nothing to change.
+
+**Matthew checks on the live site:**
+1. `/` and `/lifelines` both show Lifelines.
+2. The share preview of `https://windhoverhistory.com/lifelines` shows the card.
+3. `/?admin`: sign in and the admin tools appear.
+4. Turnstile: windhoverhistory.com is in the widget's Hostnames, and a feedback code arrives.
+
+**Claude:** no code change is planned. The next work waits on Matthew:
+- tour copy, including "The Cappadocians" (M6);
+- portrait images;
+- the controls direction;
+- widening the network for the M5 data pass.
+
 ## windhoverhistory.com (2026-10-08)
 
 Matthew: point both windhoverhistory.com and windhoverhistory.com/lifelines to Lifelines.
