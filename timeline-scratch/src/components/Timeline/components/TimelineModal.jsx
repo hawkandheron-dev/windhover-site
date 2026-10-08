@@ -147,7 +147,7 @@ function linkifyDescription(description, itemIndex, currentItemId) {
  *   "More" button that opens the rest. No backdrop, so what is behind stays
  *   visible. Lifelines uses it for the figure a tour step opens on a phone.
  */
-export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false, growFrom = null }) {
+export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false, growFrom = null, mapFrom = null }) {
   const isPanel = variant === 'panel';
   // "More" lifts a brief card to the full detail, until another item opens.
   const [expanded, setExpanded] = useState(false);
@@ -543,6 +543,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     <HistoricalMap
       key={item.id}
       location={item.location}
+      // mapFrom (Lifelines' tour): this figure's map starts somewhere else
+      // and travels to their own place, as the tour's text moves them.
+      fromLocation={mapFrom && mapFrom.personId === item.id ? mapFrom.location : null}
       birthYear={getYear(item.startDate || item.date)}
       title={compactLayout ? 'Historical map' : undefined}
       credit={config?.mapCreditLine === true}

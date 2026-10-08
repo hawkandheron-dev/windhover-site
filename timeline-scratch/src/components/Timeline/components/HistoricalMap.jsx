@@ -17,9 +17,15 @@ const OHM_STYLE_URL = 'https://www.openhistoricalmap.org/map-styles/main/main.js
  * @param {boolean} [credit] - A plain credit line under the map, readable at
  *   any size; MapLibre's own control folds to an (i) button on narrow maps.
  */
-export function HistoricalMap({ location, birthYear, title = 'Historical Map', credit = false }) {
+/**
+ * @param {string} [fromLocation] - Start here and fly to `location` (opt-in;
+ *   Lifelines' tour moves Irenaeus from Smyrna to Lyons). Read once, when the
+ *   map is made: a later change, or none, leaves the map where it is.
+ */
+export function HistoricalMap({ location, birthYear, title = 'Historical Map', credit = false, fromLocation = null }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
+  const fromRef = useRef(fromLocation);
   const coords = getCoordinatesForLocation(location);
   const noCoords = !coords;
   const lat = coords?.[0];
@@ -29,12 +35,19 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map', c
   useEffect(() => {
     if (!mapsWork || lat == null || lng == null || !mapContainerRef.current) return;
 
+    // The journey: start at fromLocation and fly home, unless the reader
+    // asked for less motion (then it simply starts at home).
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const from = !reduce ? getCoordinatesForLocation(fromRef.current) : null;
+    const start = from ? [from[1], from[0]] : [lng, lat];
+    const container = mapContainerRef.current;
+
     let map;
     try {
       map = new maplibregl.Map({
-        container: mapContainerRef.current,
+        container,
         style: OHM_STYLE_URL,
-        center: [lng, lat],
+        center: start,
         zoom: 6,
         attributionControl: true,
       });
@@ -52,10 +65,33 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map', c
     // Add navigation controls (zoom in/out, compass)
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    // Add marker at the person's location
-    new maplibregl.Marker({ color: '#c0392b' })
-      .setLngLat([lng, lat])
+    // Add marker at the person's location (or where their journey starts)
+    const marker = new maplibregl.Marker({ color: '#c0392b' })
+      .setLngLat(start)
       .addTo(map);
+
+    let flight = null;
+    let landing = null;
+    if (from) {
+      container.dataset.mapAt = 'from';
+      const FLIGHT_MS = 2500;
+      // The pin lands with the camera. If the map never animates (its style
+      // failed to load, say) it still lands, at the flight's end.
+      const land = () => {
+        clearTimeout(landing);
+        if (container.dataset.mapAt === 'to') return;
+        marker.setLngLat([lng, lat]);
+        map.jumpTo({ center: [lng, lat] });
+        container.dataset.mapAt = 'to';
+      };
+      // A beat to see where they began, then the flight. Timed rather than
+      // on 'load', so it runs while tiles are still arriving.
+      flight = setTimeout(() => {
+        map.once('moveend', land);
+        landing = setTimeout(land, FLIGHT_MS + 300);
+        map.flyTo({ center: [lng, lat], zoom: 6, duration: FLIGHT_MS, essential: true });
+      }, 900);
+    }
 
     // Filter map to the historical date as soon as the style is parsed,
     // BEFORE tiles are fetched — so the first tiles already reflect the correct year.
@@ -71,6 +107,8 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map', c
     });
 
     return () => {
+      clearTimeout(flight);
+      clearTimeout(landing);
       mapRef.current = null;
       map.remove();
     };

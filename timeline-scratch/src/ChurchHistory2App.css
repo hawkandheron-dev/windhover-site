@@ -696,3 +696,9 @@ body:has(.ch2-app) {
     right: 320px;
   }
 }
+
+/* Tour copy: a blank line in a scene's text starts a new paragraph (scene 2
+   has two; they ran together before). */
+.ch2-app .tour-scene-narrative {
+  white-space: pre-line;
+}

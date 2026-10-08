@@ -319,6 +319,12 @@ function Timeline2({
         animationWave={tour.tourActive ? tour.buildOutWave : exitWave.people ? EXIT_WAVE_MS : undefined}
         hideLegend={tour.tourActive && !tour.currentScene?.isBuildOut}
         isTourMode={tour.tourActive}
+        // A scene that opens a figure may start their map elsewhere and fly
+        // it to their own place (CH_TourScenes.map_from; Irenaeus, Smyrna to
+        // Lyons, owner 2026-10-08).
+        detailMapFrom={tour.tourActive && tour.currentScene?.mapFrom && tour.currentScene?.openPersonId
+          ? { personId: tour.currentScene.openPersonId, location: tour.currentScene.mapFrom }
+          : null}
         {...timelineProps}
       />
       {tour.tourActive && (
