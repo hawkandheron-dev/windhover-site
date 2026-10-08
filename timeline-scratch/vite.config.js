@@ -5,10 +5,11 @@ import process from 'node:process'
 import lightThemeOptOut from './postcss-light-theme-optout.js'
 
 // Lifelines' share card (church-history-2.html: Open Graph tags, canonical
-// link) needs absolute URLs. Until the site has its own domain this is the
-// Cloudflare Pages production address. When it moves, change it here, or set
+// link) needs absolute URLs. The site is windhoverhistory.com (owner,
+// 2026-10-08), and Lifelines' canonical address is /lifelines on it, though
+// the root serves it too (_redirects). To build for another address, set
 // LIFELINES_SITE_URL in the Pages build settings and redeploy.
-const LIFELINES_SITE_URL = (process.env.LIFELINES_SITE_URL || 'https://profile-site-bgf.pages.dev').replace(/\/$/, '')
+const LIFELINES_SITE_URL = (process.env.LIFELINES_SITE_URL || 'https://windhoverhistory.com').replace(/\/$/, '')
 
 function lifelinesSiteUrl() {
   return {

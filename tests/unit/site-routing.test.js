@@ -39,12 +39,18 @@ describe('front page routing', () => {
     expect(root).toEqual(['/', '/apps/church-history-2', '200']);
   });
 
-  it('mirrors that rule in serve.json for the local test server', () => {
+  it('also serves Lifelines at /lifelines, its canonical address', () => {
+    // windhoverhistory.com/lifelines (owner, 2026-10-08); with and without
+    // the trailing slash, both as 200 proxies.
+    for (const src of ['/lifelines', '/lifelines/']) {
+      expect(redirectRules().find(([s]) => s === src)).toEqual([src, '/apps/church-history-2', '200']);
+    }
+  });
+
+  it('mirrors every rule in serve.json for the local test server', () => {
     const { rewrites } = JSON.parse(read('serve.json'));
-    expect(rewrites).toEqual([{ source: '/', destination: '/apps/church-history-2.html' }]);
     // Same page either way: serve wants the file, Pages the clean URL.
-    const [, pagesTarget] = redirectRules().find(([src]) => src === '/');
-    expect(rewrites[0].destination).toBe(`${pagesTarget}.html`);
+    expect(rewrites).toEqual(redirectRules().map(([source, target]) => ({ source, destination: `${target}.html` })));
   });
 
   it('leaves no root index.html to compete with the rule', () => {
@@ -63,9 +69,9 @@ describe('search indexing', () => {
     expect(all.lines).toContain('X-Robots-Tag: noindex');
   });
 
-  it('lets "/" — and only "/" — drop it', () => {
+  it("lets Lifelines' public addresses — and only those — drop it", () => {
     const detaching = headerBlocks().filter(b => b.lines.includes('! X-Robots-Tag'));
-    expect(detaching.map(b => b.path)).toEqual(['/']);
+    expect(detaching.map(b => b.path)).toEqual(['/', '/lifelines', '/lifelines/']);
   });
 
   it('does not disallow crawling, which would hide the noindex header', () => {

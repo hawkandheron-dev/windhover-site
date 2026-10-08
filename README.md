@@ -6,7 +6,7 @@ A multi-part project that combines a personal profile site, interactive history 
 
 This repo is split into a few major areas that serve different purposes:
 
-- **Front page (`/`)**: Lifelines, the church history timeline. `_redirects` serves `/apps/church-history-2` at `/`; see "Site routing" below.
+- **Front page (`/`) and `/lifelines`**: Lifelines, the church history timeline, on windhoverhistory.com. `_redirects` serves `/apps/church-history-2` at both; `/lifelines` is the canonical address. See "Site routing" below.
 - **Root static site**: older HTML pages (the former landing page at `home.html`, about, design system, church history, pantheons) plus shared CSS/JS. They still work by URL but are not linked from Lifelines or indexed by search engines.
 - **`timeline-scratch/`**: the main React + Vite application for timeline/map experiences, integrated with Clerk auth and Supabase data.
 - **`pantheon-db/`**: a Next.js + Prisma Pantheons app that can run against Supabase (shared remote data) and also supports a local SQLite workflow.
@@ -110,7 +110,7 @@ CREATE POLICY "Users delete own favorites"
 
 ## Site routing
 
-- **`/` is Lifelines.** `_redirects` proxies `/` to `/apps/church-history-2` with a 200, so the address bar keeps `/` (and `?admin`). `serve.json` repeats the rule for the local test server, and `tests/unit/site-routing.test.js` keeps the two identical.
+- **`/` and `/lifelines` are Lifelines.** `_redirects` proxies both (and `/lifelines/`) to `/apps/church-history-2` with a 200, so the address bar keeps what the reader typed (and `?admin`). The page's canonical link and share card name `https://windhoverhistory.com/lifelines` (`LIFELINES_SITE_URL` in `timeline-scratch/vite.config.js`). `serve.json` repeats the rule for the local test server, and `tests/unit/site-routing.test.js` keeps the two identical.
 - **Everything else is noindex.** `_headers` sends `X-Robots-Tag: noindex` on every path except `/`. A new app or page is kept out of search automatically; nothing to add.
 - **Asset paths are absolute** (`base: '/apps/'` in `timeline-scratch/vite.config.js`), which is what lets an app's HTML be served from another address.
 - **Unknown URLs** get `404.html`. Without it, Pages would show the front page for any address.

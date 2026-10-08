@@ -1,5 +1,16 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/apps/church-history-2.html" }
+    {
+      "source": "/",
+      "destination": "/apps/church-history-2.html"
+    },
+    {
+      "source": "/lifelines",
+      "destination": "/apps/church-history-2.html"
+    },
+    {
+      "source": "/lifelines/",
+      "destination": "/apps/church-history-2.html"
+    }
   ]
 }
