@@ -1180,3 +1180,100 @@
 .modal-content.modal-content--accent {
   border: 2px solid var(--detail-accent);
 }
+
+/* config.detailTypeBand: the frame thickens and its top edge becomes a band
+   naming the kind of entry, white on the entry's colour (owner, 2026-10-08).
+   --band-x is the dialog's side padding, so the band runs edge to edge. */
+.modal-content.modal-content--banded {
+  --band-x: 32px;
+  border-width: 3px;
+  border-top-width: 0;
+  padding-top: 0;
+}
+
+.timeline-modal--panel .modal-content.modal-content--banded {
+  --band-x: 24px;
+}
+
+.modal-type-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 14px;
+  margin: 0 calc(-1 * var(--band-x)) 20px;
+  padding: 7px var(--band-x) 8px;
+  background: var(--detail-accent);
+  color: #fff;
+  font-family: var(--font-body, 'Alegreya Sans', sans-serif);
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.modal-type-band-detail {
+  font-weight: 400;
+}
+
+.modal-type-band-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.modal-type-band-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.modal-type-band-bar {
+  width: 15px;
+  height: 7px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.modal-type-band-line {
+  width: 3px;
+  height: 14px;
+  border-radius: 1px;
+  background: #fff;
+}
+
+.modal-type-band-detail {
+  opacity: 0.92;
+}
+
+/* The close button sits just under the band, beside the title. */
+.modal-content--banded > .modal-close {
+  top: 36px;
+}
+
+/* While the dialog grows out of a bar (growFrom), the page behind stays
+   clear and only darkens once the dialog has opened, slowly: dimming and
+   blurring the screen in the same instant as the block moved read as a
+   strobe (owner, 2026-10-08). */
+.timeline-modal--grow {
+  animation: none;
+}
+
+.timeline-modal--grow .modal-backdrop {
+  animation: modalBackdropSettle 700ms ease-out 480ms both;
+}
+
+@keyframes modalBackdropSettle {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-modal--grow {
+    animation: modalFadeIn 0.2s ease-out;
+  }
+  .timeline-modal--grow .modal-backdrop {
+    animation: none;
+  }
+}

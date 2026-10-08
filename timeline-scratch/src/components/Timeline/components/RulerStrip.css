@@ -13,7 +13,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--color-parchment-light);
   border-top: 1px solid var(--color-border-hover);
 }
 
@@ -30,9 +30,9 @@
   height: 24px;
   padding: 0 10px;
   border: 1px solid var(--color-border-hover);
-  border-bottom-color: #ffffff;
+  border-bottom-color: var(--color-parchment-light);
   border-radius: 6px 6px 0 0;
-  background: #ffffff;
+  background: var(--color-parchment-light);
   font: 600 12px/1 'Alegreya Sans', sans-serif;
   color: var(--color-ink-light);
   cursor: pointer;
@@ -89,4 +89,85 @@
 .ruler-strip-item:hover .ruler-strip-name,
 .ruler-strip-item.is-focus .ruler-strip-name {
   color: var(--color-ink);
+}
+
+/* Arrival (owner, 2026-10-08: the strip "needs some kind of a highlight or
+   indicator to let the user know that it rendered"). The strip slides up
+   from the foot of the screen when it appears; a ruler the tour brings in
+   grows its reign bar and its name glows in the arrival gold
+   (--color-arrival), fading over two seconds. Only when the strip appears
+   during the tour (.is-arriving): on first load it sits behind the welcome
+   dialog, where the flash is noise (owner, 2026-10-08). */
+.ruler-strip-wrap.is-arriving {
+  animation: rulerStripIn 420ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes rulerStripIn {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+.ruler-strip-item.is-new .ruler-strip-bar {
+  transform-origin: left center;
+  animation: rulerBarGrow 900ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+@keyframes rulerBarGrow {
+  from { transform: scaleX(0); opacity: 1; }
+  to { transform: none; }
+}
+
+.ruler-strip-item.is-new .ruler-strip-name {
+  /* Hug the name, not the whole reign (the item is a column flex). */
+  align-self: flex-start;
+  border-radius: 4px;
+  animation: rulerNameGlow 2600ms ease-out both;
+}
+
+@keyframes rulerNameGlow {
+  0%, 45% {
+    background: color-mix(in srgb, var(--color-arrival) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-arrival) 50%, transparent);
+    color: var(--color-ink);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ruler-strip-wrap.is-arriving,
+  .ruler-strip-item.is-new .ruler-strip-bar {
+    animation: none;
+  }
+}
+
+/* The whole strip glows in the arrival gold when it first appears, and
+   fades to white, the same "this is new" as a newcomer's name (owner,
+   2026-10-08: "make new elements stand out for a second"). Not motion, so
+   reduced motion keeps it. */
+.ruler-strip-wrap.is-arriving .ruler-strip {
+  animation: rulerStripGlow 2600ms ease-out backwards;
+}
+
+@keyframes rulerStripGlow {
+  0%, 35% { background: color-mix(in srgb, var(--color-arrival) 40%, var(--color-parchment-light)); }
+  100% { background: var(--color-parchment-light); }
+}
+
+/* Its tab glows with it, so the two read as one piece. */
+.ruler-strip-wrap.is-arriving .ruler-strip-tab {
+  animation: rulerTabGlow 2600ms ease-out backwards;
+}
+
+@keyframes rulerTabGlow {
+  0%, 35% {
+    background: color-mix(in srgb, var(--color-arrival) 40%, var(--color-parchment-light));
+    border-bottom-color: color-mix(in srgb, var(--color-arrival) 40%, var(--color-parchment-light));
+  }
+  100% {
+    background: var(--color-parchment-light);
+    border-bottom-color: var(--color-parchment-light);
+  }
 }

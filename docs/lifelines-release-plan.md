@@ -2,6 +2,54 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Detail frame, realm colours, century cursor line (2026-10-08)
+
+Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thicker top band naming the type in white ("Emperors & monarchs", "Church figure", "Council", "Text", "Event", "Year"); colour monarchs by realm, with the unified empire maroon; check contrast. Then: the pointer's year line in the century's colour, 2–3px thicker.
+
+**Done (on PR #165):**
+- `detailTypeBand` (config): a 3px frame plus a band; light colours are darkened to 4.5:1 by `readableOnWhite`; the band replaces "Era:".
+- `REALM_STYLES`: maroon `#7a1f2b` (Roman Empire), purple `#5b3a86` (Eastern), rust `#9a4a1e` (Western), slate `#4a5a6a` (later kingdoms). The strip and the phone column use them (`rulerColorByRealm`).
+- `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
+- Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
+
+## Strip glow on first load, band icons, smoother Full Picture (2026-10-08)
+
+- The strip's slide and glow happen only when the tour brings it in (`arriving` / `rulerArrives`), not behind the welcome dialog.
+- Each band leads with its mark in white: bar, diamond, square, dot, crown, line.
+- "The Full Picture" (`buildOutWave`, 1.4s): one layout, then one sweep. Measured at 4× slowed CPU: long frames went from 33 (worst 433ms) to 3, and bars moved once instead of 5–7 times.
+
+## Tour copy: queued edits (Matthew)
+
+- Rename the scene "The Grandchildren" to "The Cappadocians" (2026-10-08). Apply it with the rest of the tour copy edits (M6): a migration on `CH_TourScenes` plus a snapshot refresh.
+
+## The grow-in's backdrop: no strobe (2026-10-08)
+
+**Context.** Matthew: "The movement of the popup opening is good. But the way the background darkens at the same time gives it a strobe effect." He asks for the darkening to be gentler, and to start once the popup has opened fully.
+
+**Cause.** The whole overlay (`.timeline-modal`) fades in over 0.2s (`modalFadeIn`). That fade includes the backdrop: the dark wash plus a 4px blur. It runs in the same instant as the coloured block's grow (520ms), so the screen dims and blurs sharply while the block is still moving.
+
+**Change** (Lifelines only: while the dialog grows from a bar, `growFrom` / `detailGrowFromBar`):
+- `TimelineModal` adds `timeline-modal--grow` to the overlay when it grows.
+- In CSS, that class turns off the overlay's own 0.2s fade.
+- The backdrop then waits until the grow has finished (about 500ms) and fades in over about 700ms with an ease-out, so the blur and the darkening arrive together, slowly.
+- **Reduced motion:** no grow, so the old short fade stays.
+- **Unchanged:** dialogs that don't grow, including the other apps and the docked panel.
+- **DESIGN.md §6 Tour row:** add one clause: "the backdrop darkens only after the dialog has opened, slowly".
+
+**Verification:**
+- Capture frames slowed 12×, as before. While the block grows, the backdrop should still be clear; it darkens after.
+- Run the existing grow and reduced-motion e2e tests.
+- Add one assertion: during the grow, the backdrop's opacity is still near 0.
+- Run unit and lint.
+- Push to [hawkandheron-dev/windhover-site#165](https://github.com/hawkandheron-dev/windhover-site/pull/165), which is still open, then watch it go green.
+
+## Titles, emperors strip, grow transition: PR #164 (2026-10-08)
+
+> **Status (03:46 UTC):** [hawkandheron-dev/windhover-site#164](https://github.com/hawkandheron-dev/windhover-site/pull/164) is green on head abefb75: Unit, Build, E2E (Chromium), E2E (Firefox, WebKit), Cloudflare Pages.
+> - Codex found nothing on the first commit, and there are no review threads.
+> - **Waiting on:** Matthew to try the preview (https://8de481ee.profile-site-bgf.pages.dev), the tour's Irenaeus step and the Emperors tab, then to say merge.
+> - **Nothing left for Claude** unless CI or a review changes.
+
 ## M9: launch readiness (started 2026-10-05)
 
 > **Status (2026-10-05, 21:58 UTC):** [hawkandheron-dev/windhover-site#163](https://github.com/hawkandheron-dev/windhover-site/pull/163) is open and green on every check: Unit, Build, E2E (Chromium), E2E (Firefox, WebKit), Cloudflare Pages. There are no review threads.

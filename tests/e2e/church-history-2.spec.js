@@ -1327,10 +1327,140 @@ test.describe('Tour polish (2026-10-08)', () => {
     const lane = page.locator('.mobile-person-lane[data-person-id="athanasius"]');
     await lane.click();
     await expect(page.locator('.modal-grow-ghost')).toHaveCount(1);
+    // The page behind stays clear while the block grows, and darkens only
+    // after (owner: dimming at the same moment read as a strobe).
+    expect(Number(await page.locator('.modal-backdrop').evaluate(el => getComputedStyle(el).opacity))).toBeLessThan(0.1);
+    await expect.poll(() => page.locator('.modal-backdrop').evaluate(el => Number(getComputedStyle(el).opacity)), { timeout: 4000 }).toBeGreaterThan(0.95);
     const content = page.locator('.modal-content--accent');
     await expect(content).toBeVisible();
     await expect(page.locator('.modal-grow-ghost')).toHaveCount(0, { timeout: 10_000 });
-    expect(await content.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('2px');
+    // The frame is the figure's colour; its top edge is the type band (it
+    // was a plain 2px edge until the band came in, 2026-10-08).
+    expect(await content.evaluate(el => getComputedStyle(el).borderLeftWidth)).toBe('3px');
+    await expect(content.locator('.modal-type-band')).toHaveText('Church figure');
+  });
+
+  test("every detail is framed in its entry's colour, under a band naming its kind", async ({ page }) => {
+    await loadPage(page);
+    const band = page.locator('.modal-type-band');
+    const bandColour = () => band.evaluate(el => getComputedStyle(el).backgroundColor);
+    const search = async (q) => {
+      await page.keyboard.press('Escape');
+      const input = page.locator('.timeline-search-input').first();
+      await input.fill(q);
+      await page.getByRole('option', { name: new RegExp(q) }).first().click();
+    };
+
+    await search('Athanasius');
+    await expect(band).toHaveText('Church figure');
+    // Each kind leads with its mark from the Key (a figure's bar here).
+    await expect(band.locator('.modal-type-band-mark .modal-type-band-bar')).toHaveCount(1);
+    // The band replaces the "Era:" line.
+    await expect(page.locator('.modal-period')).toHaveCount(0);
+
+    await search('Nicaea');
+    await expect(band).toHaveText('Council');
+    await expect(band.locator('.modal-type-band-mark .string-mark--diamond')).toHaveCount(1);
+
+    // Rulers: their realm's colour, in the strip and on the band, which
+    // names the realm (the unified Roman Empire is maroon).
+    const ruler = page.locator('.ruler-strip-item', { hasText: 'Constantius II' });
+    expect(await ruler.locator('.ruler-strip-bar').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(122, 31, 43)');
+    await page.keyboard.press('Escape');
+    await ruler.click();
+    await expect(band.locator('.modal-type-band-label')).toHaveText('Emperors & monarchs');
+    await expect(band.locator('.modal-type-band-detail')).toHaveText('Roman Empire');
+    expect(await bandColour()).toBe('rgb(122, 31, 43)');
+    await expect(band.locator('.modal-type-band-mark .icon')).toHaveCount(1);
+  });
+
+  test('"The Full Picture" lays everyone out once and sweeps them in (real data)', async ({ page }) => {
+    // It used to add eight figures every 120ms, re-sorting every row each
+    // time: bars jumped about and slow machines stuttered (owner,
+    // 2026-10-08). Now the layout changes once and the newcomers grow in.
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const next = () => page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    for (let i = 0; i < 18; i++) { await next(); await page.waitForTimeout(150); }
+    await expect(page.locator('.tour-panel')).toContainText('19 of 20');
+    await page.waitForTimeout(1500);
+    const counts = new Set();
+    const sample = page.evaluate(async () => {
+      const seen = [];
+      const end = performance.now() + 2500;
+      while (performance.now() < end) {
+        seen.push(document.querySelectorAll('.person-label').length);
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      return seen;
+    });
+    await next();
+    for (const n of await sample) counts.add(n);
+    await expect(page.locator('.tour-panel')).toContainText('The Full Picture');
+    // Before the step and after it: two layouts, nothing in between.
+    expect([...counts].length).toBeLessThanOrEqual(2);
+  });
+
+  test('white band text always reads: a light colour is darkened to 4.5:1', async ({ page }) => {
+    await loadPage(page);
+    const input = page.locator('.timeline-search-input').first();
+    await input.fill('Incarnation');
+    await page.locator('.timeline-search-dropdown [role="option"]').first().click();
+    const band = page.locator('.modal-type-band');
+    await expect(band).toHaveText('Text');
+    const ratio = await band.evaluate(el => {
+      const [r, g, b] = getComputedStyle(el).backgroundColor.match(/\d+/g).map(Number)
+        .map(v => v / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+    });
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test("the pointer's year line is 3px in the century's colour, and so is the year's dialog", async ({ page }) => {
+    await loadPage(page);
+    await page.mouse.move(300, 450);
+    await page.mouse.move(310, 455);
+    const line = page.locator('.cursor-year-line');
+    await expect(line).toBeVisible();
+    const style = await line.evaluate(el => ({ width: getComputedStyle(el).width, bg: getComputedStyle(el).backgroundColor }));
+    expect(style.width).toBe('3px');
+    expect(style.bg).not.toBe('rgba(100, 100, 100, 0.5)');
+    await page.mouse.click(310, 455);
+    const band = page.locator('.year-summary-modal .modal-type-band');
+    await expect(band).toHaveText('Year');
+  });
+
+  test('a ruler the tour brings in is marked new: it grows and glows (real data)', async ({ page }) => {
+    // Augustus arrives with Jesus in the tour's second scene, at the foot of
+    // the screen, where the owner found him easy to miss.
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    // Behind the welcome dialog on first load, the strip is out of focus: no
+    // slide, no glow (owner, 2026-10-08). Only the tour brings it in.
+    await expect(page.locator('.ruler-strip-wrap')).not.toHaveClass(/is-arriving/);
+    expect(await page.locator('.ruler-strip').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.locator('[title="Next (→)"]').click();
+    await expect(page.locator('.ruler-strip-wrap')).toHaveClass(/is-arriving/);
+    const augustus = page.locator('.ruler-strip-item.is-new', { hasText: 'Augustus' });
+    await expect(augustus).toBeVisible();
+    // The strip itself arrives in the arrival gold, then settles to white.
+    const strip = page.locator('.ruler-strip');
+    expect(await strip.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgb(255, 255, 255)');
+    await expect.poll(() => strip.evaluate(el => getComputedStyle(el).backgroundColor), { timeout: 5000 }).toBe('rgb(255, 255, 255)');
+    // Only the newcomer, not every ruler on screen.
+    await expect(page.locator('.ruler-strip-item.is-new')).toHaveCount(1);
+  });
+
+  test('on a phone, the new ruler is marked and in reach (real data)', async ({ page }) => {
+    // His reign began before anyone else on screen was born, and the
+    // vertical timeline's top stopped short of it.
+    await loadPage(page, { realData: true, dismissWelcome: false, viewport: { width: 390, height: 844 }, mobile: true });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    await page.locator('[title="Next (→)"]').click();
+    const augustus = page.locator('.mobile-ruler.is-new', { hasText: 'Augustus' });
+    await expect(augustus).toBeVisible();
+    const column = await page.locator('.mobile-ruler-column').boundingBox();
+    await expect.poll(async () => (await augustus.boundingBox()).y).toBeGreaterThanOrEqual(column.y - 1);
   });
 
   test('with reduced motion the detail just appears, still edged in colour', async ({ page }) => {

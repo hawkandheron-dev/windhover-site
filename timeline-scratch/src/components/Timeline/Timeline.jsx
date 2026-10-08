@@ -70,6 +70,8 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
         detailBrief={detailBrief}
         data={data}
         backData={backData}
+        newRulerIds={isTourMode ? animatingIds : undefined}
+        rulerArrives={isTourMode}
         config={config}
         onItemClick={onItemClick}
         authContext={authContext}
@@ -1113,7 +1115,12 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
 
       {/* Cursor year line - behind all elements */}
       {pointerInside && !isOverItem && !isPanning && !yearSummaryOpen && !isOverControls && (
-        <CursorLine store={pointer} />
+        <CursorLine
+          store={pointer}
+          style={defaultConfig.cursorLine}
+          viewportStartYear={viewportStartYear}
+          yearsPerPixel={yearsPerPixel}
+        />
       )}
 
       {/* Pinned year line - stays visible when modal open */}
@@ -1122,11 +1129,12 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           className="pinned-year-line"
           style={{
             position: 'absolute',
-            left: `${(pinnedYear - viewportStartYear) / yearsPerPixel}px`,
+            left: `${(pinnedYear - viewportStartYear) / yearsPerPixel - ((defaultConfig.cursorLine?.width || 2) - 2) / 2}px`,
             top: 0,
-            width: '2px',
+            width: `${defaultConfig.cursorLine?.width || 2}px`,
             height: '100%',
-            backgroundColor: 'rgba(25, 118, 210, 0.7)',
+            // With config.cursorLine the clicked year keeps its century colour.
+            backgroundColor: defaultConfig.cursorLine?.color?.(pinnedYear) || 'rgba(25, 118, 210, 0.7)',
             pointerEvents: 'none',
             zIndex: 1
           }}
@@ -1210,12 +1218,15 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           yearsPerPixel={yearsPerPixel}
           width={dimensions.width}
           color={defaultConfig.rulerColor}
+          colorByRuler={defaultConfig.rulerColorByRealm === true}
           focusIds={focusIds}
           onItemHover={handleItemHover}
           onItemClick={handleItemClickInternal}
           wasDraggingRef={wasDraggingRef}
           folded={rulersFolded}
           onToggleFold={defaultConfig.rulerFoldKey ? toggleRulersFolded : undefined}
+          newIds={isTourMode ? animatingIds : undefined}
+          arriving={isTourMode}
         />
       )}
 

@@ -29,6 +29,9 @@
   --color-action-hover:    #3352b4;
   /* Harp string hover: the line, label and dot under the pointer. */
   --color-string-hover:    #e3a92b;
+  /* Arrival: something the tour just brought in (a ruler's name glows in
+     it, then fades). Its own token, not the string hover's. */
+  --color-arrival:         #e8b23a;
 
   background: #ffffff;
 }
@@ -547,6 +550,7 @@ body:has(.ch2-app) {
 }
 
 .ch2-app .timeline-modal--brief .modal-content {
+  --band-x: 16px;
   pointer-events: auto;
   width: 100%;
   max-height: 40vh;
@@ -555,6 +559,20 @@ body:has(.ch2-app) {
   border: 1px solid var(--color-border-hover);
   border-radius: 12px;
   box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.ch2-app .timeline-modal--brief .modal-content.modal-content--banded {
+  border: 3px solid var(--detail-accent);
+  border-top-width: 0;
+  padding-top: 0;
+}
+
+.ch2-app .timeline-modal--brief .modal-type-band {
+  margin-bottom: 12px;
+}
+
+.ch2-app .timeline-modal--brief .modal-content--banded > .modal-close {
+  top: 32px;
 }
 
 .ch2-app .timeline-modal--brief .modal-wiki-description:empty {
@@ -648,6 +666,22 @@ body:has(.ch2-app) {
    the tour panel is docked, centres in the room left of it rather than
    running under it (found rendering the grow transition, 2026-10-08). */
 .ch2-app .timeline-modal:not(.timeline-modal--panel):not(.timeline-modal--brief) {
+  z-index: 9500;
+}
+
+/* Every dialog that dims the page sits over the timeline's controls (z-index
+   9000) too: under the welcome dialog they stayed bright while everything
+   else darkened (owner's screenshot, 2026-10-08). */
+.ch2-app .welcome-overlay,
+.ch2-app .feedback-overlay,
+.ch2-app .about-overlay {
+  z-index: 9500;
+}
+
+/* Feedback and About open from inside the header, whose own stacking level
+   (z-index 100) capped theirs: the page behind didn't dim and the controls
+   drew over the dialog. While one is open, the header rises with it. */
+.ch2-app .app-header:has(.feedback-overlay, .about-overlay) {
   z-index: 9500;
 }
 
