@@ -1248,7 +1248,9 @@ test.describe('Share card and speed (milestone 9)', () => {
     expect(await meta('meta[name="twitter:card"]')).toBe('summary_large_image');
     const image = await meta('meta[property="og:image"]');
     expect(image).toMatch(/^https:\/\/[^%]+\/apps\/lifelines-share\.png$/);
-    expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toMatch(/^https:\/\/[^%]+\/$/);
+    // One canonical address, /lifelines, though "/" serves the same page.
+    expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toMatch(/^https:\/\/[^%]+\/lifelines$/);
+    expect(await meta('meta[property="og:url"]')).toMatch(/\/lifelines$/);
 
     // The same files, served by this build.
     const png = await request.get(new URL(image).pathname);
@@ -1488,6 +1490,14 @@ test.describe('Lifelines as the front page (milestone 2)', () => {
     await expect(page).toHaveURL(/\/$/);
     // Relative asset paths would have resolved to /assets/ here and 404'd.
     expect(failed).toEqual([]);
+  });
+
+  test('/lifelines serves Lifelines too, with or without the slash', async ({ page }) => {
+    for (const at of ['/lifelines', '/lifelines/']) {
+      await loadPage(page, { at, dismissWelcome: false });
+      await expect(page.locator('.welcome-title')).toHaveText('Welcome to Lifelines');
+      await expect(page).toHaveURL(new RegExp(`${at}$`));
+    }
   });
 
   test('/?admin keeps its query and shows the account slot', async ({ page }) => {

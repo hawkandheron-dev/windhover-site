@@ -6,7 +6,7 @@ Personal profile/portfolio site with several sub-projects: a static HTML landing
 
 ## Zones
 
-- **`/` (root HTML)** — The front page `/` is Lifelines (`_redirects`, mirrored by `serve.json`); `_headers` marks every other path noindex; `404.html` handles unknown URLs. Static pages (`home.html`, the former landing page, `about.html`, `design-system.html`, `pantheons.html`, `pantheons-supabase.html`, `church-history-supabase.html`). Shared CSS (`style.css`, `supabase.css`, `editable-content.css`) and JS (`site.js`, `supabase-app.js`, `church-history-app.js`, `editable-content.js`). Changes here affect the public-facing static site.
+- **`/` (root HTML)** — The front page `/` and `/lifelines` are Lifelines (`_redirects`, mirrored by `serve.json`); `_headers` marks every other path noindex; `404.html` handles unknown URLs. Static pages (`home.html`, the former landing page, `about.html`, `design-system.html`, `pantheons.html`, `pantheons-supabase.html`, `church-history-supabase.html`). Shared CSS (`style.css`, `supabase.css`, `editable-content.css`) and JS (`site.js`, `supabase-app.js`, `church-history-app.js`, `editable-content.js`). Changes here affect the public-facing static site.
 - **`timeline-scratch/`** — React + Vite app. The main actively-developed timeline UI.
   - `src/components/Timeline/` — Canvas-based timeline renderer (zoom, pan, stacking).
   - `src/components/` — Feature UIs: `EditEntityForm/`, `Notes/`, `Suggestions/`, `VisionBoard/`, `IconStickerSheet/`.

@@ -7,3 +7,9 @@
 # rejects comments in its config, so the explanation lives here); a unit test
 # (tests/unit/site-routing.test.js) keeps the two in agreement.
 /  /apps/church-history-2  200
+
+# windhoverhistory.com/lifelines is Lifelines' own address (the canonical one,
+# see church-history-2.html), so the root can one day hold something else
+# without breaking links. Both forms, with and without the trailing slash.
+/lifelines   /apps/church-history-2  200
+/lifelines/  /apps/church-history-2  200

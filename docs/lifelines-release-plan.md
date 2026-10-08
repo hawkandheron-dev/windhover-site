@@ -12,6 +12,17 @@ Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thick
 - `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
 - Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
 
+## windhoverhistory.com (2026-10-08)
+
+Matthew: point both windhoverhistory.com and windhoverhistory.com/lifelines to Lifelines.
+
+**Code (PR):**
+- `_redirects` and `serve.json`: `/lifelines` and `/lifelines/` proxy to Lifelines.
+- `_headers`: those two addresses are indexable as well as `/`.
+- The canonical link and `og:url` are `https://windhoverhistory.com/lifelines`, and `LIFELINES_SITE_URL` now defaults to windhoverhistory.com.
+
+**Matthew (dashboard):** add `windhoverhistory.com` (and `www`) as custom domains on the `profile-site` Pages project. The domain's DNS must be on Cloudflare for the bare domain. Merge only once it's live, since the share image URL points at the new domain.
+
 ## Strip glow on first load, band icons, smoother Full Picture (2026-10-08)
 
 - The strip's slide and glow happen only when the tour brings it in (`arriving` / `rulerArrives`), not behind the welcome dialog.
