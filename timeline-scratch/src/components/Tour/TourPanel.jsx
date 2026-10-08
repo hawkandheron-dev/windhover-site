@@ -123,6 +123,13 @@ export function TourPanel({
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
+    // Enter on a link or button does what that control does (opens the link,
+    // presses the button); it must not also turn the page. Typing in a field
+    // keeps its own arrow keys.
+    const control = e.target instanceof Element
+      ? e.target.closest('a[href], button, input, textarea, select, [contenteditable="true"]')
+      : null;
+    if (control && (e.key === 'Enter' || control.matches('input, textarea, select, [contenteditable="true"]'))) return;
     if (e.key === 'ArrowRight' || e.key === 'Enter') {
       e.preventDefault();
       if (isLast) onComplete();

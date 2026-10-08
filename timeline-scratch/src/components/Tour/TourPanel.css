@@ -299,7 +299,9 @@
 
 /* Links in the scene text (opt-in `textLinks`). */
 .tour-scene-narrative a {
-  color: var(--color-accent, #3f63d0);
+  /* Ink and an underline, like the detail panel's links: action blue is kept
+     for the one filled primary button (DESIGN.md §3). */
+  color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
