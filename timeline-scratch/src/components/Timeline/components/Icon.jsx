@@ -23,6 +23,8 @@ const iconMap = {
   'book': { collection: 'universal', id: 'book' },
   'menu': { collection: 'universal', id: 'menu' },
   'search': { collection: 'universal', id: 'search' },
+  'profile': { collection: 'universal', id: 'profile' },
+  'hourglass': { collection: 'universal', id: 'hourglass' },
   // Period-themed icons
   'crown': { collection: 'medieval', id: 'crown' },
   'sword': { collection: 'medieval', id: 'sword' },

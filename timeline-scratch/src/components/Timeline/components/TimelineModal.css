@@ -1229,19 +1229,6 @@
   height: 16px;
 }
 
-.modal-type-band-bar {
-  width: 15px;
-  height: 7px;
-  border-radius: 2px;
-  background: #fff;
-}
-
-.modal-type-band-line {
-  width: 3px;
-  height: 14px;
-  border-radius: 1px;
-  background: #fff;
-}
 
 .modal-type-band-detail {
   opacity: 0.92;
