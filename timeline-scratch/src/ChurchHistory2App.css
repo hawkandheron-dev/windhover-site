@@ -299,30 +299,8 @@
     z-index: 30;
   }
 
-  .ch2-app .timeline-container--phone .compass-up,
-  .ch2-app .timeline-container--phone .compass-down,
-  .ch2-app .timeline-container--phone .compass-left,
-  .ch2-app .timeline-container--phone .compass-right {
-    display: none;
-  }
-
-  .ch2-app .timeline-container--phone .compass-btn,
-  .ch2-app .timeline-container--phone .zoom-controls .btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .ch2-app .timeline-container--phone .zoom-controls .btn > span:not(.icon) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
+  /* No compass or zoom buttons here (navButtons: false); fingers pan and
+     pinch. */
 
   .ch2-app .timeline-container--phone .zoom-info {
     white-space: nowrap;

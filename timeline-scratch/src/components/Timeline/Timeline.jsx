@@ -1069,6 +1069,39 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     };
   }, [isModalOpen, startDirection, stopDirection]);
 
+  // config.zoomKeys (Lifelines): + and − zoom about the middle and 0 glides
+  // back to the opening view, so the keyboard can do what the on-screen
+  // buttons did once they went (config.navButtons: false; owner, 2026-10-09).
+  // Never while typing, or with Ctrl/Cmd/Alt held: Ctrl/Cmd + is the
+  // browser's own zoom, which readers need.
+  useEffect(() => {
+    if (!defaultConfig.zoomKeys) return undefined;
+    const onKeyDown = (e) => {
+      if (isModalOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target;
+      if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        handleZoomIn();
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        handleZoomOut();
+      } else if (e.key === '0') {
+        e.preventDefault();
+        const fraction = defaultConfig.initialAxisFraction ?? 0.5;
+        const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
+        const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
+        animateViewport(centeredViewportStart, initialYearsPerPixel, offset, 600);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [defaultConfig.zoomKeys, defaultConfig.initialAxisFraction, isModalOpen, handleZoomIn, handleZoomOut, animateViewport, centeredViewportStart, initialYearsPerPixel, layout.totalHeight, layout.axisY, dimensions.height]);
+
+  // config.navButtons === false (Lifelines): no compass or zoom buttons; the
+  // timeline is moved by trackpad, wheel, drag, pinch and keys.
+  const showNavButtons = defaultConfig.navButtons !== false;
+
   // Notify viewport changes
   useEffect(() => {
     if (onViewportChange) {
@@ -1331,6 +1364,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         onMouseLeave={() => setIsOverControls(false)}
       >
         {/* Compass rose — self-contained cross of 4 arrows + center */}
+        {showNavButtons && (
         <div className="compass-rose">
           <button
             onMouseDown={() => startDirection('up')}
@@ -1374,17 +1408,22 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
             <Icon name="arrow-down" size={12} />
           </button>
         </div>
+        )}
 
         {/* Zoom controls — aligned to compass middle row */}
         <div className="zoom-controls">
-          <button onClick={handleZoomIn} title="Zoom in" className="btn btn-sm">
-            <Icon name="plus" size={14} />
-            <span>Zoom in</span>
-          </button>
-          <button onClick={handleZoomOut} title="Zoom out" className="btn btn-sm">
-            <Icon name="minus" size={14} />
-            <span>Zoom out</span>
-          </button>
+          {showNavButtons && (
+            <>
+              <button onClick={handleZoomIn} title="Zoom in" className="btn btn-sm">
+                <Icon name="plus" size={14} />
+                <span>Zoom in</span>
+              </button>
+              <button onClick={handleZoomOut} title="Zoom out" className="btn btn-sm">
+                <Icon name="minus" size={14} />
+                <span>Zoom out</span>
+              </button>
+            </>
+          )}
           {defaultConfig.zoomReadout === 'years' ? (
             <span className="zoom-info" title="Years in view">
               {visibleSpanLabel(viewportStartYear, yearsPerPixel, dimensions.width, defaultConfig.eraLabels)}

@@ -94,10 +94,11 @@ const DEFAULT_STATES = [
   { name: 'error',         viewports: ['phone', 'desktop'], failData: true },
 ];
 
-// Zoom with the named buttons (the horizontal timeline's controls).
+// Zoom with the keys (+ / −); Lifelines has no zoom buttons (2026-10-09).
 const zoom = (label, times) => async (page) => {
+  const key = /in/i.test(label) ? '+' : '-';
   for (let i = 0; i < times; i++) {
-    await page.getByRole('button', { name: label }).click();
+    await page.keyboard.press(key);
     await page.waitForTimeout(120);
   }
   await page.waitForTimeout(300);
@@ -106,11 +107,23 @@ const zoom = (label, times) => async (page) => {
 // --compare mobile: today's vertical phone timeline against the desktop's
 // horizontal one on a phone (chosen with the layout toggle; detail as a modal).
 const zoomInEither = async (page) => {
-  const named = page.getByRole('button', { name: 'Zoom in' });
-  if (await named.count()) return zoom('Zoom in', 2)(page);
-  // The vertical phone toolbar's zoom buttons are icon-only: −, readout, +.
-  for (let i = 0; i < 2; i++) {
-    await page.locator('.mobile-zoom-controls button').nth(1).click();
+  if (!(await page.locator('.mobile-timeline').count())) return zoom('Zoom in', 2)(page);
+  // The vertical phone timeline zooms by pinch: spread two fingers twice.
+  for (let n = 0; n < 2; n++) {
+    await page.evaluate(() => {
+      const el = document.querySelector('.mobile-timeline-scroll');
+      const r = el.getBoundingClientRect();
+      const y = r.top + r.height / 2;
+      const fire = (type, gap) => {
+        const pts = gap == null ? [] : [{ identifier: 0, clientX: r.left + r.width / 2 - gap / 2, clientY: y }, { identifier: 1, clientX: r.left + r.width / 2 + gap / 2, clientY: y }];
+        const ev = new Event(type, { bubbles: true, cancelable: true });
+        Object.defineProperties(ev, { touches: { value: pts }, targetTouches: { value: pts }, changedTouches: { value: pts } });
+        el.dispatchEvent(ev);
+      };
+      fire('touchstart', 100);
+      for (let i = 1; i <= 8; i++) fire('touchmove', 100 + 100 * i / 8);
+      fire('touchend', null);
+    });
     await page.waitForTimeout(120);
   }
   await page.waitForTimeout(300);

@@ -138,6 +138,46 @@ const TABLES = {
   ],
 };
 
+// Touches are dispatched as touch events inside the page, so the same
+// helper drives Chromium and WebKit (Safari's engine, which phones run).
+// It used to go through Chrome's DevTools protocol, which exists only in
+// Chromium (Firefox/WebKit CI, M4).
+async function touch(page) {
+  const send = (type, points) => page.evaluate(({ type, points }) => {
+    const at = points[0] || window.__lastTouchPoint || [0, 0];
+    const target = document.elementFromPoint(at[0], at[1]) || document.body;
+    if (points.length) window.__lastTouchPoint = points[0];
+    // Plain touch points on a plain event: desktop WebKit refuses
+    // `new Touch()` ("Illegal constructor"), and the timeline only reads
+    // identifier and clientX/Y from each point.
+    const point = ([x, y], i) => ({ identifier: i, target, clientX: x, clientY: y, pageX: x, pageY: y });
+    const touches = points.map(point);
+    const ev = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperties(ev, {
+      touches: { value: type === 'touchend' ? [] : touches },
+      targetTouches: { value: type === 'touchend' ? [] : touches },
+      changedTouches: { value: touches.length ? touches : [point(at, 0)] },
+    });
+    target.dispatchEvent(ev);
+  }, { type, points });
+  return {
+    async drag(from, to, steps = 8) {
+      await send('touchstart', [from]);
+      for (let i = 1; i <= steps; i++) {
+        await send('touchmove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
+      }
+      await send('touchend', []);
+    },
+    async pinch(center, fromGap, toGap, steps = 8) {
+      const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
+      await send('touchstart', at(fromGap));
+      for (let i = 1; i <= steps; i++) await send('touchmove', at(fromGap + (toGap - fromGap) * i / steps));
+      await send('touchend', []);
+    },
+  };
+}
+
+
 async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false, tables, clerkKey = '' } = {}) {
   await installConfigMock(page, { clerkKey });
   await installClerkMock(page);
@@ -297,7 +337,8 @@ test.describe('CH Timeline 2.0', () => {
   test('the timeline starts at 100 BC', async ({ page }) => {
     await loadPage(page);
     // Pan far to the left: the view stops at the floor.
-    for (let i = 0; i < 6; i++) await page.locator('[title="Scroll left"]').dispatchEvent('mousedown');
+    // (Arrow-key panning is covered by the wheel below; the on-screen arrows
+    // went with the other buttons, owner 2026-10-09.)
     await page.locator('.timeline-container').evaluate(el => {
       for (let i = 0; i < 40; i++) el.dispatchEvent(new WheelEvent('wheel', { deltaX: -400, bubbles: true, cancelable: true }));
     });
@@ -618,8 +659,9 @@ test.describe('CH Timeline 2.0', () => {
     // scale the visible span is wider than the pannable range and the clamp
     // legitimately pins the viewport — the anchor invariant only means
     // something once the span fits inside the range.
+    // (With the + key: the zoom buttons went, owner 2026-10-09.)
     for (let i = 0; i < 4; i++) {
-      await page.locator('button:has-text("Zoom in")').click();
+      await page.keyboard.press('+');
       await page.waitForTimeout(120);
     }
     await page.waitForTimeout(300);
@@ -742,12 +784,13 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     const label = page.locator('.mobile-zoom-label');
     await expect(label).toHaveText(/AD/);
     const before = await label.textContent();
-    // Zoom out twice: more years on screen, so the range must widen each time.
-    const zoomOut = page.locator('.mobile-zoom-controls .mobile-toolbar-btn').first();
-    await zoomOut.click();
+    // Pinch in twice: more years on screen, so the range must widen each
+    // time. (Pinch, now that the toolbar's zoom buttons went, owner 2026-10-09.)
+    const t = await touch(page);
+    await t.pinch([195, 500], 240, 120);
     await expect(label).not.toHaveText(before);
     const mid = await label.textContent();
-    await zoomOut.click();
+    await t.pinch([195, 500], 240, 120);
     await expect(label).not.toHaveText(mid);
   });
 
@@ -764,9 +807,13 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
       return (years[0] + years[years.length - 1]) / 2;
     };
     const before = middle(await label.textContent());
-    const zoomIn = page.locator('.mobile-zoom-controls .mobile-toolbar-btn').nth(1);
-    await zoomIn.click();
-    await zoomIn.click();
+    // Spread the fingers about the middle of the screen (the toolbar's zoom
+    // buttons went, owner 2026-10-09).
+    const t = await touch(page);
+    const scroller = await page.locator('.mobile-timeline-scroll').boundingBox();
+    const mid = [195, scroller.y + scroller.height / 2];
+    await t.pinch(mid, 100, 200);
+    await t.pinch(mid, 100, 200);
     await expect(label).not.toHaveText(/BC/);
     expect(Math.abs(middle(await label.textContent()) - before)).toBeLessThanOrEqual(8);
   });
@@ -1818,7 +1865,7 @@ test.describe('Review round fixes (milestone 3)', () => {
   test('a click on empty timeline opens that year; a click on the controls does not', async ({ page }) => {
     await loadPage(page);
     // Controls and the legend are not empty timeline: no year summary.
-    await page.getByRole('button', { name: 'Zoom in' }).click();
+    await page.getByRole('button', { name: 'Horizontal' }).click();
     await page.getByRole('checkbox', { name: 'Councils' }).click();
     await page.getByRole('checkbox', { name: 'Councils' }).click();
     await expect(page.getByRole('heading', { level: 2 }).filter({ hasText: /\d+ (AD|BC)/ })).toHaveCount(0);
@@ -1847,45 +1894,6 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
     test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
   });
 
-  // Touches are dispatched as touch events inside the page, so the same
-  // helper drives Chromium and WebKit (Safari's engine, which phones run).
-  // It used to go through Chrome's DevTools protocol, which exists only in
-  // Chromium (Firefox/WebKit CI, M4).
-  async function touch(page) {
-    const send = (type, points) => page.evaluate(({ type, points }) => {
-      const at = points[0] || window.__lastTouchPoint || [0, 0];
-      const target = document.elementFromPoint(at[0], at[1]) || document.body;
-      if (points.length) window.__lastTouchPoint = points[0];
-      // Plain touch points on a plain event: desktop WebKit refuses
-      // `new Touch()` ("Illegal constructor"), and the timeline only reads
-      // identifier and clientX/Y from each point.
-      const point = ([x, y], i) => ({ identifier: i, target, clientX: x, clientY: y, pageX: x, pageY: y });
-      const touches = points.map(point);
-      const ev = new Event(type, { bubbles: true, cancelable: true });
-      Object.defineProperties(ev, {
-        touches: { value: type === 'touchend' ? [] : touches },
-        targetTouches: { value: type === 'touchend' ? [] : touches },
-        changedTouches: { value: touches.length ? touches : [point(at, 0)] },
-      });
-      target.dispatchEvent(ev);
-    }, { type, points });
-    return {
-      async drag(from, to, steps = 8) {
-        await send('touchstart', [from]);
-        for (let i = 1; i <= steps; i++) {
-          await send('touchmove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
-        }
-        await send('touchend', []);
-      },
-      async pinch(center, fromGap, toGap, steps = 8) {
-        const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
-        await send('touchstart', at(fromGap));
-        for (let i = 1; i <= steps; i++) await send('touchmove', at(fromGap + (toGap - fromGap) * i / steps));
-        await send('touchend', []);
-      },
-    };
-  }
-
   // "30–130 AD" → [30, 130]; good enough for AD-only spans.
   async function span(page) {
     const text = await page.locator('.zoom-info').textContent();
@@ -1897,11 +1905,8 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
     await loadPage(page, PHONE);
     await expect(page.locator('.mobile-timeline')).toHaveCount(0);
     await expect(page.locator('.zoom-info')).toHaveText('1–160 AD');
-    // Touch-sized zoom buttons, still named for a screen reader.
-    const zoomIn = page.getByRole('button', { name: 'Zoom in' });
-    const box = await zoomIn.boundingBox();
-    expect(box.width).toBeGreaterThanOrEqual(44);
-    expect(box.height).toBeGreaterThanOrEqual(44);
+    // No zoom or pan buttons: fingers do it (owner, 2026-10-09).
+    await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
   });
 
   test('a finger drag pans the timeline', async ({ page }) => {
@@ -2061,7 +2066,7 @@ test.describe('Selection and the larger view (2026-10-09)', () => {
     // A ring round bar and overhanging name read badly (owner, 2026-10-09).
     await loadPage(page);
     for (let i = 0; i < 6; i++) {
-      await page.getByRole('button', { name: 'Zoom out' }).click();
+      await page.keyboard.press('-');
       await page.waitForTimeout(150);
     }
     const readout = page.locator('.zoom-info');
@@ -2091,5 +2096,54 @@ test.describe('Selection and the larger view (2026-10-09)', () => {
     await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Eusebius');
     await page.waitForTimeout(900);
     expect(await span()).toBe(before);
+  });
+});
+
+test.describe('No navigation buttons; keys zoom (2026-10-09)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  const span = async (page) => {
+    const [a, b] = (await page.locator('.zoom-info').textContent()).match(/\d+/g).map(Number);
+    return b - a;
+  };
+
+  test('the timeline has only the years readout and the Layout toggle', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator('.zoom-info')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Layout' })).toBeVisible();
+    await expect(page.locator('.compass-rose')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Zoom (in|out)/ })).toHaveCount(0);
+  });
+
+  test('+ and − zoom, and 0 goes back to the opening view', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+    const opening = await span(page);
+    await page.keyboard.press('+');
+    await expect.poll(() => span(page)).toBeLessThan(opening);
+    await page.keyboard.press('-');
+    await page.keyboard.press('-');
+    await expect.poll(() => span(page)).toBeGreaterThan(opening);
+    await page.keyboard.press('0');
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+  });
+
+  test('typing in search never zooms', async ({ page }) => {
+    await loadPage(page);
+    await page.locator('.timeline-search input').first().fill('');
+    await page.locator('.timeline-search input').first().pressSequentially('+-0');
+    await page.waitForTimeout(300);
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+  });
+
+  test('the phone toolbar keeps Filter, the readout and Layout, without zoom buttons', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    const bar = page.locator('.mobile-timeline-toolbar');
+    await expect(bar.locator('.mobile-toolbar-btn', { hasText: 'Filter' })).toBeVisible();
+    await expect(bar.locator('.mobile-zoom-label')).toBeVisible();
+    await expect(bar.locator('.mobile-zoom-controls button')).toHaveCount(0);
   });
 });

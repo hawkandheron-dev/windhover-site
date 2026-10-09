@@ -212,6 +212,11 @@ export const churchHistory2Config = {
    *  so the ring round the bar holds the name (owner, 2026-10-09: a ring
    *  round bar and overhanging name read badly). */
   selectFitsName: true,
+  /** No on-screen pan or zoom buttons: trackpad, wheel, drag, pinch and
+   *  keys do it all, and + / − / 0 zoom and reset from the keyboard (owner,
+   *  2026-10-09). The years readout and the Layout toggle stay. */
+  navButtons: false,
+  zoomKeys: true,
   rulerColor: BACK_STYLES.emperors.color,
   /** Each reign in the strip and the phone column takes its realm's colour
    *  (REALM_STYLES, set on the item by the adapter), not rulerColor. */

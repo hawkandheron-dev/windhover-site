@@ -112,7 +112,7 @@ Every UI change is still checked in the `default-dark` screenshots.
 | Opening view | 1–500 AD, centred, framed on the measured width (1–160 AD for the horizontal layout on a phone, `config.phone`); nothing before **100 BC** (`minYear`) | The welcome dialog offers the tour on a first visit (remembered under its own key). |
 | Address | windhoverhistory.com: Lifelines is the front page, `/`, and `/lifelines` | Both serve it; `/lifelines` is the canonical address (owner, 2026-10-08), so the root can later hold something else without breaking links. They are the only indexed pages. The owner's admin entry is `/?admin`. Lifelines has no link to any other part of the site. Its share card (description, Open Graph image, canonical link) uses the site address set in `timeline-scratch/vite.config.js`; remake the image with `npm run shots -- --share` when the opening view changes. Clerk loads only for `?admin` or an already signed-in browser, never for readers. |
 | Legend | Floating, top right, just below the header | Slim (`legendLayout: 'slim'`): Lifelines' name, the four show/hide switches (councils and texts with their shapes, reigns with the crown, figures with a portrait icon in neutral grey, the same icon as their detail band; owner, 2026-10-08), Windhover at the foot. No colour key, no section headings. It folds to a "Key" button while the detail panel is open or the timeline is under 1100px wide; a reader's own open/close holds until that changes. At 1100px and wider it opens by default even though it covers a few top-right figures in the opening view (owner's decision, 2026-10-05). |
-| Controls | Bottom left (horizontal); the toolbar (vertical) | Zoom, pan, the year readout and the Layout toggle (Vert / Horiz). No depth control: the rulers stay faint, and lift with a hovered or chosen figure, or while Alt is held. On a phone the arrows go (fingers pan) and the buttons are 44px. |
+| Controls | Bottom left (horizontal); the toolbar (vertical) | The years readout and the Layout toggle (Vert / Horiz) only. No on-screen zoom or pan buttons: trackpad, wheel, drag and pinch move the timeline, and the keyboard pans with the arrows, zooms with + and −, and returns to the opening view with 0 (`navButtons: false`, `zoomKeys`; owner, 2026-10-09). Keys never act while typing or with Ctrl/Cmd/Alt held, so browser zoom still works. No depth control: the rulers stay faint, and lift with a hovered or chosen figure, or while Alt is held. |
 
 - The page is sized with `100dvh`, not `100vh`, so iOS Safari's address bar
   doesn't hide the bottom of the timeline.
@@ -236,10 +236,9 @@ the stray hover card, the legend covering figures, the phone's overlapping
 landmark cards and its parchment toolbar in milestone 3 (on screens under
 1100px; see the first line below).
 
-- **§6 Controls with the panel open:** the zoom, readout and layout controls
-  float over figure bars at the bottom left (Clement of Rome and Polycarp in
-  `panel--laptop.png`), and at 820px their labels wrap to two lines ("Zoom /
-  in", "50–340 / AD" in `panel--tablet.png`). Found by the M3 ux-review The owner is
-  researching a rework of the controls (navigation comparison doc,
-  2026-10-05).
+- **§6 Controls with the panel open:** the zoom buttons that floated over
+  figure bars and wrapped at 820px went on 2026-10-09. What is left (the
+  readout and the Layout toggle) clears the bars but, at 820px with the
+  panel open, still sits over the lowest row of text labels ("Gospel of John
+  fragment - P42" in `panel--tablet.png`).
 

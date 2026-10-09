@@ -532,14 +532,22 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
           <span>Filter</span>
         </button>
         <div className="mobile-zoom-controls">
-          <button className="mobile-toolbar-btn" onClick={handleZoomOut}><Icon name="minus" size={14} /></button>
+          {/* config.navButtons === false (Lifelines): pinch zooms, scrolling
+              pans; only the readout stays (owner, 2026-10-09). */}
+          {defaultConfig.navButtons !== false && (
+            <button className="mobile-toolbar-btn" onClick={handleZoomOut}><Icon name="minus" size={14} /></button>
+          )}
           <span className="mobile-zoom-label">
             {showYearReadout
               ? (visibleYears ? formatYearSpan(Math.round(visibleYears.start / 5) * 5, Math.round(visibleYears.end / 5) * 5, defaultConfig.eraLabels) : '')
               : `${pixelsPerYear.toFixed(1)}px/yr`}
           </span>
-          <button className="mobile-toolbar-btn" onClick={handleZoomIn}><Icon name="plus" size={14} /></button>
-          <button className="mobile-toolbar-btn" onClick={handleZoomReset}><Icon name="quatrefoil" size={14} /></button>
+          {defaultConfig.navButtons !== false && (
+            <>
+              <button className="mobile-toolbar-btn" onClick={handleZoomIn}><Icon name="plus" size={14} /></button>
+              <button className="mobile-toolbar-btn" onClick={handleZoomReset}><Icon name="quatrefoil" size={14} /></button>
+            </>
+          )}
         </div>
         {layoutToggle}
       </div>

@@ -2,6 +2,125 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Navigation buttons out; copy checklist before go-live (2026-10-09)
+
+**Context.**
+- Matthew can do everything without the on-screen buttons: trackpad on a Mac, mouse on a PC, gestures on a phone, and the keyboard. The navigation buttons go. A note about the controls can go in the Key later, in his words.
+- He wants **zero AI-written copy** on the live page, and asked for a checklist of every place that might still hold some, to work through before go-live.
+- [hawkandheron-dev/windhover-site#171](https://github.com/hawkandheron-dev/windhover-site/pull/171) is green and waiting on his "merge it". This work comes after it, in a new PR. If #171 merges first, restart the branch from main; otherwise stack on #171 and say so.
+
+### A. Remove the navigation buttons (Lifelines only, behind config `navButtons: false`). Done, on #171
+Matthew's answers:
+- keep the years readout and the Layout toggle;
+- add + / − / 0 keys;
+- the phone toolbar loses − / + / reset too.
+
+1. **Desktop and horizontal phone** (`Timeline.jsx` 1327-1431):
+   - When `defaultConfig.navButtons === false`, don't render `.compass-rose` (the four arrows and the centre reset) or the two zoom buttons.
+   - Keep `.timeline-controls` holding the `.zoom-info` readout and `{layoutToggle}`.
+   - Other apps keep their buttons, since the key defaults to shown.
+2. **Keyboard** (`Timeline.jsx` keydown at 1041-1070, today arrows only):
+   - `+`/`=` zooms in and `-`/`_` zooms out, about the middle, reusing `handleZoomIn`/`handleZoomOut`.
+   - `0` returns to the opening view, reusing `reset`.
+   - Not while typing in a field, not while a dialog is open, and not with Ctrl, Cmd or Alt held, so browser zoom (Ctrl/Cmd +) still works.
+   - Opt-in via `config.zoomKeys` (Lifelines on).
+3. **Vertical phone toolbar** (`MobileTimeline.jsx` 534-545):
+   - With `navButtons: false`, drop −, + and reset.
+   - Keep Filter, the readout and the Layout toggle. Pinch already zooms there (`pinchRef`, 222-244).
+4. **CSS:** delete the now-unused Lifelines rules for the 44px compass and zoom buttons and the hidden "Zoom in" words (`ChurchHistory2App.css` 302-325). Check the controls still sit above the ruler strip.
+5. **Tests that clicked the buttons move to keys or gestures, never deleted.** Each change is noted in the commit, since the decision changed.
+   - **Zoom buttons:** `church-history-2.spec.js` 622, 1821, 1901 and 2064 use `+`/`-` or ctrl+wheel.
+   - **Arrow buttons:** 300 (the "Scroll left" ×6) uses ArrowLeft held down.
+   - **Phone toolbar:** 746 and 767 use pinch (the `pinch()` helper exists at 1880).
+   - **Shots script:** `scripts/lifelines-shots.mjs` `zoom()` and `zoomInEither` press keys, or use pinch on the vertical phone.
+   - **New tests:**
+     - no compass or zoom buttons on Lifelines;
+     - Heresies still has them;
+     - `+`/`-` change the readout's span, and `0` returns to "1–500 AD";
+     - keys do nothing while typing in search;
+     - the vertical phone toolbar has no − or +.
+6. **DESIGN.md:**
+   - §6 Controls row: "the years readout and the Layout toggle; zoom and pan by trackpad, wheel, drag, pinch and keys (+ − 0, arrows); no on-screen buttons".
+   - Drop the "On a phone the arrows go…" clause.
+   - Delete the Known-violation entry about controls over bars at 820px, which these buttons caused, once checked in the shots.
+7. **Verify:**
+   - Shots of `default`, `panel` and `panel-far` (desktop and laptop), and phone in both layouts.
+   - Unit, the full e2e under Node 20, and lint. Then a PR, CI, and Matthew's "merge it".
+
+### B. Go-live copy checklist (Matthew's): zero AI-written copy before go-live
+How to use it:
+- Tick each item once the text there is in your words, or deliberately kept.
+- **[AI]** means Claude wrote it.
+- **[You]** means you wrote or chose it; there's nothing to do unless you want a change.
+- **[Label]** is a short control label; read it, change it if you like.
+- Send me the new text (paste it here or in a doc). I put it in place, render it, and tick the box.
+
+**1. The opening popup ("Welcome to Lifelines")** (`components/Tour/WelcomeDialog.jsx`)
+- [ ] Body: "This interactive timeline maps the overlapping lifespans of key figures in church history — revealing how the faith was passed…" [AI]
+- [ ] Question: "Would you like a brief guided tour?" [AI]
+- [ ] Buttons: "Take the Tour", "Skip" [Label]
+
+**2. About dialog** (`components/About/AboutDialog.jsx`)
+- [ ] Intro: "Lifelines is a church history timeline by lifespans, made by Windhover. It shows who was alive…" [AI]
+- [ ] Licence sentence (CC BY 4.0, credit to Matt Brown). [AI wording; the licence is your choice]
+- [ ] Credits, 4 lines: Wikipedia, OpenHistoricalMap/MapLibre, Wikimedia Commons, fonts. [AI, factual; the attribution must stay in some form]
+- [ ] Privacy, 5 lines: no cookies; Cloudflare Web Analytics; self-hosted fonts; feedback by email via Resend and Turnstile; Supabase, Wikipedia and OpenHistoricalMap requests. [AI, factual; must stay accurate]
+
+**3. Share preview and browser tab** (`timeline-scratch/church-history-2.html`)
+- [ ] Meta description: "See who was alive at the same time in church history… from the first century to the eighteenth…" [AI; "eighteenth" needs checking against the data]
+- [ ] og:description (the Substack/social preview text) [AI]
+- [ ] og:image alt text [AI]
+- [ ] Share image text: "Lifelines / A church history timeline by lifespans / WINDHOVER" [You]. The picture is regenerated by `npm run shots -- --share` if anything changes.
+- [ ] Tab title "Lifelines — A church history timeline by lifespans" [You]
+
+**4. Feedback** (`components/Feedback/FeedbackButton.jsx`, `services/feedbackService.js`, `functions/api/feedback*.js`)
+- [ ] Button tooltip: "Tell us what you think — no account needed" [AI; also inaccurate now that feedback needs a subscriber code]
+- [ ] Email step: "Feedback is open to subscribers of the newsletter…" and "Not subscribed yet? Subscribe free on Substack…" [AI]
+- [ ] Code step: "If {email} is subscribed, a six-digit code is on its way…" and "Nothing arrived? …" [AI]
+- [ ] Write step: "Spotted a mistake, missing a figure, or have a thought…?" and placeholder "What's on your mind?" [AI]
+- [ ] Sent: "Thank you / Your note reached us. We read every one." [AI]
+- [ ] About 20 error messages ("Could not send a code…", "That code has expired.", "That is a lot of feedback in one hour…"). [AI, plain; review as a list. I'll gather them into one place for you]
+- [ ] The code email: subject "{code} is your Lifelines feedback code", plus a 3-line body. [AI]
+
+**5. Tour**
+- [ ] The 4 scenes your edit didn't touch: "first-century", "origen", "augustine", "caesarius". These may still be Claude's text from March. The live copy is in the tour doc and the database.
+- [ ] Scene 19 ("year-530") extra line: "Click on a blank part of the timeline to see who's where…" [AI]
+- [ ] The built-in backup copy (`components/Tour/tourScenes.js`) is shown only if the database can't be reached. It's all AI-written and out of date.
+  - **My recommendation:** I replace it with a copy of your live text at build time, so it can never differ. No writing needed from you.
+- [ ] Tour buttons: "Back", "Next", "Finish", "Exit tour", "{n} of 20", "Picture: … · Source" [Label]
+- [ ] Picture alt text, 15 pictures (`CH_LinkedMedia.alt_text`): screen readers read these aloud. [Probably AI]
+
+**6. Smaller messages** [AI, plain]
+- [ ] Error: "Lifelines couldn't load the timeline. Check your connection and try again." / "Try again"; and "Loading the timeline…"
+- [ ] Map: "The map can't be shown in this browser."; "Showing borders c. {year}"
+- [ ] 404 page: "There's nothing at this address. It may have moved, or the link may have a typo." / "Go to Lifelines"
+- [ ] Year popup headings: "Reigning Emperor(s)", "Who's where?", "Events This Year", "Notable events and texts around {year}", "No data for this year."
+- [ ] Tooltips: Layout ("Lives run down/across the page"), Emperors tab ("Show/Fold the emperors and monarchs…"), About ("About Lifelines, credits and privacy"), Tour ("Take the guided tour"), years readout ("Years in view").
+- [ ] Screen-reader-only labels: "Skip to search", "Search figures, councils and texts", "Hide the key", "Open larger view", "Back to side panel", "Close details". [Label]
+- [ ] Wikipedia line "Text from Wikipedia, available under CC BY-SA 4.0." [required attribution; wording is yours]
+- [ ] The controls note for the Key, if you want one, after part A ships. [You write it]
+
+**7. Labels you chose or approved** (read once)
+- [ ] "Lifelines", "A church history timeline by lifespans", "Windhover", "Get a bird's eye view" [You]
+- [ ] Key rows: "Church figures", "Councils", "Events", "Texts & creeds", "Emperors & monarchs"; detail bands "Church figure", "Council", "Text", "Event", "Year", plus the realm names [Label]
+- [ ] Detail headings: "From Wikipedia", "Works & Sources", "Connections", "More about …", map heading "{place}, {centuries}" [Label, the last is yours]
+
+**8. Data in the database** (readers see it in the detail panel; the biggest job; a database pass, not code)
+- [ ] **Figure descriptions:** 107 of 249 active figures have one. Some are from Claude's data-entry passes (Feb 2026, e.g. the emperors: "First Roman emperor, reigning during the birth of Jesus. Established the Pax Romana."). Figures without one show the Wikipedia summary instead.
+  - **Options:** rewrite them; clear them so the Wikipedia summary shows; or keep the ones you recognise as yours.
+  - I can export all 107 into a doc with a keep / rewrite / clear column.
+- [ ] **Event, council and text descriptions:** all 66 shown have one. This includes the two I wrote for Constantinople II and III (M3 round 5). Same export offer.
+- [ ] **Source notes:** all 86 have one, e.g. "Concrete anchor for Basil ↔ Athanasius correspondence." Same export offer. They read as research notes, so one option is not to show them at all (a one-line change).
+
+**Not reader-facing, no action:** code comments, admin-only screens (`?admin`), the hidden `home.html`, and the adapter's unused labels.
+
+**My part, once you've decided:**
+- export the database items into a doc for you;
+- gather the error messages into one list;
+- wire your text in, render it and send screenshots;
+- replace the tour backup with your live text.
+- **Go-live gate:** every box above is ticked.
+
 ## Update (2026-10-09, later): ring round bar and name read badly → zoom to fit
 
 Matthew, on the preview: the ring round bar and overhanging name (Dionysius of Alexandria) is what he feared. Done (backup option 2): selecting a figure whose name doesn't fit glides in until it does (`selectFitsName`, `viewFittingLabel` in utils/labelFit.js); the ring is round the bar only again. The map heading is set like the dates line (16px, 500, ink-faded).
