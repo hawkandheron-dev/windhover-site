@@ -10,7 +10,7 @@
  *  - Wikipedia/Britannica attribution moved to top ("From Wikipedia")
  */
 
-import { useEffect, useLayoutEffect, useMemo, useCallback, useState, useRef } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { formatDateRange, formatYear, getYear } from '../utils/dateUtils.js';
 import { Icon } from './Icon.jsx';
 import { DetailTypeBand } from './DetailTypeBand.jsx';
@@ -157,6 +157,12 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   const [expanded, setExpanded] = useState(false);
   useEffect(() => { setExpanded(false); }, [item?.id]);
   const isBrief = brief && !expanded && !isPanel;
+  // config.detailScrollBody (Lifelines): the band and the buttons stay put
+  // and only the body scrolls, inside the frame's rounded corners. A frame
+  // that scrolled itself drew Windows' square scrollbar over its corners.
+  const framed = config?.detailScrollBody === true;
+  const ScrollBody = framed ? 'div' : Fragment;
+  const scrollBodyProps = framed ? { className: 'modal-scroll' } : {};
 
   // One binding for every pencil in this panel. Built here rather than inside
   // EditableText because only the caller knows which table an item came from:
@@ -553,7 +559,11 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
       // and travels to their own place, as the tour's text moves them.
       fromLocation={mapFrom && mapFrom.personId === item.id ? mapFrom.location : null}
       birthYear={getYear(item.startDate || item.date)}
-      title={compactLayout ? 'Historical map' : undefined}
+      // config.mapHeading (Lifelines): "Seville, 6th Century" in place of
+      // a heading that only repeated what the map is.
+      title={typeof config?.mapHeading === 'function'
+        ? config.mapHeading(item, itemType)
+        : compactLayout ? 'Historical map' : undefined}
       credit={config?.mapCreditLine === true}
     />
   ) : null;
@@ -623,7 +633,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
       {!isPanel && !isBrief && <div className="modal-backdrop" />}
       <div
         ref={contentRef}
-        className={`modal-content${accentColor ? ' modal-content--accent' : ''}${typeBand ? ' modal-content--banded' : ''}`}
+        className={`modal-content${accentColor ? ' modal-content--accent' : ''}${typeBand ? ' modal-content--banded' : ''}${framed ? ' modal-content--framed' : ''}`}
         style={accentColor ? { '--detail-accent': accentColor } : undefined}
         onClick={e => e.stopPropagation()}
         {...(manageFocus && (isPanel || isBrief
@@ -652,6 +662,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </button>
         )}
 
+        <ScrollBody {...scrollBodyProps}>
         {item.image && !isBrief && (
           <img
             src={item.image}
@@ -1219,6 +1230,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           </div>
         )}
         </>)}
+        </ScrollBody>
       </div>
     </div>
   );

@@ -182,57 +182,71 @@ export function TimelineOverlay({
     </div>
   );
 
+  /**
+   * Where a figure's name chip goes and what it says, or null when it is off
+   * screen or has no room. Shared by the labels and by the gold rings, which
+   * take in a name that runs on past its bar.
+   */
+  function personLabel(person, nextStartById) {
+    const fit = config.labelFit === 'fit';
+    const { start, end } = getYearRange(person.startDate, person.endDate);
+
+    const startX = yearToPixel(start, viewportStartYear, yearsPerPixel);
+    const endX = yearToPixel(end, viewportStartYear, yearsPerPixel);
+    const boxY = person.y - panOffsetY;
+
+    // Position label at left of the box, vertically centered
+    let labelX = startX + 4;
+    const labelY = boxY + 3;
+
+    // Sticky behavior: stick to left edge if box extends left of viewport
+    const isSticky = startX < 0 && endX > 0;
+    if (isSticky) {
+      labelX = 10; // Stick to left edge with padding
+    }
+
+    // Hide if completely off screen
+    if (endX < 0 || startX > width) {
+      return null;
+    }
+
+    // Bare years unless BC is involved, when both ends carry their era.
+    const showAD = start <= 0 || end <= 0;
+    const startText = formatYear(start, config.eraLabels, { showAD });
+    const endText = formatYear(end, config.eraLabels, { showAD });
+    let yearRange = startText !== endText ? `${startText}–${endText}` : startText;
+
+    // Fitting: drop the dates first, then end the name in an ellipsis, and
+    // give up on a label with no real room; hovering still names the bar.
+    const crown = person.isMonarch ? 16 : 0;
+    const nameWidth = crown + measureLabel(person.name, '600 14px') + LABEL_PADDING;
+    let maxWidth;
+    if (fit) {
+      const nextStart = nextStartById.get(person.id);
+      const room = (nextStart ?? Infinity) - labelX - LABEL_GAP;
+      const fullWidth = nameWidth + 4 + measureLabel(yearRange, '500 11px');
+      if (fullWidth > room) yearRange = null;
+      if (nameWidth > room) {
+        if (room < MIN_LABEL_ROOM) return null;
+        maxWidth = room;
+      }
+    }
+    const labelWidth = maxWidth ?? (nameWidth + (yearRange ? 4 + measureLabel(yearRange, '500 11px') : 0));
+
+    return { startX, endX, boxY, labelX, labelY, isSticky, yearRange, maxWidth, labelWidth };
+  }
+
   function renderPeopleLabels() {
     const people = layout.stackedPeople || [];
     // config.labelFit === 'fit' (Lifelines): a label may run on into empty
     // space but never into the next bar of its row, where the neighbour's
     // label would cover it ("lement of Rome", "Thomas Bradwar").
-    const fit = config.labelFit === 'fit';
-    const nextStartById = fit ? nextBarStartInRow(people, viewportStartYear, yearsPerPixel) : null;
+    const nextStartById = config.labelFit === 'fit' ? nextBarStartInRow(people, viewportStartYear, yearsPerPixel) : null;
 
     return people.map(person => {
-      const { start, end } = getYearRange(person.startDate, person.endDate);
-
-      const startX = yearToPixel(start, viewportStartYear, yearsPerPixel);
-      const endX = yearToPixel(end, viewportStartYear, yearsPerPixel);
-      const boxY = person.y - panOffsetY;
-
-      // Position label at left of the box, vertically centered
-      let labelX = startX + 4;
-      const labelY = boxY + 3;
-
-      // Sticky behavior: stick to left edge if box extends left of viewport
-      const isSticky = startX < 0 && endX > 0;
-      if (isSticky) {
-        labelX = 10; // Stick to left edge with padding
-      }
-
-      // Hide if completely off screen
-      if (endX < 0 || startX > width) {
-        return null;
-      }
-
-      // Bare years unless BC is involved, when both ends carry their era.
-      const showAD = start <= 0 || end <= 0;
-      const startText = formatYear(start, config.eraLabels, { showAD });
-      const endText = formatYear(end, config.eraLabels, { showAD });
-      let yearRange = startText !== endText ? `${startText}–${endText}` : startText;
-
-      // Fitting: drop the dates first, then end the name in an ellipsis, and
-      // give up on a label with no real room; hovering still names the bar.
-      let maxWidth;
-      if (fit) {
-        const nextStart = nextStartById.get(person.id);
-        const room = (nextStart ?? Infinity) - labelX - LABEL_GAP;
-        const crown = person.isMonarch ? 16 : 0;
-        const nameWidth = crown + measureLabel(person.name, '600 14px') + LABEL_PADDING;
-        const fullWidth = nameWidth + 4 + measureLabel(yearRange, '500 11px');
-        if (fullWidth > room) yearRange = null;
-        if (nameWidth > room) {
-          if (room < MIN_LABEL_ROOM) return null;
-          maxWidth = room;
-        }
-      }
+      const label = personLabel(person, nextStartById);
+      if (!label) return null;
+      const { startX, labelX, labelY, isSticky, yearRange, maxWidth } = label;
 
       return (
         <div
@@ -454,16 +468,9 @@ export function TimelineOverlay({
           )}
           {/* While a string is hovered, the figures linked to it light up: a
               gold ring around each one's bar (owner's call, round 5). */}
-          {hovered && bars
-            .filter(b => (point.connectedPeople || []).includes(b.id) && b.x1 > 0 && b.x0 < width)
-            .map(b => (
-              <div
-                key={`ring-${b.id}`}
-                className="point-string-person-ring"
-                data-person-id={b.id}
-                style={{ left: `${b.x0 - 3}px`, top: `${b.y0 - 3}px`, width: `${b.x1 - b.x0 + 6}px`, height: `${b.y1 - b.y0 + 6}px` }}
-              />
-            ))}
+          {hovered && (layout.stackedPeople || [])
+            .filter(person => (point.connectedPeople || []).includes(person.id))
+            .map(person => personRing(person, ringNextStarts()))}
           {/* The line itself is a target too: a strip a few pixels wide, but
               only between bars. Over a bar, the bar keeps the pointer. */}
           {openRuns(x).map(([y0, y1]) => (
@@ -496,22 +503,41 @@ export function TimelineOverlay({
     });
   }
 
-  function renderSelectedRing() {
-    const person = (layout.stackedPeople || []).find(p => p.id === selectedPersonId);
-    if (!person) return null;
+  /**
+   * The gold ring round a figure (selected, or linked to a hovered string):
+   * round their bar, and round their name too where it runs on past the bar
+   * at this zoom, so the ring never cuts through it (owner, 2026-10-09).
+   */
+  function personRing(person, nextStartById, extraClass = '') {
     const { start, end } = getYearRange(person.startDate, person.endDate);
-    const x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
-    const x1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), x0 + 60);
+    let x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
+    let x1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), x0 + 60);
     const y0 = person.y - panOffsetY;
     const y1 = y0 + person.height - 6;
     if (x1 < 0 || x0 > width) return null;
+    const label = personLabel(person, nextStartById);
+    if (label) {
+      x0 = Math.min(x0, label.labelX);
+      x1 = Math.max(x1, label.labelX + label.labelWidth + 3);
+    }
     return (
       <div
-        className="point-string-person-ring is-selected"
+        key={`ring-${person.id}`}
+        className={`point-string-person-ring${extraClass}`}
         data-person-id={person.id}
         style={{ left: `${x0 - 3}px`, top: `${y0 - 3}px`, width: `${x1 - x0 + 6}px`, height: `${y1 - y0 + 6}px` }}
       />
     );
+  }
+
+  function ringNextStarts() {
+    return config.labelFit === 'fit' ? nextBarStartInRow(layout.stackedPeople || [], viewportStartYear, yearsPerPixel) : null;
+  }
+
+  function renderSelectedRing() {
+    const person = (layout.stackedPeople || []).find(p => p.id === selectedPersonId);
+    if (!person) return null;
+    return personRing(person, ringNextStarts(), ' is-selected');
   }
 
   function renderPointCallouts() {

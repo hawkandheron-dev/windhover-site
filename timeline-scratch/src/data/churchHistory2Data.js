@@ -12,7 +12,8 @@
  * from churchHistory2Centuries.js. The legend no longer explains them: it is
  * a slim panel of the four things a reader can switch (legendLayout below).
  */
-import { CENTURY_COLORS, centuryOf, colorForCentury } from './churchHistory2Centuries.js';
+import { CENTURY_COLORS, centuryOf, colorForCentury, centurySpanLabel } from './churchHistory2Centuries.js';
+import { getYear } from '../components/Timeline/utils/dateUtils.js';
 import { readableOnWhite } from '../components/Timeline/utils/readableColor.js';
 
 /**
@@ -191,6 +192,19 @@ export const churchHistory2Config = {
    *  the larger centred dialog, and back (owner, 2026-10-09): the panel keeps
    *  the context in view, the dialog gives the detail room. */
   detailExpandable: true,
+  /** A figure's or landmark's map is headed by where and when: "Seville,
+   *  6th Century", "Seville, 6th and 7th Centuries" (owner, 2026-10-09:
+   *  "Historical map" was redundant). The Year dialog's map has none. */
+  mapHeading: (item) => {
+    const start = getYear(item.startDate || item.date);
+    const centuries = centurySpanLabel(start, getYear(item.endDate) ?? start);
+    return [item.location, centuries].filter(Boolean).join(', ');
+  },
+  yearMapHeading: false,
+  /** Only the dialog's body scrolls, inside its rounded frame; the band and
+   *  buttons stay put (owner, 2026-10-09: Windows' scrollbar squared off the
+   *  right-hand corners). */
+  detailScrollBody: true,
   /** The open figure's bar keeps the gold ring a hovered string gives its
    *  people, so "selected" reads the same as "linked" (owner, 2026-10-09). */
   selectedRing: true,

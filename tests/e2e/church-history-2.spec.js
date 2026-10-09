@@ -1635,12 +1635,13 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(page.locator('.timeline-search-option-type')).toHaveCount(0);
   });
 
-  test('the detail panel leads with the description and a sentence-case map heading', async ({ page }) => {
+  test('the detail panel leads with the description, then a map headed by place and centuries', async ({ page }) => {
     await loadPage(page);
     await page.locator('.timeline-search-input').first().fill('Athanasius');
     await page.locator('.timeline-search-dropdown [role="option"]').first().click();
     const panel = page.locator('.timeline-modal--panel');
-    await expect(panel.locator('.historical-map-section h3')).toHaveText('Historical map');
+    // "Historical map" gave way to place and centuries (owner, 2026-10-09).
+    await expect(panel.locator('.historical-map-section h3')).toHaveText('Alexandria, 3rd and 4th Centuries');
     // boundingBox() doesn't wait; under a busy parallel run the description
     // could still be mounting when it was measured.
     await expect(panel.locator('.modal-description')).toBeVisible();
@@ -2025,5 +2026,49 @@ test.describe('Selection and the larger view (2026-10-09)', () => {
     await expect(page.locator('.tour-panel')).toContainText('7 of 20');
     await expect(page.getByRole('dialog', { name: /Irenaeus/ })).toBeVisible();
     await expect(page.locator('.modal-resize')).toHaveCount(0);
+  });
+  test("a figure's map is headed by place and centuries; the year's map has no heading", async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    await expect(page.locator('.timeline-modal--panel .historical-map-section h3'))
+      .toHaveText('Alexandria, 3rd and 4th Centuries');
+    await page.locator('.modal-close').click();
+    await page.mouse.move(300, 450);
+    await page.mouse.click(310, 455);
+    await expect(page.locator('.year-summary-modal')).toBeVisible();
+    await expect(page.locator('.year-summary-modal .historical-map-section h3')).toHaveCount(0);
+  });
+
+  test('only the body of the larger view scrolls; the band and buttons stay put', async ({ page }) => {
+    // The frame used to scroll itself, and Windows drew its square scrollbar
+    // over the rounded corners (owner, 2026-10-09).
+    await loadPage(page, { viewport: { width: 1280, height: 600 } });
+    await openAthanasius(page);
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+    const frame = page.locator('.timeline-modal .modal-content');
+    const body = frame.locator('> .modal-scroll');
+    await expect(frame).toHaveCSS('overflow-y', 'hidden');
+    await expect(body).toHaveCSS('overflow-y', 'auto');
+    expect(await body.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+    await page.waitForTimeout(400); // the dialog's opening scale
+    const bandBefore = await frame.locator('.modal-type-band').boundingBox();
+    await body.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    expect(await frame.locator('.modal-type-band').boundingBox()).toEqual(bandBefore);
+    await expect(page.getByRole('button', { name: 'Close details' })).toBeInViewport();
+  });
+
+  test("zoomed out, the ring takes in a name that runs past its bar", async ({ page }) => {
+    await loadPage(page);
+    for (let i = 0; i < 6; i++) {
+      await page.getByRole('button', { name: 'Zoom out' }).click();
+      await page.waitForTimeout(150);
+    }
+    await openAthanasius(page);
+    const ring = await page.locator('.point-string-person-ring.is-selected').boundingBox();
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    expect(label.x).toBeGreaterThanOrEqual(ring.x);
+    // At this zoom his bar is shorter than his name: the ring ends just past
+    // the name (3px of air, 3px of ring), not at the end of the bar.
+    expect(ring.x + ring.width).toBeCloseTo(label.x + label.width + 6, 0);
   });
 });

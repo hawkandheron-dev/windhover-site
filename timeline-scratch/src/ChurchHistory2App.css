@@ -571,6 +571,19 @@ body:has(.ch2-app) {
   margin-bottom: 12px;
 }
 
+.ch2-app .timeline-modal--brief .modal-content.modal-content--framed {
+  --frame-pad: 16px 16px 12px;
+  padding: 0;
+}
+
+.ch2-app .timeline-modal--brief .modal-content--framed > .modal-type-band {
+  margin-bottom: 0;
+}
+
+.ch2-app .timeline-modal--brief .modal-content--framed.modal-content--banded > .modal-scroll {
+  padding-top: 12px;
+}
+
 .ch2-app .timeline-modal--brief .modal-content--banded > .modal-close {
   top: 32px;
 }

@@ -67,6 +67,7 @@ const DEFAULT_STATES = [
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
   { name: 'panel-expanded', viewports: ['laptop', 'desktop'], act: expandPanel },
+  { name: 'panel-far', viewports: ['desktop'], act: async (page, vp) => { await zoom('Zoom out', 5)(page); await openPanel(page, vp); } },
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
   { name: 'keyboard-focus', viewports: ['desktop'], act: tabThrough },
   // The other layout from the toggle: vertical on wide screens, horizontal on a phone.
@@ -374,8 +375,12 @@ async function main() {
   const base = `http://localhost:${server.address().port}`;
   // CHROMIUM_PATH lets a sandbox with a preinstalled browser skip
   // `playwright install` (Claude's cloud sessions: /opt/pw-browsers/chromium).
-  const browser = await chromium.launch(
-    process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+  // SHOTS_SCROLLBARS=1 draws classic scrollbars, as Windows does; headless
+  // Chromium hides them by default, which hid a squared-off dialog corner.
+  const browser = await chromium.launch({
+    ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
+    ...(process.env.SHOTS_SCROLLBARS ? { ignoreDefaultArgs: ['--hide-scrollbars'] } : {}),
+  });
   const results = [];
   try {
     for (const state of STATES) {

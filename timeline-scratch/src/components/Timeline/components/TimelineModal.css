@@ -1308,3 +1308,48 @@
     animation: none;
   }
 }
+
+/* config.detailScrollBody (Lifelines): the frame keeps its rounded corners
+   and clips; only the body scrolls, so a classic (Windows) scrollbar sits
+   inside the curve instead of squaring off the right-hand corners. The band
+   and the buttons stay in place while the body scrolls. */
+.modal-content.modal-content--framed {
+  --frame-pad: 32px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.timeline-modal--panel .modal-content.modal-content--framed {
+  --frame-pad: 28px 24px;
+}
+
+.modal-content--framed > .modal-type-band {
+  flex: none;
+  margin: 0;
+}
+
+.modal-content--framed > .modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: var(--frame-pad);
+  /* Ends the track short of the bottom curve. */
+  margin-bottom: 6px;
+}
+
+.modal-content--framed.modal-content--banded > .modal-scroll {
+  padding-top: 20px;
+}
+
+/* Clear of a classic scrollbar, which now sits beside them. */
+.modal-content--framed > .modal-close {
+  right: 20px;
+}
+
+.modal-content--framed > .modal-resize {
+  right: 68px;
+}

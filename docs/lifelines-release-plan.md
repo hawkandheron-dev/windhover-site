@@ -2,6 +2,65 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Map headings, scrollbars inside the rounded frame, ring around bar and name (2026-10-09)
+
+**Context.** Matthew asked for three things on top of PR #171, which is open, green and found clean by Codex. They go in the same PR (new commit), since #171 isn't merged yet.
+1. **Map headings.** "Historical map" is redundant.
+   - The Year popup's map has no heading.
+   - A figure's map (popup and panel) is headed "[place], [century]", from their birth and death years: "Seville, 6th Century", "Seville, 6th and 7th Centuries".
+2. **Scrollbars inside the rounded frame.** On Windows the popup's scrollbar runs to the frame's edge, so the right corners look square while the left ones are rounded.
+3. **The name is longer than the bar.** At some zooms the selected ring cuts through the name (Remigius of Auxerre). Matthew picked option 1: the ring wraps the bar and the overhanging name together.
+   - **Backups if that doesn't work, in order:**
+     - zoom in on select;
+     - ring the bar and give the name chip a gold edge;
+     - ring plus a "fit to view" button in the panel.
+
+**What the code does:**
+- `HistoricalMap` (`components/Timeline/components/HistoricalMap.jsx:25`) takes `title`. `TimelineModal.jsx:549-558` passes `'Historical map'` when the layout is compact. It shows "Showing borders c. {birth year}".
+- `YearDetailMap.jsx:174` hard-codes `<h3>Historical Map</h3>`, inside `YearSummaryModal`.
+- `.modal-content` is the scroller (`TimelineModal.css:29-45`: `overflow-y: auto; border-radius: 16px`). Windows draws a square scrollbar track over the rounded corner. The band (`DetailTypeBand`) and the close and expand buttons are inside that scroller, so they scroll away.
+- The ring (`renderSelectedRing`, and the string-hover rings) covers only the bar. The name chip is drawn in `renderPeopleLabels` (`TimelineOverlay.jsx:185-265`), at `startX + 4`, or 10 when the bar is pinned to the left edge. Its width comes from `measureLabel(name, '600 14px')` plus padding, plus the dates when they fit, capped by `maxWidth` (`labelFit: 'fit'`).
+
+**Changes (Lifelines-only via config; other apps unchanged):**
+1. **Map headings**
+   - New `centurySpanLabel(startYear, endYear)` in `data/churchHistory2Centuries.js`, reusing `centuryOf` and `ordinal`. It handles BC separately, because `centuryOf` clamps BC years to the 1st century:
+     - one century → "6th Century";
+     - two → "6th and 7th Centuries";
+     - three or more → "4th to 6th Centuries";
+     - BC → "1st Century BC", e.g. "1st Century BC and 1st Century".
+   - New config `mapHeading(item, itemType)` returns `"${item.location}, ${centurySpanLabel(birth, death)}"` (a council or event uses its own year or years). `TimelineModal` uses it when present, otherwise the old title.
+   - `HistoricalMap` and `YearDetailMap`: `title={null}` renders no `<h3>`. `YearDetailMap` gets a `title` prop (default 'Historical Map'). `YearSummaryModal` passes `null` when `config.yearMapHeading === false` (Lifelines sets it). Check that `YearSummaryModal` receives `config`, and thread it through if not.
+   - The "Showing borders c. 534 AD" line stays, since it says which borders are drawn.
+   - Places that already contain a comma ("Lyons, Gaul") read "Lyons, Gaul, 2nd Century", as specified.
+2. **Scrollbar inside the frame** (config `detailScrollBody`, Lifelines):
+   - In `TimelineModal`, everything after the band and buttons goes into a `.modal-scroll` div.
+   - `.modal-content` becomes a flex column with `overflow: hidden`, keeping its radius, shadow and max-height. `.modal-scroll` takes `overflow-y: auto`, the padding, `overscroll-behavior` and `touch-action`.
+   - The band and the close and expand buttons then stay pinned while the body scrolls. That's a small bonus: you can close or collapse from anywhere.
+   - The scrollbar starts below the band, and the rounded clip of `.modal-content` trims its bottom end. Add `scrollbar-gutter: stable` and a bottom margin of about 8px, so the track ends inside the curve.
+   - Check that nothing else assumes `.modal-content` is the scroller: grep the scroll-to-top-on-item-change code, `handleModalWheel`, the brief card's max-height, and the e2e tests that scroll `.modal-content`.
+   - Applies to the popup, the brief card and the panel, so all three behave the same. The panel has square corners, so it simply gets the pinned band.
+3. **Ring around bar and name**
+   - Factor the label's x and width out of `renderPeopleLabels` into a small `labelBox(person)` helper in `TimelineOverlay.jsx`. It works out the same `labelX`, sticky, text, `measureLabel` and `maxWidth` decisions, and returns null when the label is hidden.
+   - The ring's right edge becomes `max(bar end, label right + 3)`, and its left edge `min(bar start, label left)` for the pinned case.
+   - Used by `renderSelectedRing` and by the string-hover rings, so both look alike.
+   - The ring keeps the bar's height, since the label sits inside the bar's row (`labelY = boxY + 3`).
+4. **DESIGN.md:**
+   - §3 String gold: the ring wraps the figure's name when it runs past the bar.
+   - §6 Detail panel: map heading "[place], [century or centuries]"; the Year map has no heading; the band and buttons stay put while the body scrolls inside the rounded frame.
+
+**Verification**
+- Unit tests for `centurySpanLabel`: 534–600 → "6th Century"; 534–636 → "6th and 7th Centuries"; 296–373 → "3rd and 4th Centuries"; 63 BC–AD 14 → "1st Century BC and 1st Century"; 250–450 → "3rd to 5th Centuries".
+- E2E (fixture):
+  - The panel's map heading reads "Alexandria, 3rd and 4th Centuries" for Athanasius.
+  - The Year dialog has no `.historical-map-section h3`.
+  - The open dialog's scroller is `.modal-scroll`. After scrolling it, the band and the close button are still in view.
+  - Selecting a figure whose name overruns the bar (zoom out to find one): the ring's right edge is at or past the label's right edge.
+  - Existing tests that scroll `.modal-content` are updated, saying why.
+- Shots: `panel`, `panel-expanded`, `year`, `detail-ruler`, desktop and laptop. Read the dialog corners at 2×.
+  - Chromium headless draws overlay scrollbars, so also run one shot with `--force-overlay-scrollbars` off or the classic scrollbar emulated, if possible. Otherwise check the computed layout: the scroller sits inside the clip.
+  - A zoomed-out `panel` shot to see the ring around the bar and the name.
+- Unit, the full e2e under Node 20, and lint on the touched files. Push to #171, watch CI, then report with the preview link.
+
 ## No hover dimming, a gold ring for the selected figure, panel ⇄ popup (2026-10-09)
 
 **Context.** PR #170 is merged and live. Matthew raised three things:
