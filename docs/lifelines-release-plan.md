@@ -2,6 +2,64 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## No hover dimming, a gold ring for the selected figure, panel ⇄ popup (2026-10-09)
+
+**Context.** PR #170 is merged and live. Matthew raised three things:
+1. Hovering a figure makes every event, council and text flicker and fade. He thinks it's left over from an older version, and it can go.
+2. The selected figure should get the same gold border that a figure gets when you hover a related string. A better, more consistent "selected" look is also welcome.
+3. Outside the tour, details stay in the side panel, which keeps the context visible. The panel gains an **expand** button (two diagonal arrows pointing apart) that opens the larger popup. The tour keeps its popups, since the tour's own panel occupies the side.
+
+**What the code does today:**
+- **Hover dimming.** `useDepthFocus` (`ChurchHistory2App.jsx:150-192`) builds the focus set from `focusedPersonId ?? hoverPersonId`. With no selection, every person hover recomputes it.
+  - String labels snap to 0.5 opacity (`TimelineOverlay.jsx:434, 471`).
+  - Canvas strings snap from 0.3 to 0.12 (`TimelineCanvas.jsx:444-460`).
+  - The background wash re-blurs over 220ms (`DepthLayers.jsx`).
+  - It flickers because gaps between bars, and the string dots sitting on bars, send a "no person" hover, so the set empties and refills as the pointer moves.
+- **The selected figure has no mark at all** on the timeline (`selectedItem` never reaches the canvas or overlay). The gold ring for a hovered string is a DOM element in the overlay: `.point-string-person-ring` (`TimelineOverlay.jsx:450-462`, CSS `:232-241`), sized from the overlay's `bars`.
+- **Panel or popup** is chosen only by the tour (`ChurchHistory2App.jsx:316`: `detailVariant={tour.tourActive ? 'modal' : 'panel'}`). The panel's header has just the close button (`TimelineModal.jsx:625-632`). There is no expand icon in the set.
+
+**Changes (all Lifelines-only, by prop or config):**
+1. **Hover no longer dims.**
+   - In `useDepthFocus`, the focus comes only from the *selected* figure: `activeId = focusedPersonId`, with no hover preview.
+   - Hovering a figure still shows its hover card and darker edge; nothing else changes.
+   - **Selecting** a figure still lifts their own strings and ruler and quietens the rest. That is the context the panel is for, and it is steady, with no flicker. If Matthew wants that gone too, it's one line.
+   - Remove the now-dead `hoverPersonId` plumbing in the app (`onPersonHover` stays in the shared Timeline for other apps).
+2. **Gold ring on the selected figure.**
+   - The overlay takes an opt-in `selectedPersonId` prop. Timeline passes it only when `config.selectedRing` is set, which Lifelines sets.
+   - The overlay draws the same `.point-string-person-ring` around that figure's bar, at the same size, gold and glow as the hover ring, so "linked" and "selected" read as one visual language.
+   - It follows pan and zoom (it's computed from the same `bars`) and goes when the panel closes. It isn't drawn while the popup covers the timeline.
+   - This is consistent with the hover rule: gold means "this one, in focus".
+3. **Panel ⇄ popup.**
+   - New icons in the set's style (24×24, 1.5 stroke, round caps), added to both icon folders, `index.json` and `iconMap`:
+     - `expand.svg`: two diagonal arrows pointing apart;
+     - `collapse.svg`: two arrows pointing in.
+   - **Panel header:** an expand button beside the close button: 44×44, ink, `aria-label="Open larger view"`, tooltip "Larger view". It appears through an opt-in `onExpand` prop on `TimelineModal`, which only Lifelines passes.
+   - **App:**
+     - `detailExpanded` state; `detailVariant = tour.tourActive || detailExpanded ? 'modal' : 'panel'`.
+     - It resets when the selection closes or changes to another item.
+     - The popup is the existing modal, at its full width, with the bigger map.
+   - **In the expanded popup:**
+     - a collapse button (arrows in), `aria-label="Back to side panel"`, returns to the panel, with focus on the panel's title;
+     - × closes the detail entirely, as does Esc. Clicking the backdrop collapses back to the panel, which keeps the reader's place.
+     - It opens with the quiet fade, not the bar-grow: the reader is coming from the panel, not from the bar. In the tour, the grow from the bar stays.
+   - **Tour:** unchanged. Popups open as now, with no expand or collapse button.
+   - **Phones:** unchanged. There's no side panel there, so no expand button.
+4. **DESIGN.md:**
+   - §3: gold also marks the selected figure.
+   - §6 Detail row: the side panel by default outside the tour, with an expand button to the larger popup and back; the tour uses popups.
+   - §7/§8: hover no longer dims landmarks; selection does.
+
+**Verification**
+- E2E (fixture):
+  - Hovering Athanasius leaves every string label at opacity 1. Moving on and off a bar changes no label's opacity.
+  - Selecting Athanasius shows `.point-string-person-ring[data-person-id="athanasius"]` (a gold border); closing removes it.
+  - Expand in the panel → a modal dialog with `aria-modal`, no panel; collapse → the panel is back with focus on its title; × and Esc close everything.
+  - The tour's popup has no expand or collapse button.
+  - Update existing tests only where they encoded hover dimming. Say why in the commit, per rule 5.
+- Shots: `panel` (the ring visible beside the panel) and a new `panel-expanded` state, desktop and laptop, light and dark; read the header crops at 2×; `ux-review`.
+- Unit, the full e2e under Node 20, and lint on the touched files.
+- Commit, open a PR, subscribe, watch CI to green, and merge when Matthew says.
+
 ## Detail frame, realm colours, century cursor line (2026-10-08)
 
 Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thicker top band naming the type in white ("Emperors & monarchs", "Church figure", "Council", "Text", "Event", "Year"); colour monarchs by realm, with the unified empire maroon; check contrast. Then: the pointer's year line in the century's colour, 2–3px thicker.
@@ -12,7 +70,16 @@ Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thick
 - `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
 - Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
 
-## Now: "Yes to all" follow-ups (2026-10-08). Code is written, not yet committed
+## Now: merge PR #169 (CI suite on 7b18d74 completed with no failures)
+
+Matthew approved this work ("yes to all"). Both Codex threads are fixed, answered and resolved.
+1. Re-read the check runs on 7b18d74 and confirm all are green.
+2. Merge (merge commit) and unsubscribe.
+3. Fast-forward the branch to main and push.
+4. After CI's migration job has run, query `CH_TourScenes` (`jesus` narrative, `polycarp` link) and `CH_People` (`john-evangelist`).
+5. Tell Matthew it's live.
+
+## "Yes to all" follow-ups (2026-10-08). Code is written, not yet committed
 
 **Context.** PR #168 is merged and live. Matthew said yes to all three follow-ups.
 

@@ -433,7 +433,16 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // A docked detail panel sits *beside* the timeline rather than over it, so
   // unlike a centred modal it must not freeze panning and zooming — reading
   // the detail against the background is the whole reason it is docked.
-  const isModalOpen = (selectedItem !== null && detailVariant !== 'panel') || yearSummaryOpen;
+  // config.detailExpandable (Lifelines): the docked panel can open out into
+  // the larger centred dialog and back. Kept per item, so the next figure
+  // opens in the panel again.
+  const [expandedId, setExpandedId] = useState(null);
+  // Closing forgets it (adjusting state during render, as for the legend).
+  if (selectedItem === null && expandedId !== null) setExpandedId(null);
+  const detailExpanded = defaultConfig.detailExpandable === true && detailVariant === 'panel'
+    && selectedItem !== null && expandedId === selectedItem.item?.id;
+  const shownDetailVariant = detailExpanded ? 'modal' : detailVariant;
+  const isModalOpen = (selectedItem !== null && shownDetailVariant !== 'panel') || yearSummaryOpen;
 
   // Handle wheel/trackpad: pinch → zoom, two-finger scroll → pan
   // Touch: drag to pan, pinch to zoom about the fingers (config.touchGestures,
@@ -1067,9 +1076,14 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const detail = (
     <TimelineModal
       isOpen={selectedItem !== null}
-      growFrom={defaultConfig.detailGrowFromBar ? detailOrigin : null}
+      // Expanding from the panel fades in: the reader comes from the panel,
+      // not from the bar.
+      growFrom={defaultConfig.detailGrowFromBar && !detailExpanded ? detailOrigin : null}
       mapFrom={detailMapFrom}
-      variant={detailVariant}
+      variant={shownDetailVariant}
+      onExpand={defaultConfig.detailExpandable === true && detailVariant === 'panel' && !detailExpanded
+        ? () => setExpandedId(selectedItem?.item?.id ?? null) : null}
+      onCollapse={detailExpanded ? () => setExpandedId(null) : null}
       brief={detailBrief}
       item={selectedItem?.item}
       itemType={selectedItem?.type}
@@ -1207,6 +1221,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         palette={defaultConfig.palette}
         showPointLabels={showPointLabels}
         focusIds={focusIds}
+        // config.selectedRing (Lifelines): the open figure keeps the gold
+        // ring a hovered string gives its people.
+        selectedPersonId={defaultConfig.selectedRing && selectedItem?.type === 'person' && shownDetailVariant === 'panel'
+          ? selectedItem.item.id : null}
         backObstacles={!rulerStripOn && filteredBackData && depthMode !== 'hidden'
           ? { layout: backLayout, yOffset: layout.axisY - backLayout.axisY }
           : null}
@@ -1399,7 +1417,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   return (
     <div className="timeline-with-panel">
       {timelineBody}
-      {detailVariant === 'panel' ? (selectedItem !== null && detail) : detail}
+      {shownDetailVariant === 'panel' ? (selectedItem !== null && detail) : detail}
     </div>
   );
 });

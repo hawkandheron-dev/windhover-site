@@ -97,6 +97,8 @@
         { "id": "check", "name": "Check", "tags": ["ui", "confirm", "done", "success"] },
         { "id": "profile", "name": "Profile", "tags": ["ui", "user", "person", "account"] },
         { "id": "hourglass", "name": "Hourglass", "tags": ["time", "year", "date"] },
+        { "id": "expand", "name": "Expand", "tags": ["ui", "maximize", "enlarge", "open"] },
+        { "id": "collapse", "name": "Collapse", "tags": ["ui", "minimize", "shrink", "restore"] },
         { "id": "menu", "name": "Menu", "tags": ["ui", "hamburger", "navigation"] },
         { "id": "search", "name": "Search", "tags": ["ui", "find", "magnifier", "spyglass"] },
         { "id": "star", "name": "Star (Hexagram)", "tags": ["ui", "favorite", "rating"] },

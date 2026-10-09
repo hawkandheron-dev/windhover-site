@@ -1938,3 +1938,92 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
       .toBeLessThan((b0 - a0) / 2);
   });
 });
+
+test.describe('Selection and the larger view (2026-10-09)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  const openAthanasius = async (page) => {
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+  };
+
+  test('hovering a figure leaves the landmarks as they are', async ({ page }) => {
+    // Hovering used to preview the figure's focus, fading every other
+    // landmark, and the fade flickered as the pointer crossed the gaps
+    // between bars (owner, 2026-10-09).
+    await loadPage(page);
+    const labels = page.locator('.point-string-label');
+    const opacities = () => labels.evaluateAll(els => els.map(e => getComputedStyle(e).opacity));
+    const before = await opacities();
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    await page.mouse.move(label.x + label.width + 6, label.y + label.height / 2);
+    await expect(page.locator('.hover-preview')).toBeVisible();
+    expect(await opacities()).toEqual(before);
+    expect(before.every(o => o === '1')).toBe(true);
+  });
+
+  test('the open figure keeps a gold ring until the panel closes', async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    const ring = page.locator('.point-string-person-ring.is-selected[data-person-id="athanasius"]');
+    await expect(ring).toBeVisible();
+    await expect(ring).toHaveCSS('border-top-color', 'rgb(227, 169, 43)');
+    // It sits around Athanasius's bar.
+    const r = await ring.boundingBox();
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    expect(label.x).toBeGreaterThan(r.x);
+    expect(label.y).toBeGreaterThan(r.y);
+    expect(label.y + label.height).toBeLessThan(r.y + r.height);
+    await page.locator('.modal-close').click();
+    await expect(ring).toHaveCount(0);
+  });
+
+  test('the panel opens out into the larger view and back', async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+
+    // The same detail, now a centred dialog over the page.
+    const dialog = page.getByRole('dialog', { name: 'Athanasius' });
+    await expect(dialog).toBeVisible();
+    await expect(page.locator('.timeline-modal--panel')).toHaveCount(0);
+    await expect(page.locator('body.modal-open')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Open larger view' })).toHaveCount(0);
+    await expect(page.locator('#timeline-detail-title')).toBeFocused();
+
+    // Back to the panel, with focus on its title.
+    await page.getByRole('button', { name: 'Back to side panel' }).click();
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+    await expect(page.locator('body.modal-open')).toHaveCount(0);
+    await expect(page.locator('#timeline-detail-title')).toBeFocused();
+
+    // Clicking outside the larger view also goes back to the panel.
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+    await expect(dialog).toBeVisible();
+    await page.mouse.click(30, 450);
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+
+    // Esc from the larger view closes the detail, and the next figure opens
+    // in the panel again.
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.timeline-modal')).toHaveCount(0);
+    await openAthanasius(page);
+    await expect(page.getByRole('button', { name: 'Open larger view' })).toBeVisible();
+  });
+
+  test('a tour popup has no expand or collapse button (real data)', async ({ page }) => {
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const next = () => page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    for (let i = 0; i < 6; i++) { await next(); await page.waitForTimeout(200); }
+    await expect(page.locator('.tour-panel')).toContainText('7 of 20');
+    await expect(page.getByRole('dialog', { name: /Irenaeus/ })).toBeVisible();
+    await expect(page.locator('.modal-resize')).toHaveCount(0);
+  });
+});

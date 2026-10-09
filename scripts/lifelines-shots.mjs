@@ -66,6 +66,7 @@ const DEFAULT_STATES = [
   { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop', 'retina'] },
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
+  { name: 'panel-expanded', viewports: ['laptop', 'desktop'], act: expandPanel },
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
   { name: 'keyboard-focus', viewports: ['desktop'], act: tabThrough },
   // The other layout from the toggle: vertical on wide screens, horizontal on a phone.
@@ -182,6 +183,11 @@ async function openPanel(page, vp) {
   const option = page.locator('.timeline-search-dropdown [role="option"]').first();
   await option.click();
   await page.waitForTimeout(600); // panel slide + depth transition
+}
+async function expandPanel(page, vp) {
+  await openPanel(page, vp);
+  await page.getByRole('button', { name: 'Open larger view' }).click();
+  await page.waitForTimeout(500);
 }
 async function openSearch(page) {
   const input = page.locator('.timeline-search-input').first();

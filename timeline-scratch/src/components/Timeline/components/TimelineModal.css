@@ -136,6 +136,40 @@
   outline-offset: 2px;
 }
 
+/* Panel ⇄ larger dialog (onExpand / onCollapse): beside the close button,
+   in the same quiet style. */
+.modal-resize {
+  position: absolute;
+  top: 12px;
+  right: 60px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  color: var(--color-ink-faded);
+}
+
+.modal-resize:hover {
+  background-color: rgba(120, 100, 70, 0.1);
+  color: var(--color-ink-light);
+}
+
+.modal-resize:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.modal-content:has(> .modal-resize) .modal-title {
+  padding-right: 100px;
+}
+
 .modal-image {
   width: 100%;
   max-height: 300px;
@@ -951,6 +985,15 @@
     color: #f0ebe0;
   }
 
+  .modal-resize {
+    color: #a09888;
+  }
+
+  .modal-resize:hover {
+    background-color: rgba(200, 180, 140, 0.1);
+    color: #f0ebe0;
+  }
+
   .modal-reference {
     color: #c4a67a;
   }
@@ -1235,7 +1278,8 @@
 }
 
 /* The close button sits just under the band, beside the title. */
-.modal-content--banded > .modal-close {
+.modal-content--banded > .modal-close,
+.modal-content--banded > .modal-resize {
   top: 36px;
 }
 

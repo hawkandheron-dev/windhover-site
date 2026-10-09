@@ -54,6 +54,9 @@ export function TimelineOverlay({
   /** The rulers' band below the axis ({ layout, yOffset }): texts' dots
    *  keep clear of its bars and names. */
   backObstacles = null,
+  /** The open figure (Lifelines, config.selectedRing): their bar keeps a
+   *  gold ring, the same one a hovered string gives its people. */
+  selectedPersonId = null,
 }) {
   // A label's reveal: a fade that starts when the wave reaches its x.
   const revealStyle = (id, ids, x) => {
@@ -170,6 +173,7 @@ export function TimelineOverlay({
 
       {/* Render point callouts */}
       {config.pointStyle === 'string' ? renderPointStrings() : renderPointCallouts()}
+      {selectedPersonId && renderSelectedRing()}
 
       {/* Render hover preview */}
       {hoveredItem?.item && (
@@ -490,6 +494,24 @@ export function TimelineOverlay({
         </div>
       );
     });
+  }
+
+  function renderSelectedRing() {
+    const person = (layout.stackedPeople || []).find(p => p.id === selectedPersonId);
+    if (!person) return null;
+    const { start, end } = getYearRange(person.startDate, person.endDate);
+    const x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
+    const x1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), x0 + 60);
+    const y0 = person.y - panOffsetY;
+    const y1 = y0 + person.height - 6;
+    if (x1 < 0 || x0 > width) return null;
+    return (
+      <div
+        className="point-string-person-ring is-selected"
+        data-person-id={person.id}
+        style={{ left: `${x0 - 3}px`, top: `${y0 - 3}px`, width: `${x1 - x0 + 6}px`, height: `${y1 - y0 + 6}px` }}
+      />
+    );
   }
 
   function renderPointCallouts() {

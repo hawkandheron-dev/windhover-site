@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Two arrows pointing apart, corner to corner: open larger -->
+  <path d="M14 4 L20 4 L20 10"/>
+  <path d="M20 4 L13.5 10.5"/>
+  <path d="M10 20 L4 20 L4 14"/>
+  <path d="M4 20 L10.5 13.5"/>
+</svg>

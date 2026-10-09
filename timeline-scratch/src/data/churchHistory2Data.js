@@ -187,6 +187,13 @@ export const churchHistory2Config = {
    *  so a reader sees where it came from (owner, 2026-10-08, after the tour's
    *  first dialog, Irenaeus, appeared from nowhere). Not the docked panel. */
   detailGrowFromBar: true,
+  /** The docked panel has an expand button that opens the same detail as
+   *  the larger centred dialog, and back (owner, 2026-10-09): the panel keeps
+   *  the context in view, the dialog gives the detail room. */
+  detailExpandable: true,
+  /** The open figure's bar keeps the gold ring a hovered string gives its
+   *  people, so "selected" reads the same as "linked" (owner, 2026-10-09). */
+  selectedRing: true,
   rulerColor: BACK_STYLES.emperors.color,
   /** Each reign in the strip and the phone column takes its realm's colour
    *  (REALM_STYLES, set on the item by the adapter), not rulerColor. */

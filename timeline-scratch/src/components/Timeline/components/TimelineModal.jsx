@@ -146,8 +146,12 @@ function linkifyDescription(description, itemIndex, currentItemId) {
  *   dates, place and description, with no map, pictures or works list, and a
  *   "More" button that opens the rest. No backdrop, so what is behind stays
  *   visible. Lifelines uses it for the figure a tour step opens on a phone.
+ * @param {Function} [onExpand] - Shown on the docked panel: a button that
+ *   opens the same detail as the larger centred dialog (Lifelines).
+ * @param {Function} [onCollapse] - Shown on a dialog opened that way: a
+ *   button back to the panel. Clicking outside the dialog does the same.
  */
-export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false, growFrom = null, mapFrom = null }) {
+export function TimelineModal({ isOpen, item, itemType, config, onClose, itemIndex, onSelectItem, authContext, allPeople, onItemDeleted, onDataChanged, adminContext, contributorContext, onEntityUpdated, variant = 'modal', brief = false, growFrom = null, mapFrom = null, onExpand = null, onCollapse = null }) {
   const isPanel = variant === 'panel';
   // "More" lifts a brief card to the full detail, until another item opens.
   const [expanded, setExpanded] = useState(false);
@@ -221,9 +225,11 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   }, [manageFocus, isOpen]);
   // Each item shown (including one reached from a related-people link) moves
   // focus to its title, so the reader hears what they opened.
+  // Switching between the panel and the larger dialog counts as showing it
+  // again: the button that was pressed has gone.
   useEffect(() => {
     if (manageFocus && isOpen) titleRef.current?.focus({ preventScroll: true });
-  }, [manageFocus, isOpen, item?.id]);
+  }, [manageFocus, isOpen, item?.id, variant]);
 
   // growFrom (Lifelines, the tour): the figure's bar opens out into the
   // dialog, so a reader sees where it came from (owner, 2026-10-08: a dialog
@@ -606,7 +612,8 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
       // Clicking outside dismisses the centred dialog. The docked panel has no
       // "outside" — it is part of the layout — so it closes from its own button,
       // and so does the brief card, whose "outside" is the live page.
-      onClick={isPanel || isBrief ? undefined : onClose}
+      // A dialog expanded from the panel goes back to it instead.
+      onClick={isPanel || isBrief ? undefined : (onCollapse || onClose)}
       onMouseDown={handleModalWheel}
       onMouseUp={handleModalWheel}
       onWheel={handleModalWheel}
@@ -631,6 +638,19 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
         >
           &times;
         </button>
+        {/* Panel ⇄ larger dialog (Lifelines, owner 2026-10-09): the panel
+            keeps the timeline in view; the dialog gives the detail room. */}
+        {(isPanel ? onExpand : onCollapse) && (
+          <button
+            type="button"
+            className="modal-resize"
+            onClick={isPanel ? onExpand : onCollapse}
+            aria-label={isPanel ? 'Open larger view' : 'Back to side panel'}
+            title={isPanel ? 'Larger view' : 'Side panel'}
+          >
+            <Icon name={isPanel ? 'expand' : 'collapse'} size={20} />
+          </button>
+        )}
 
         {item.image && !isBrief && (
           <img
