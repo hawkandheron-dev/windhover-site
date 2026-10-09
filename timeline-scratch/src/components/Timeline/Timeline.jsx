@@ -18,7 +18,7 @@ import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
 import { RulerStrip } from './components/RulerStrip.jsx';
 import { rulerStripHeight } from './utils/rulerStrip.js';
-import { stringLabelSpan } from './utils/labelFit.js';
+import { stringLabelSpan, measureLabel, LABEL_PADDING, viewFittingLabel } from './utils/labelFit.js';
 import { getYear, getYearRange, formatYearSpan } from './utils/dateUtils.js';
 import { yearToPixel } from './utils/coordinates.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
@@ -442,6 +442,37 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const detailExpanded = defaultConfig.detailExpandable === true && detailVariant === 'panel'
     && selectedItem !== null && expandedId === selectedItem.item?.id;
   const shownDetailVariant = detailExpanded ? 'modal' : detailVariant;
+
+  // config.selectFitsName (Lifelines): choosing a figure whose name runs on
+  // past their bar at this zoom glides in until the name fits inside it, so
+  // the gold ring round the bar holds the name too (owner, 2026-10-09; a ring
+  // round bar and overhanging name read badly). Once per figure chosen, after
+  // the panel has taken its width, and never in the tour, which frames its
+  // own views.
+  const fitViewRef = useRef({});
+  useEffect(() => {
+    fitViewRef.current = { viewportStartYear, yearsPerPixel, panOffsetY, width: dimensions.width };
+  });
+  const selectedPersonId = selectedItem?.type === 'person' ? selectedItem.item?.id : null;
+  useEffect(() => {
+    if (!defaultConfig.selectFitsName || isTourMode || !selectedPersonId) return;
+    const person = layout.stackedPeople?.find(p => p.id === selectedPersonId);
+    if (!person) return;
+    const timer = setTimeout(() => {
+      const { start, end } = getYearRange(person.startDate, person.endDate);
+      const labelWidth = (person.isMonarch ? 16 : 0) + measureLabel(person.name, '600 14px') + LABEL_PADDING
+        + 4 + measureLabel(formatYearSpan(start, end), '500 11px');
+      const now = fitViewRef.current;
+      const view = viewFittingLabel({
+        start, end, labelWidth,
+        yearsPerPixel: now.yearsPerPixel,
+        viewportStartYear: now.viewportStartYear,
+        width: now.width,
+      });
+      if (view) animateViewport(view.startYear, view.yearsPerPixel, now.panOffsetY, 600);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [selectedPersonId]); // eslint-disable-line react-hooks/exhaustive-deps -- once per figure chosen; reads the current view from a ref
   const isModalOpen = (selectedItem !== null && shownDetailVariant !== 'panel') || yearSummaryOpen;
 
   // Handle wheel/trackpad: pinch → zoom, two-finger scroll → pan

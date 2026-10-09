@@ -208,6 +208,10 @@ export const churchHistory2Config = {
   /** The open figure's bar keeps the gold ring a hovered string gives its
    *  people, so "selected" reads the same as "linked" (owner, 2026-10-09). */
   selectedRing: true,
+  /** Choosing a figure whose name runs past their bar zooms in until it fits,
+   *  so the ring round the bar holds the name (owner, 2026-10-09: a ring
+   *  round bar and overhanging name read badly). */
+  selectFitsName: true,
   rulerColor: BACK_STYLES.emperors.color,
   /** Each reign in the strip and the phone column takes its realm's colour
    *  (REALM_STYLES, set on the item by the adapter), not rulerColor. */

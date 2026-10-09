@@ -214,12 +214,16 @@
   backdrop-filter: none;
 }
 
-/* Detail panel, compact layout (panelLayout: 'compact'). Headings in
-   sentence case at the same weight as the panel's other headings, not an
-   all-caps label; the map comes after the description and smaller. */
+/* Detail panel, compact layout (panelLayout: 'compact'): the map comes
+   after the description and smaller. Its heading ("Alexandria, 3rd
+   Century", mapHeading) is set like the dates under the name, not as a
+   section heading (owner, 2026-10-09). */
 .ch2-app .historical-map-section h3 {
+  margin: 0 0 8px;
+  font-family: inherit;
   font-size: 16px;
-  color: var(--color-ink);
+  font-weight: 500;
+  color: var(--color-ink-faded);
   text-transform: none;
   letter-spacing: 0;
 }

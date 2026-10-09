@@ -2057,18 +2057,39 @@ test.describe('Selection and the larger view (2026-10-09)', () => {
     await expect(page.getByRole('button', { name: 'Close details' })).toBeInViewport();
   });
 
-  test("zoomed out, the ring takes in a name that runs past its bar", async ({ page }) => {
+  test("choosing a figure whose name runs past their bar zooms in until it fits", async ({ page }) => {
+    // A ring round bar and overhanging name read badly (owner, 2026-10-09).
     await loadPage(page);
     for (let i = 0; i < 6; i++) {
       await page.getByRole('button', { name: 'Zoom out' }).click();
       await page.waitForTimeout(150);
     }
+    const readout = page.locator('.zoom-info');
+    const before = await readout.textContent();
     await openAthanasius(page);
+    await expect(readout).not.toHaveText(before);
+    await page.waitForTimeout(900); // the 600ms glide
     const ring = await page.locator('.point-string-person-ring.is-selected').boundingBox();
     const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
-    expect(label.x).toBeGreaterThanOrEqual(ring.x);
-    // At this zoom his bar is shorter than his name: the ring ends just past
-    // the name (3px of air, 3px of ring), not at the end of the bar.
-    expect(ring.x + ring.width).toBeCloseTo(label.x + label.width + 6, 0);
+    // The ring is round the bar alone, and the whole name, dates too, sits inside.
+    await expect(page.locator('.person-label', { hasText: 'Athanasius' }).first()).toContainText('296');
+    expect(label.x).toBeGreaterThan(ring.x);
+    expect(label.x + label.width).toBeLessThan(ring.x + ring.width);
+  });
+
+  test('choosing a figure whose name already fits leaves the view alone', async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    await page.waitForTimeout(900); // the panel has taken its width
+    // Search centres the figure, so the range moves; its length is the zoom.
+    const readout = page.locator('.zoom-info');
+    const span = async () => { const [a, b] = (await readout.textContent()).match(/\d+/g).map(Number); return b - a; };
+    const before = await span();
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Eusebius');
+    await page.locator('.timeline-search-option', { hasText: 'Eusebius' }).first().click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Eusebius');
+    await page.waitForTimeout(900);
+    expect(await span()).toBe(before);
   });
 });

@@ -470,7 +470,7 @@ export function TimelineOverlay({
               gold ring around each one's bar (owner's call, round 5). */}
           {hovered && (layout.stackedPeople || [])
             .filter(person => (point.connectedPeople || []).includes(person.id))
-            .map(person => personRing(person, ringNextStarts()))}
+            .map(person => personRing(person))}
           {/* The line itself is a target too: a strip a few pixels wide, but
               only between bars. Over a bar, the bar keeps the pointer. */}
           {openRuns(x).map(([y0, y1]) => (
@@ -503,23 +503,14 @@ export function TimelineOverlay({
     });
   }
 
-  /**
-   * The gold ring round a figure (selected, or linked to a hovered string):
-   * round their bar, and round their name too where it runs on past the bar
-   * at this zoom, so the ring never cuts through it (owner, 2026-10-09).
-   */
-  function personRing(person, nextStartById, extraClass = '') {
+  /** The gold ring round a figure's bar (selected, or linked to a hovered string). */
+  function personRing(person, extraClass = '') {
     const { start, end } = getYearRange(person.startDate, person.endDate);
-    let x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
-    let x1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), x0 + 60);
+    const x0 = yearToPixel(start, viewportStartYear, yearsPerPixel);
+    const x1 = Math.max(yearToPixel(end, viewportStartYear, yearsPerPixel), x0 + 60);
     const y0 = person.y - panOffsetY;
     const y1 = y0 + person.height - 6;
     if (x1 < 0 || x0 > width) return null;
-    const label = personLabel(person, nextStartById);
-    if (label) {
-      x0 = Math.min(x0, label.labelX);
-      x1 = Math.max(x1, label.labelX + label.labelWidth + 3);
-    }
     return (
       <div
         key={`ring-${person.id}`}
@@ -530,14 +521,10 @@ export function TimelineOverlay({
     );
   }
 
-  function ringNextStarts() {
-    return config.labelFit === 'fit' ? nextBarStartInRow(layout.stackedPeople || [], viewportStartYear, yearsPerPixel) : null;
-  }
-
   function renderSelectedRing() {
     const person = (layout.stackedPeople || []).find(p => p.id === selectedPersonId);
     if (!person) return null;
-    return personRing(person, ringNextStarts(), ' is-selected');
+    return personRing(person, ' is-selected');
   }
 
   function renderPointCallouts() {

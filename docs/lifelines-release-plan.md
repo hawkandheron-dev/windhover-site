@@ -2,6 +2,10 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Update (2026-10-09, later): ring round bar and name read badly → zoom to fit
+
+Matthew, on the preview: the ring round bar and overhanging name (Dionysius of Alexandria) is what he feared. Done (backup option 2): selecting a figure whose name doesn't fit glides in until it does (`selectFitsName`, `viewFittingLabel` in utils/labelFit.js); the ring is round the bar only again. The map heading is set like the dates line (16px, 500, ink-faded).
+
 ## Map headings, scrollbars inside the rounded frame, ring around bar and name (2026-10-09)
 
 **Context.** Matthew asked for three things on top of PR #171, which is open, green and found clean by Codex. They go in the same PR (new commit), since #171 isn't merged yet.
