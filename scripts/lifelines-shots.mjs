@@ -67,6 +67,7 @@ const DEFAULT_STATES = [
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
   { name: 'panel-expanded', viewports: ['laptop', 'desktop'], act: expandPanel },
+  { name: 'zoomed-out', viewports: ['phone', 'desktop'], act: (page) => zoom('Zoom out', 20)(page) },
   { name: 'panel-far', viewports: ['desktop'], act: async (page, vp) => { await zoom('Zoom out', 5)(page); await openPanel(page, vp); } },
   { name: 'search',        viewports: ['phone', 'desktop'], act: openSearch },
   { name: 'keyboard-focus', viewports: ['desktop'], act: tabThrough },

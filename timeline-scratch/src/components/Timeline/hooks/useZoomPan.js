@@ -34,6 +34,8 @@ export function useZoomPan({
   initialYearsPerPixel = 1,
   minYearsPerPixel = 0.01, // Very zoomed in
   maxYearsPerPixel = 50, // Very zoomed out
+  // Never zoom out past the whole allowed range (Lifelines' timeBounds).
+  fitRange = false,
   minYear = -3000,
   maxYear = 2100
 }) {
@@ -88,7 +90,10 @@ export function useZoomPan({
       const { viewportStartYear: newStart, yearsPerPixel: newYPP } =
         calculateZoomAroundPoint(zoomDelta, mouseX, prevStart, prevYPP);
 
-      const clampedYPP = clamp(newYPP, minYearsPerPixel, maxYearsPerPixel);
+      const ceiling = fitRange && canvasWidth > 0
+        ? Math.max(minYearsPerPixel, Math.min(maxYearsPerPixel, (maxYear - minYear) / canvasWidth))
+        : maxYearsPerPixel;
+      const clampedYPP = clamp(newYPP, minYearsPerPixel, ceiling);
 
       // At a zoom limit the scale stops moving, so the start has to be
       // re-derived from the clamped scale — otherwise the year under the
@@ -104,7 +109,7 @@ export function useZoomPan({
         yearsPerPixel: clampedYPP,
       };
     });
-  }, [minYearsPerPixel, maxYearsPerPixel, minYear, maxYear]);
+  }, [minYearsPerPixel, maxYearsPerPixel, minYear, maxYear, fitRange]);
 
   /**
    * Handle horizontal pan (time scrolling)

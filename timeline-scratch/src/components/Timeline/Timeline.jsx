@@ -18,6 +18,7 @@ import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
 import { RulerStrip } from './components/RulerStrip.jsx';
 import { rulerStripHeight } from './utils/rulerStrip.js';
+import { timeBounds, dataYearExtent } from './utils/timeBounds.js';
 import { stringLabelSpan, measureLabel, LABEL_PADDING, viewFittingLabel } from './utils/labelFit.js';
 import { getYear, getYearRange, formatYearSpan } from './utils/dateUtils.js';
 import { yearToPixel } from './utils/coordinates.js';
@@ -217,6 +218,15 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const yearPadding = Math.max((dataExtent.max - dataExtent.min) * 0.1, 200);
   const derivedMinYear = Math.floor(dataExtent.min - yearPadding);
   const derivedMaxYear = Math.ceil(dataExtent.max + yearPadding);
+  // config.timeBounds (Lifelines): from 100 years before the earliest church
+  // entry (the rulers don't count, or Augustus would pull it to 150 BC) to
+  // AD 2100, and no zooming out past that (owner, 2026-10-10).
+  const bounds = useMemo(() => {
+    if (!defaultConfig.timeBounds) return null;
+    const { earliest, latest } = dataYearExtent(data, getYear);
+    if (!isFinite(earliest)) return null;
+    return timeBounds({ earliest, latest, ...defaultConfig.timeBounds });
+  }, [data, defaultConfig.timeBounds]);
 
   // Zoom and pan state
   const {
@@ -243,8 +253,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     maxYearsPerPixel: 50,
     // A page may set its own floor (Lifelines starts at 100 BC); otherwise
     // the data's extent plus padding.
-    minYear: defaultConfig.minYear ?? derivedMinYear,
-    maxYear: derivedMaxYear
+    minYear: bounds?.minYear ?? defaultConfig.minYear ?? derivedMinYear,
+    maxYear: bounds?.maxYear ?? derivedMaxYear,
+    fitRange: Boolean(bounds),
   });
 
   // Filter data based on active filters

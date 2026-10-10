@@ -94,9 +94,14 @@ export const churchHistory2Config = {
   // Without these the shared defaults centre on AD 1000.
   initialCenterYear: 250,
   fitInitialViewport: true,
-  /** Nothing before 100 BC: the earliest figures are a generation either
-   *  side of Jesus, and panning further only showed empty canvas (round 6). */
-  minYear: -100,
+  /** From 100 years before the earliest church entry (today Jesus, so 100
+   *  BC; round 6 set that by hand) to AD 2100, and no zooming out past it
+   *  (owner, 2026-10-10: zoomed right out the view ran to 102700 AD). The
+   *  start follows the data as entries are added; the end stays near the
+   *  present so readers can see how far away it is. */
+  timeBounds: { before: 100, roundTo: 50, end: 2100 },
+  /** No half-shown year at either edge of the axis ("100 BC" cut off). */
+  skipClippedAxisLabels: true,
   /** Overrides on a phone (mobileLayout: 'horizontal'). 500 years in 390px
    *  leaves every name a stub, so a phone opens on the apostolic age. */
   phone: {

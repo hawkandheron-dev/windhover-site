@@ -334,8 +334,10 @@ test.describe('CH Timeline 2.0', () => {
     });
   }
 
-  test('the timeline starts at 100 BC', async ({ page }) => {
-    await loadPage(page);
+  test('the timeline starts at 100 BC (real data)', async ({ page }) => {
+    // 100 years before the earliest church entry (Jesus, 3 BC), now a rule
+    // rather than a fixed year (owner, 2026-10-10), so it needs real data.
+    await loadPage(page, { realData: true });
     // Pan far to the left: the view stops at the floor.
     // (Arrow-key panning is covered by the wheel below; the on-screen arrows
     // went with the other buttons, owner 2026-10-09.)
@@ -2145,5 +2147,39 @@ test.describe('No navigation buttons; keys zoom (2026-10-09)', () => {
     await expect(bar.locator('.mobile-toolbar-btn', { hasText: 'Filter' })).toBeVisible();
     await expect(bar.locator('.mobile-zoom-label')).toBeVisible();
     await expect(bar.locator('.mobile-zoom-controls button')).toHaveCount(0);
+  });
+});
+
+test.describe('Time bounds (2026-10-10)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  test('zooming right out stops at 100 BC to AD 2100 (real data)', async ({ page }) => {
+    // It used to run on to 102700 AD (owner, 2026-10-10).
+    await loadPage(page, { realData: true });
+    for (let i = 0; i < 20; i++) await page.keyboard.press('-');
+    await expect(page.locator('.zoom-info')).toHaveText(/^100 BC\s*[–-]\s*2100 AD$/);
+  });
+
+  test('no year label is cut off at either edge of the axis (real data)', async ({ page }) => {
+    await loadPage(page, { realData: true });
+    for (let i = 0; i < 20; i++) await page.keyboard.press('-');
+    await page.waitForTimeout(300);
+    // The axis is drawn on the canvas: read the leftmost and rightmost few
+    // pixel columns of the label band just under the axis line for ink.
+    const ink = await page.evaluate(() => {
+      const c = [...document.querySelectorAll('.timeline-container canvas')].pop();
+      const ctx = c.getContext('2d');
+      const dpr = c.width / c.clientWidth;
+      const axis = document.querySelector('.timeline-container').getBoundingClientRect();
+      // The axis y isn't exposed; scan the whole height of two thin strips.
+      const strip = (x) => ctx.getImageData(Math.round(x * dpr), 0, Math.max(1, Math.round(2 * dpr)), c.height).data;
+      const dark = (d) => { let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] < 120 && d[i + 1] < 120 && d[i + 2] < 120) n++; return n; };
+      return { left: dark(strip(0)), right: dark(strip(c.clientWidth - 2)), w: axis.width };
+    });
+    expect(ink.left).toBe(0);
+    expect(ink.right).toBe(0);
   });
 });

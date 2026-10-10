@@ -2,6 +2,40 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Time bounds: no zooming out past the story; no clipped edge label (2026-10-10). Done, on #171
+
+**Context.** On the preview, Matthew zoomed right out and got "100 BC–102700 AD", with the whole timeline squeezed into the left edge. His asks:
+- **Zoom-out limit.** There's no reason to see past AD 2100.
+- **The start.** Keep about 100 BC, as now. Make it a rule: 100 years before the earliest entry, since entries may be added later. The forward end stays at 2100 so readers can see how far they are from the present.
+- **Clipped label.** Remove the half-visible "100 BC" axis label cut off at the left edge.
+- The zoom-in limit stays as it is.
+
+**Cause.**
+- `useZoomPan` caps zoom-out at 50 years per pixel whatever the range, so the view can be wider than the whole allowed span. `clampStart` then pins it to the start, and everything after the data is empty years.
+- The axis draws a label at every interval, including one whose text runs off the canvas edge (`utils/rendering.js` `drawTimeAxis`).
+
+**Changes (Lifelines-only by config; other apps unchanged):**
+1. **Bounds from the data:**
+   - New config `timeBounds: { before: 100, roundTo: 50, end: 2100 }` replaces `minYear: -100`.
+   - In `Timeline.jsx`, the floor is the earliest **church** entry (front data: figures, councils, texts, events, not the rulers) minus 100, rounded to the nearest 50. Today that's Jesus at 3 BC, giving 100 BC.
+   - The ceiling is the later of 2100 and the latest entry plus 100.
+   - Rulers are left out of the floor, because Augustus (63 BC) would push it to 150 BC. If Matthew wants rulers counted, it's a one-word change.
+   - `MobileTimeline` `dataBounds` uses the same bounds, via a shared helper in `utils/timeBounds.js` with a unit test.
+2. **Zoom-out stops at the whole range:** `useZoomPan` takes an opt-in `fitRange`. When it's set, the largest years-per-pixel is `min(maxYearsPerPixel, (maxYear − minYear) / width)`. It applies in `handleZoom` (wheel, pinch, keys) and in `animateViewport`/`setYearsPerPixel`. Fully zoomed out, the reader sees 100 BC to AD 2100 edge to edge. The vertical phone clamps `pixelsPerYear` the same way (its minimum is the scroll height divided by the range).
+3. **No clipped axis labels:** `drawTimeAxis` gets an opt-in `skipClippedLabels`. It doesn't draw a year label whose text would run past the left or right edge, while the tick line stays. The vertical phone's year gutter does the same at the top and bottom.
+
+**Verification**
+- Unit: the bounds helper (earliest 3 BC gives −100; earliest 30 BC gives −150; the end is 2100, or later when the data runs past 2000).
+- E2E:
+  - zooming out with `-` many times stops at a readout of "100 BC – 2100 AD";
+  - no axis label overflows the canvas;
+  - the phone pinch-out stops at the same range;
+  - the existing "starts at 100 BC" test still passes;
+  - Heresies is unchanged.
+- Shots: the default view plus a new `zoomed-out` state, desktop and phone; read the left edge.
+- DESIGN.md §6: the opening-view row names the bounds rule.
+- Unit, the full e2e and lint. Push to #171, which is still open (or a fresh branch if it's merged), then CI and the preview link.
+
 ## Navigation buttons out; copy checklist before go-live (2026-10-09)
 
 **Context.**
