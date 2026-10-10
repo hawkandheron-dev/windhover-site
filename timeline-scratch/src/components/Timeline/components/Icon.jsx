@@ -25,6 +25,8 @@ const iconMap = {
   'search': { collection: 'universal', id: 'search' },
   'profile': { collection: 'universal', id: 'profile' },
   'hourglass': { collection: 'universal', id: 'hourglass' },
+  'expand': { collection: 'universal', id: 'expand' },
+  'collapse': { collection: 'universal', id: 'collapse' },
   // Period-themed icons
   'crown': { collection: 'medieval', id: 'crown' },
   'sword': { collection: 'medieval', id: 'sword' },

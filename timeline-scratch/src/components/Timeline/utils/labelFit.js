@@ -58,3 +58,26 @@ export const STRING_LABEL_GAP = 8;
 export function stringLabelSpan(point) {
   return stringLabelWidth(point) + STRING_LABEL_GAP;
 }
+
+/**
+ * The view that fits a selected figure's whole label inside their bar
+ * (config.selectFitsName, owner 2026-10-09), or null when it already fits.
+ * Only ever zooms in, never past minYearsPerPixel. The bar's middle stays
+ * where it is on screen, nudged in so the whole bar shows within `margin`.
+ *
+ * @param {{start: number, end: number, labelWidth: number, yearsPerPixel: number,
+ *   viewportStartYear: number, width: number, minYearsPerPixel?: number, margin?: number}} p
+ * @returns {{yearsPerPixel: number, startYear: number} | null}
+ */
+export function viewFittingLabel({ start, end, labelWidth, yearsPerPixel, viewportStartYear, width, minYearsPerPixel = 0.1, margin = 24 }) {
+  const span = Math.max(end - start, 1);
+  // The label sits 4px in from the bar's start; leave as much again after it.
+  const need = labelWidth + 8;
+  if (span / yearsPerPixel >= need) return null;
+  const ypp = Math.max(span / need, minYearsPerPixel);
+  if (ypp >= yearsPerPixel) return null;
+  const mid = (start + end) / 2;
+  const half = span / ypp / 2;
+  const x = Math.min(Math.max((mid - viewportStartYear) / yearsPerPixel, margin + half), width - margin - half);
+  return { yearsPerPixel: ypp, startYear: mid - x * ypp };
+}

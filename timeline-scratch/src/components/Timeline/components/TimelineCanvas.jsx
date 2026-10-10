@@ -160,7 +160,8 @@ export function TimelineCanvas({
         yearsPerPixel,
         labelInterval,
         config.eraLabels,
-        palette
+        palette,
+        { skipClippedLabels: config.skipClippedAxisLabels === true }
       );
     }
 

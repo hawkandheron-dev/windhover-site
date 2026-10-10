@@ -151,6 +151,12 @@ test.describe('Heresies timeline', () => {
     }
   });
 
+  test('keeps its zoom and pan buttons (Lifelines dropped its own)', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+    await expect(page.locator('.compass-rose')).toBeVisible();
+  });
+
   test('search finds scoped figures and movements but not excluded rows', async ({ page }) => {
     await loadPage(page);
 

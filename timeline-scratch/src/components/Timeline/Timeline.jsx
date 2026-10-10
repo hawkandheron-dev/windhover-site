@@ -18,7 +18,8 @@ import { Icon } from './components/Icon.jsx';
 import { DepthLayers } from './components/DepthLayers.jsx';
 import { RulerStrip } from './components/RulerStrip.jsx';
 import { rulerStripHeight } from './utils/rulerStrip.js';
-import { stringLabelSpan } from './utils/labelFit.js';
+import { timeBounds, dataYearExtent } from './utils/timeBounds.js';
+import { stringLabelSpan, measureLabel, LABEL_PADDING, viewFittingLabel } from './utils/labelFit.js';
 import { getYear, getYearRange, formatYearSpan } from './utils/dateUtils.js';
 import { yearToPixel } from './utils/coordinates.js';
 import { applyFilters, buildInitialFilters } from './utils/filters.js';
@@ -217,6 +218,15 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const yearPadding = Math.max((dataExtent.max - dataExtent.min) * 0.1, 200);
   const derivedMinYear = Math.floor(dataExtent.min - yearPadding);
   const derivedMaxYear = Math.ceil(dataExtent.max + yearPadding);
+  // config.timeBounds (Lifelines): from 100 years before the earliest church
+  // entry (the rulers don't count, or Augustus would pull it to 150 BC) to
+  // AD 2100, and no zooming out past that (owner, 2026-10-10).
+  const bounds = useMemo(() => {
+    if (!defaultConfig.timeBounds) return null;
+    const { earliest, latest } = dataYearExtent(data, getYear);
+    if (!isFinite(earliest)) return null;
+    return timeBounds({ earliest, latest, ...defaultConfig.timeBounds });
+  }, [data, defaultConfig.timeBounds]);
 
   // Zoom and pan state
   const {
@@ -243,8 +253,9 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     maxYearsPerPixel: 50,
     // A page may set its own floor (Lifelines starts at 100 BC); otherwise
     // the data's extent plus padding.
-    minYear: defaultConfig.minYear ?? derivedMinYear,
-    maxYear: derivedMaxYear
+    minYear: bounds?.minYear ?? defaultConfig.minYear ?? derivedMinYear,
+    maxYear: bounds?.maxYear ?? derivedMaxYear,
+    fitRange: Boolean(bounds),
   });
 
   // Filter data based on active filters
@@ -433,7 +444,47 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   // A docked detail panel sits *beside* the timeline rather than over it, so
   // unlike a centred modal it must not freeze panning and zooming — reading
   // the detail against the background is the whole reason it is docked.
-  const isModalOpen = (selectedItem !== null && detailVariant !== 'panel') || yearSummaryOpen;
+  // config.detailExpandable (Lifelines): the docked panel can open out into
+  // the larger centred dialog and back. Kept per item, so the next figure
+  // opens in the panel again.
+  const [expandedId, setExpandedId] = useState(null);
+  // Closing forgets it (adjusting state during render, as for the legend).
+  if (selectedItem === null && expandedId !== null) setExpandedId(null);
+  const detailExpanded = defaultConfig.detailExpandable === true && detailVariant === 'panel'
+    && selectedItem !== null && expandedId === selectedItem.item?.id;
+  const shownDetailVariant = detailExpanded ? 'modal' : detailVariant;
+
+  // config.selectFitsName (Lifelines): choosing a figure whose name runs on
+  // past their bar at this zoom glides in until the name fits inside it, so
+  // the gold ring round the bar holds the name too (owner, 2026-10-09; a ring
+  // round bar and overhanging name read badly). Once per figure chosen, after
+  // the panel has taken its width, and never in the tour, which frames its
+  // own views.
+  const fitViewRef = useRef({});
+  useEffect(() => {
+    fitViewRef.current = { viewportStartYear, yearsPerPixel, panOffsetY, width: dimensions.width };
+  });
+  const selectedPersonId = selectedItem?.type === 'person' ? selectedItem.item?.id : null;
+  useEffect(() => {
+    if (!defaultConfig.selectFitsName || isTourMode || !selectedPersonId) return;
+    const person = layout.stackedPeople?.find(p => p.id === selectedPersonId);
+    if (!person) return;
+    const timer = setTimeout(() => {
+      const { start, end } = getYearRange(person.startDate, person.endDate);
+      const labelWidth = (person.isMonarch ? 16 : 0) + measureLabel(person.name, '600 14px') + LABEL_PADDING
+        + 4 + measureLabel(formatYearSpan(start, end), '500 11px');
+      const now = fitViewRef.current;
+      const view = viewFittingLabel({
+        start, end, labelWidth,
+        yearsPerPixel: now.yearsPerPixel,
+        viewportStartYear: now.viewportStartYear,
+        width: now.width,
+      });
+      if (view) animateViewport(view.startYear, view.yearsPerPixel, now.panOffsetY, 600);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [selectedPersonId]); // eslint-disable-line react-hooks/exhaustive-deps -- once per figure chosen; reads the current view from a ref
+  const isModalOpen = (selectedItem !== null && shownDetailVariant !== 'panel') || yearSummaryOpen;
 
   // Handle wheel/trackpad: pinch → zoom, two-finger scroll → pan
   // Touch: drag to pan, pinch to zoom about the fingers (config.touchGestures,
@@ -1029,6 +1080,39 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
     };
   }, [isModalOpen, startDirection, stopDirection]);
 
+  // config.zoomKeys (Lifelines): + and − zoom about the middle and 0 glides
+  // back to the opening view, so the keyboard can do what the on-screen
+  // buttons did once they went (config.navButtons: false; owner, 2026-10-09).
+  // Never while typing, or with Ctrl/Cmd/Alt held: Ctrl/Cmd + is the
+  // browser's own zoom, which readers need.
+  useEffect(() => {
+    if (!defaultConfig.zoomKeys) return undefined;
+    const onKeyDown = (e) => {
+      if (isModalOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target;
+      if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        handleZoomIn();
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        handleZoomOut();
+      } else if (e.key === '0') {
+        e.preventDefault();
+        const fraction = defaultConfig.initialAxisFraction ?? 0.5;
+        const maxOffset = Math.max(0, layout.totalHeight - dimensions.height);
+        const offset = Math.min(Math.max(0, layout.axisY - dimensions.height * fraction), maxOffset);
+        animateViewport(centeredViewportStart, initialYearsPerPixel, offset, 600);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [defaultConfig.zoomKeys, defaultConfig.initialAxisFraction, isModalOpen, handleZoomIn, handleZoomOut, animateViewport, centeredViewportStart, initialYearsPerPixel, layout.totalHeight, layout.axisY, dimensions.height]);
+
+  // config.navButtons === false (Lifelines): no compass or zoom buttons; the
+  // timeline is moved by trackpad, wheel, drag, pinch and keys.
+  const showNavButtons = defaultConfig.navButtons !== false;
+
   // Notify viewport changes
   useEffect(() => {
     if (onViewportChange) {
@@ -1067,9 +1151,14 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   const detail = (
     <TimelineModal
       isOpen={selectedItem !== null}
-      growFrom={defaultConfig.detailGrowFromBar ? detailOrigin : null}
+      // Expanding from the panel fades in: the reader comes from the panel,
+      // not from the bar.
+      growFrom={defaultConfig.detailGrowFromBar && !detailExpanded ? detailOrigin : null}
       mapFrom={detailMapFrom}
-      variant={detailVariant}
+      variant={shownDetailVariant}
+      onExpand={defaultConfig.detailExpandable === true && detailVariant === 'panel' && !detailExpanded
+        ? () => setExpandedId(selectedItem?.item?.id ?? null) : null}
+      onCollapse={detailExpanded ? () => setExpandedId(null) : null}
       brief={detailBrief}
       item={selectedItem?.item}
       itemType={selectedItem?.type}
@@ -1207,6 +1296,10 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         palette={defaultConfig.palette}
         showPointLabels={showPointLabels}
         focusIds={focusIds}
+        // config.selectedRing (Lifelines): the open figure keeps the gold
+        // ring a hovered string gives its people.
+        selectedPersonId={defaultConfig.selectedRing && selectedItem?.type === 'person' && shownDetailVariant === 'panel'
+          ? selectedItem.item.id : null}
         backObstacles={!rulerStripOn && filteredBackData && depthMode !== 'hidden'
           ? { layout: backLayout, yOffset: layout.axisY - backLayout.axisY }
           : null}
@@ -1282,6 +1375,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
         onMouseLeave={() => setIsOverControls(false)}
       >
         {/* Compass rose — self-contained cross of 4 arrows + center */}
+        {showNavButtons && (
         <div className="compass-rose">
           <button
             onMouseDown={() => startDirection('up')}
@@ -1325,17 +1419,22 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
             <Icon name="arrow-down" size={12} />
           </button>
         </div>
+        )}
 
         {/* Zoom controls — aligned to compass middle row */}
         <div className="zoom-controls">
-          <button onClick={handleZoomIn} title="Zoom in" className="btn btn-sm">
-            <Icon name="plus" size={14} />
-            <span>Zoom in</span>
-          </button>
-          <button onClick={handleZoomOut} title="Zoom out" className="btn btn-sm">
-            <Icon name="minus" size={14} />
-            <span>Zoom out</span>
-          </button>
+          {showNavButtons && (
+            <>
+              <button onClick={handleZoomIn} title="Zoom in" className="btn btn-sm">
+                <Icon name="plus" size={14} />
+                <span>Zoom in</span>
+              </button>
+              <button onClick={handleZoomOut} title="Zoom out" className="btn btn-sm">
+                <Icon name="minus" size={14} />
+                <span>Zoom out</span>
+              </button>
+            </>
+          )}
           {defaultConfig.zoomReadout === 'years' ? (
             <span className="zoom-info" title="Years in view">
               {visibleSpanLabel(viewportStartYear, yearsPerPixel, dimensions.width, defaultConfig.eraLabels)}
@@ -1399,7 +1498,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
   return (
     <div className="timeline-with-panel">
       {timelineBody}
-      {detailVariant === 'panel' ? (selectedItem !== null && detail) : detail}
+      {shownDetailVariant === 'panel' ? (selectedItem !== null && detail) : detail}
     </div>
   );
 });

@@ -24,7 +24,7 @@ function boundsFor(peopleWithCoords) {
   );
 }
 
-export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson, credit = false }) {
+export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson, credit = false, title = 'Historical Map' }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef(new Map()); // personId -> { marker, el }
@@ -171,7 +171,7 @@ export function YearDetailMap({ people, year, hoveredPersonId, onHoverPerson, cr
 
   return (
     <div className="historical-map-section">
-      <h3>Historical Map</h3>
+      {title && <h3>{title}</h3>}
       {mapsWork ? (
         <div className="historical-map-container year-detail-map-container" ref={mapContainerRef} />
       ) : (

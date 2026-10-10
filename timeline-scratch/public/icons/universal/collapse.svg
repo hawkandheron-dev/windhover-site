@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Two arrows pointing in, toward the centre: back to smaller -->
+  <path d="M13.5 4.5 L13.5 10.5 L19.5 10.5"/>
+  <path d="M13.5 10.5 L20 4"/>
+  <path d="M10.5 19.5 L10.5 13.5 L4.5 13.5"/>
+  <path d="M10.5 13.5 L4 20"/>
+</svg>
