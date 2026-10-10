@@ -382,3 +382,20 @@ export function transformToTimelineFormat(db, { includeHidden = false } = {}) {
     },
   };
 }
+
+/**
+ * The public view of a dataset loaded with includeHidden: the same object
+ * without the people and points flagged `hidden`. Used the moment Expanded
+ * view turns off (or an admin signs out), so hidden entries don't linger
+ * on screen while the public data reloads (Codex review, PR #172).
+ */
+export function stripHidden(data) {
+  if (!data) return data;
+  const hasHidden = (data.people || []).some(p => p.hidden) || (data.points || []).some(p => p.hidden);
+  if (!hasHidden) return data;
+  return {
+    ...data,
+    people: (data.people || []).filter(p => !p.hidden),
+    points: (data.points || []).filter(p => !p.hidden),
+  };
+}

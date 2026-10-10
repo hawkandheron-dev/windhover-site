@@ -11,7 +11,7 @@ import {
 import { Timeline } from './components/Timeline/Timeline.jsx';
 import { TimelineSearch } from './components/Timeline/components/TimelineSearch.jsx';
 import { computeFocusSet } from './components/Timeline/utils/focusSet.js';
-import { fetchChurchHistory2Data, fetchTourScenes, updateLinkedMediaCrop } from './data/churchHistory2Adapter.js';
+import { fetchChurchHistory2Data, stripHidden, fetchTourScenes, updateLinkedMediaCrop } from './data/churchHistory2Adapter.js';
 import { churchHistory2Config, BACK_STYLES } from './data/churchHistory2Data.js';
 import { AddNoteModal } from './components/Notes/AddNoteModal.jsx';
 import { ViewMyNotesModal } from './components/Notes/ViewMyNotesModal.jsx';
@@ -771,6 +771,11 @@ function ChurchHistory2App() {
     setReloadKey(k => k + 1);
   }, []);
 
+  // Hidden entries go the moment Expanded view is off, not when the reload
+  // that follows returns.
+  const shownFront = useMemo(() => (expandedView ? frontData : stripHidden(frontData)), [expandedView, frontData]);
+  const shownBack = useMemo(() => (expandedView ? backData : stripHidden(backData)), [expandedView, backData]);
+
   return (
     <div className="app ch2-app">
       {/* Search is the keyboard route to every figure (DESIGN.md §8): the
@@ -784,8 +789,8 @@ function ChurchHistory2App() {
       </a>
       {hasClerk ? (
         <AuthenticatedApp
-          frontData={frontData}
-          backData={backData}
+          frontData={shownFront}
+          backData={shownBack}
           index={index}
           loading={loading}
           error={error}
@@ -798,8 +803,8 @@ function ChurchHistory2App() {
         />
       ) : (
         <UnauthenticatedApp
-          frontData={frontData}
-          backData={backData}
+          frontData={shownFront}
+          backData={shownBack}
           index={index}
           loading={loading}
           error={error}

@@ -2279,4 +2279,32 @@ test.describe('Admins: remove from view, expanded view (2026-10-10)', () => {
     await expect.poll(() => writes.length).toBe(1);
     expect(writes[0].body).toEqual({ active: true });
   });
+
+  test('turning Expanded view off hides the entries at once, before the reload returns', async ({ page }) => {
+    const writes = [];
+    await loadPage(page, { clerkKey: TEST_CLERK_KEY, query: '?admin', setup: (p) => signInAsAdmin(p, writes) });
+    const toggle = page.getByRole('checkbox', { name: /Expanded view/ });
+    await toggle.check();
+    const hidden = page.locator('.person-label', { hasText: 'Melanchthon' });
+    // Melanchthon (1497) is far right of the opening view: find him.
+    await page.locator('.timeline-search input').first().fill('Melanchthon');
+    await page.locator('.timeline-search-option', { hasText: 'Melanchthon' }).first().click();
+    await expect(hidden).toHaveCount(1);
+    await page.locator('.modal-close').click();
+    // Hold the public reload back: the hidden entry must still go at once.
+    await page.route('**/rest/v1/CH_People**', () => {});
+    await page.getByRole('button', { name: 'Key' }).click().catch(() => {});
+    await toggle.uncheck();
+    await expect(hidden).toHaveCount(0, { timeout: 1500 });
+  });
+
+  test('on a phone, the Filter drawer has Expanded view too (Codex review)', async ({ page }) => {
+    const writes = [];
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, clerkKey: TEST_CLERK_KEY, query: '?admin', setup: (p) => signInAsAdmin(p, writes) });
+    await page.locator('.mobile-toolbar-btn', { hasText: 'Filter' }).click();
+    const toggle = page.getByRole('checkbox', { name: /Expanded view/ });
+    await expect(toggle).toBeVisible();
+    await toggle.check();
+    await expect(page.locator('.mobile-person-lane.is-hidden').first()).toBeAttached();
+  });
 });

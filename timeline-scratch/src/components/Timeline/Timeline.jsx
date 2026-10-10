@@ -68,6 +68,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       <MobileTimeline
         ref={ref}
         layoutToggle={layoutToggle}
+        legendToggle={legendToggle}
         detailBrief={detailBrief}
         data={data}
         backData={backData}

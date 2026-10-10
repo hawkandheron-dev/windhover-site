@@ -48,7 +48,7 @@ function lightenColor(hex, floor = 160) {
   return `rgb(${lr}, ${lg}, ${lb})`;
 }
 
-export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false, backData, newRulerIds, rulerArrives = false, detailMapFrom }, ref) {
+export const MobileTimeline = forwardRef(function MobileTimeline({ data, config, onItemClick, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, layoutToggle, detailBrief = false, backData, newRulerIds, rulerArrives = false, detailMapFrom, legendToggle = null }, ref) {
   const scrollRef = useRef(null);
   const [pixelsPerYear, setPixelsPerYear] = useState(DEFAULT_PIXELS_PER_YEAR);
   // The years currently on screen, for the 'years' zoom readout. Read from the
@@ -477,7 +477,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
       // landmark in the same few pixels steps sideways along it.
       const markX = lanesLeft - 14 + markSlot * 12;
       return (
-        <div key={point.id} className="mobile-string" data-point-id={point.id} style={{ '--string-color': color }}>
+        <div key={point.id} className={`mobile-string${point.hidden ? ' is-hidden' : ''}`} data-point-id={point.id} style={{ '--string-color': color }}>
           <span
             className="mobile-string-line"
             style={{ top: `${y}px`, left: `${lanesLeft - 10}px`, width: `${contentWidth + 10}px` }}
@@ -581,6 +581,18 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
               </label>
             );
           })}
+          {/* A page's own switch (Lifelines admins' Expanded view), as in
+              the Key on wider screens. */}
+          {legendToggle && (
+            <label className={`mobile-filter-item mobile-filter-extra ${legendToggle.checked ? '' : 'inactive'}`}>
+              <input
+                type="checkbox"
+                checked={Boolean(legendToggle.checked)}
+                onChange={(e) => legendToggle.onChange(e.target.checked)}
+              />
+              <span>{legendToggle.label}</span>
+            </label>
+          )}
         </div>
       )}
 
@@ -622,7 +634,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
               return (
                 <button
                   key={person.id}
-                  className={`mobile-person-lane${isHighlighted ? ' highlighted' : ''}${isCurrent ? ' current-highlight' : ''}${person.emphasis ? ' emphasised' : ''}`}
+                  className={`mobile-person-lane${isHighlighted ? ' highlighted' : ''}${isCurrent ? ' current-highlight' : ''}${person.emphasis ? ' emphasised' : ''}${person.hidden ? ' is-hidden' : ''}`}
                   data-person-id={person.id}
                   style={{
                     top: `${topY}px`,

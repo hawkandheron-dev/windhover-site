@@ -42,3 +42,16 @@ describe('Expanded view', () => {
     expect(exp.data.points.filter(p => p.minor).every(p => p.hidden)).toBe(true);
   });
 });
+
+describe('stripHidden', () => {
+  it('drops exactly the hidden people and points, and leaves a clean dataset alone', async () => {
+    const { stripHidden } = await import('../../timeline-scratch/src/data/churchHistory2Adapter.js');
+    const exp = transformToTimelineFormat(db(), { includeHidden: true });
+    const pub = transformToTimelineFormat(db());
+    const stripped = stripHidden(exp.data);
+    expect(stripped.people.map(p => p.id).sort()).toEqual(pub.data.people.map(p => p.id).sort());
+    expect(stripped.points.map(p => p.id).sort()).toEqual(pub.data.points.map(p => p.id).sort());
+    expect(stripHidden(pub.data)).toBe(pub.data);
+    expect(stripHidden(null)).toBe(null);
+  });
+});
