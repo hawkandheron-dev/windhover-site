@@ -238,3 +238,8 @@
   pointer-events: none;
   z-index: 11;
 }
+
+/* An entry out of the public view, shown only in admins' Expanded view. */
+.point-string-label.is-hidden {
+  font-style: italic;
+}

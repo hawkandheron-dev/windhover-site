@@ -10,7 +10,7 @@ import './TimelineLegend.css';
 // and is 3 KB, where the 2570px original is 66 KB.
 const LOGO_PATH = new URL('../../../../../../resources/logos/Windhover_BLK-small.png', import.meta.url).href;
 
-export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, config, collapsed = false, onToggleCollapsed }) {
+export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilterToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, config, collapsed = false, onToggleCollapsed, extraToggle = null }) {
   if (!isVisible || !legend || legend.length === 0) return null;
 
   const handleToggle = (filterKey) => {
@@ -32,6 +32,7 @@ export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilte
         publisherStrapline={config.publisherStrapline}
         collapsed={collapsed}
         onToggleCollapsed={onToggleCollapsed}
+        extraToggle={extraToggle}
       />
     );
   }
@@ -190,7 +191,7 @@ export function TimelineLegend({ legend, isVisible = true, filters = {}, onFilte
  * It collapses to a single "Key" button so it never sits over figures; the
  * parent decides when (see Timeline.jsx).
  */
-function SlimLegend({ legend, filters, onToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, publisherStrapline, collapsed, onToggleCollapsed }) {
+function SlimLegend({ legend, filters, onToggle, onMouseEnter, onMouseLeave, siteTitle, siteSubtitle, publisherStrapline, collapsed, onToggleCollapsed, extraToggle }) {
   if (collapsed) {
     return (
       <div className="timeline-legend timeline-legend--slim timeline-legend--collapsed" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -265,6 +266,22 @@ function SlimLegend({ legend, filters, onToggle, onMouseEnter, onMouseLeave, sit
           );
         })}
       </ul>
+
+      {/* A page's own switch under the rows (Lifelines: admins' Expanded
+          view, which shows the entries kept out of the public view). */}
+      {extraToggle && (
+        <label className={`legend-slim-row legend-slim-extra${extraToggle.checked ? '' : ' is-off'}`}>
+          <input
+            type="checkbox"
+            checked={Boolean(extraToggle.checked)}
+            onChange={(e) => extraToggle.onChange(e.target.checked)}
+          />
+          <span className="legend-slim-label">
+            {extraToggle.label}
+            {extraToggle.note && <span className="legend-slim-note">{extraToggle.note}</span>}
+          </span>
+        </label>
+      )}
 
       <div className="legend-publisher">
         <img className="legend-brand-logo" src={LOGO_PATH} alt="" />

@@ -30,6 +30,7 @@ import { PeopleSelector } from '../../Notes/PeopleSelector.jsx';
 import { NotesSection } from '../../Notes/NotesSection.jsx';
 import { EditEntityForm } from '../../EditEntityForm/EditEntityForm.jsx';
 import { HistoricalMap } from './LazyMaps.jsx';
+import { updatePerson, updateEvent } from '../../../services/entityEditService.js';
 import './TimelineModal.css';
 
 function linkifyDescription(description, itemIndex, currentItemId) {
@@ -184,6 +185,30 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   // map was the largest thing in the panel, ahead of what the event was.
   const compactLayout = config?.panelLayout === 'compact';
   const hasSources = Boolean(item?.sources?.length);
+  // ── Remove from view / Return to view (config.adminVisibility) ─────────
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [visibilityError, setVisibilityError] = useState(null);
+  useEffect(() => { setVisibilityBusy(false); setVisibilityError(null); }, [item?.id]);
+  const handleVisibility = async () => {
+    if (!item || !adminContext?.getToken) return;
+    // Returning a minor landmark to view lifts it to major too, or it would
+    // stay hidden (only major landmarks show).
+    const fields = item.hidden
+      ? { active: true, ...(itemType === 'point' && item.minor ? { significance: 'major' } : {}) }
+      : { active: false };
+    setVisibilityBusy(true);
+    setVisibilityError(null);
+    try {
+      await (itemType === 'point' ? updateEvent : updatePerson)(item.id, fields, adminContext.getToken);
+      onEntityUpdated?.();
+      onClose();
+    } catch (err) {
+      console.error('Lifelines: changing visibility failed', err);
+      setVisibilityError('Could not save. Try again.');
+      setVisibilityBusy(false);
+    }
+  };
+
   // ── Delete confirmation state ──────────────────────────────────────────
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -569,6 +594,8 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   ) : null;
 
   const canEdit = !!authContext?.getToken;
+  const showVisibility = config?.adminVisibility === true && Boolean(adminContext?.isAdmin && adminContext.getToken)
+    && (itemType === 'person' || itemType === 'point');
 
   // Format date based on item type
   let dateString = '';
@@ -722,6 +749,24 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
               {item.location || null}
             </EditableText>
           </p>
+        )}
+
+        {/* config.adminVisibility (Lifelines): an admin can take an entry out of
+            the public view (active = false) and, in Expanded view, put it back
+            (owner, 2026-10-10). Reversible, so no confirmation step. */}
+        {showVisibility && (
+          <div className="modal-visibility">
+            {item.hidden && <span className="modal-hidden-tag">Hidden from view</span>}
+            <button
+              type="button"
+              className="btn btn-sm modal-visibility-btn"
+              onClick={handleVisibility}
+              disabled={visibilityBusy}
+            >
+              {visibilityBusy ? 'Saving…' : item.hidden ? 'Return to view' : 'Remove from view'}
+            </button>
+            {visibilityError && <span className="modal-visibility-error" role="alert">{visibilityError}</span>}
+          </div>
         )}
 
         {!compactLayout && !isBrief && mapBlock}
