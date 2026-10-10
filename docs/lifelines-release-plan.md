@@ -2,6 +2,22 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Admin tools not showing on the preview; make matthewlanebrown an admin (2026-10-10)
+
+**Context.** On the PR #172 preview, Matthew sees no "Remove from view" when signed in as matthewlanebrown@gmail.com or hawkandheron.co@gmail.com. The `users` table, read-only, shows two causes:
+- **Preview sign-in.** The preview signs in with the **dev** Clerk instance (`pk_test`), whose user IDs differ from production's. Admin rows are keyed by the production `clerk_user_id` (hawkandheron.co → `user_3ANJ1Rhu…`), so no dev sign-in matches. Admin tools can't show on any preview, and Supabase most likely won't accept dev tokens for writes anyway.
+  - After the merge, hawkandheron.co will see them on windhoverhistory.com.
+- **Role.** matthewlanebrown@gmail.com is a `contributor`, not an admin. Matthew asked to make it an admin.
+
+**Change (on PR #172):**
+- Migration `supabase/migrations/20261010…_admin_matthewlanebrown.sql`:
+  ```sql
+  update users set role = 'admin' where email = 'matthewlanebrown@gmail.com';
+  ```
+  It is idempotent and applied by CI on merge, like the others. The row is already claimed (`clerk_user_id user_3ANJEG2M…`), so it takes effect on the next sign-in on the live site.
+- PR body: add a "Testing" note. The admin tools can only be tried on windhoverhistory.com after the merge, not on the preview, because of the dev Clerk instance.
+- Verify after the merge with a read-only query that the role is `admin`.
+
 ## PR #172 (admin Remove from view / Expanded view): Codex's two P2 findings (2026-10-10)
 
 CI is still running on 6a3a9d2. Codex left two P2 comments. I checked both against the code, and both are real.
