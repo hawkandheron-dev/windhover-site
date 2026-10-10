@@ -12,6 +12,7 @@ import {
   colorForLifespan,
   centuryLegendTicks,
   ordinal,
+  centurySpanLabel,
 } from '../../timeline-scratch/src/data/churchHistory2Centuries.js';
 
 describe('centuryOf', () => {
@@ -126,5 +127,25 @@ describe('ordinal', () => {
     expect(ordinal(11)).toBe('11th');
     expect(ordinal(12)).toBe('12th');
     expect(ordinal(13)).toBe('13th');
+  });
+});
+
+describe('centurySpanLabel (map headings)', () => {
+  it('names one century, two with "and", more with "to"', () => {
+    expect(centurySpanLabel(534, 600)).toBe('6th Century');
+    expect(centurySpanLabel(534, 636)).toBe('6th and 7th Centuries');
+    expect(centurySpanLabel(296, 373)).toBe('3rd and 4th Centuries');
+    expect(centurySpanLabel(250, 450)).toBe('3rd to 5th Centuries');
+    expect(centurySpanLabel(325)).toBe('4th Century');
+  });
+
+  it('names the era on each side of AD 1', () => {
+    expect(centurySpanLabel(-63, 14)).toBe('1st Century BC and 1st Century');
+    expect(centurySpanLabel(-150, -120)).toBe('2nd Century BC');
+  });
+
+  it('falls back to the start year, and to nothing without one', () => {
+    expect(centurySpanLabel(400, null)).toBe('4th Century');
+    expect(centurySpanLabel(null, 400)).toBe('');
   });
 });

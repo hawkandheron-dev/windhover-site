@@ -12,7 +12,8 @@
  * from churchHistory2Centuries.js. The legend no longer explains them: it is
  * a slim panel of the four things a reader can switch (legendLayout below).
  */
-import { CENTURY_COLORS, centuryOf, colorForCentury } from './churchHistory2Centuries.js';
+import { CENTURY_COLORS, centuryOf, colorForCentury, centurySpanLabel } from './churchHistory2Centuries.js';
+import { getYear } from '../components/Timeline/utils/dateUtils.js';
 import { readableOnWhite } from '../components/Timeline/utils/readableColor.js';
 
 /**
@@ -93,9 +94,14 @@ export const churchHistory2Config = {
   // Without these the shared defaults centre on AD 1000.
   initialCenterYear: 250,
   fitInitialViewport: true,
-  /** Nothing before 100 BC: the earliest figures are a generation either
-   *  side of Jesus, and panning further only showed empty canvas (round 6). */
-  minYear: -100,
+  /** From 100 years before the earliest church entry (today Jesus, so 100
+   *  BC; round 6 set that by hand) to AD 2100, and no zooming out past it
+   *  (owner, 2026-10-10: zoomed right out the view ran to 102700 AD). The
+   *  start follows the data as entries are added; the end stays near the
+   *  present so readers can see how far away it is. */
+  timeBounds: { before: 100, roundTo: 50, end: 2100 },
+  /** No half-shown year at either edge of the axis ("100 BC" cut off). */
+  skipClippedAxisLabels: true,
   /** Overrides on a phone (mobileLayout: 'horizontal'). 500 years in 390px
    *  leaves every name a stub, so a phone opens on the apostolic age. */
   phone: {
@@ -187,6 +193,35 @@ export const churchHistory2Config = {
    *  so a reader sees where it came from (owner, 2026-10-08, after the tour's
    *  first dialog, Irenaeus, appeared from nowhere). Not the docked panel. */
   detailGrowFromBar: true,
+  /** The docked panel has an expand button that opens the same detail as
+   *  the larger centred dialog, and back (owner, 2026-10-09): the panel keeps
+   *  the context in view, the dialog gives the detail room. */
+  detailExpandable: true,
+  /** A figure's or landmark's map is headed by where and when: "Seville,
+   *  6th Century", "Seville, 6th and 7th Centuries" (owner, 2026-10-09:
+   *  "Historical map" was redundant). The Year dialog's map has none. */
+  mapHeading: (item) => {
+    const start = getYear(item.startDate || item.date);
+    const centuries = centurySpanLabel(start, getYear(item.endDate) ?? start);
+    return [item.location, centuries].filter(Boolean).join(', ');
+  },
+  yearMapHeading: false,
+  /** Only the dialog's body scrolls, inside its rounded frame; the band and
+   *  buttons stay put (owner, 2026-10-09: Windows' scrollbar squared off the
+   *  right-hand corners). */
+  detailScrollBody: true,
+  /** The open figure's bar keeps the gold ring a hovered string gives its
+   *  people, so "selected" reads the same as "linked" (owner, 2026-10-09). */
+  selectedRing: true,
+  /** Choosing a figure whose name runs past their bar zooms in until it fits,
+   *  so the ring round the bar holds the name (owner, 2026-10-09: a ring
+   *  round bar and overhanging name read badly). */
+  selectFitsName: true,
+  /** No on-screen pan or zoom buttons: trackpad, wheel, drag, pinch and
+   *  keys do it all, and + / − / 0 zoom and reset from the keyboard (owner,
+   *  2026-10-09). The years readout and the Layout toggle stay. */
+  navButtons: false,
+  zoomKeys: true,
   rulerColor: BACK_STYLES.emperors.color,
   /** Each reign in the strip and the phone column takes its realm's colour
    *  (REALM_STYLES, set on the item by the adapter), not rulerColor. */

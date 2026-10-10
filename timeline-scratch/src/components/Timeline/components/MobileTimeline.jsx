@@ -6,6 +6,7 @@
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { getYear, getYearRange, formatYear, formatYearSpan } from '../utils/dateUtils.js';
+import { timeBounds, dataYearExtent } from '../utils/timeBounds.js';
 import { getYearLabelInterval } from '../utils/coordinates.js';
 import { Icon, ShapeIcon } from './Icon.jsx';
 import { TimelineModal } from './TimelineModal.jsx';
@@ -94,7 +95,14 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     return map;
   }, [defaultConfig.chains]);
 
+  const timeBoundsConfig = config?.timeBounds;
   const dataBounds = useMemo(() => {
+    // config.timeBounds (Lifelines): the same bounds as the horizontal
+    // timeline, 100 years before the earliest church entry to AD 2100.
+    if (timeBoundsConfig) {
+      const { earliest, latest } = dataYearExtent(data, getYear);
+      if (isFinite(earliest)) return timeBounds({ earliest, latest, ...timeBoundsConfig });
+    }
     const { people = [], points = [], periods = [] } = data;
     let minYear = Infinity, maxYear = -Infinity;
     for (const p of people) {
@@ -127,7 +135,7 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
     // A page may set its own floor (Lifelines starts at 100 BC).
     const floor = config?.minYear ?? -Infinity;
     return { minYear: Math.max(Math.floor(minYear - pad), floor), maxYear: Math.ceil(maxYear + pad) };
-  }, [data, backData, config?.minYear, config?.rulerStyle]);
+  }, [data, backData, config?.minYear, config?.rulerStyle, timeBoundsConfig]);
 
   const filteredData = useMemo(() => applyFilters(data, filters), [data, filters]);
   const stringStyle = defaultConfig.pointStyle === 'string';
@@ -532,14 +540,22 @@ export const MobileTimeline = forwardRef(function MobileTimeline({ data, config,
           <span>Filter</span>
         </button>
         <div className="mobile-zoom-controls">
-          <button className="mobile-toolbar-btn" onClick={handleZoomOut}><Icon name="minus" size={14} /></button>
+          {/* config.navButtons === false (Lifelines): pinch zooms, scrolling
+              pans; only the readout stays (owner, 2026-10-09). */}
+          {defaultConfig.navButtons !== false && (
+            <button className="mobile-toolbar-btn" onClick={handleZoomOut}><Icon name="minus" size={14} /></button>
+          )}
           <span className="mobile-zoom-label">
             {showYearReadout
               ? (visibleYears ? formatYearSpan(Math.round(visibleYears.start / 5) * 5, Math.round(visibleYears.end / 5) * 5, defaultConfig.eraLabels) : '')
               : `${pixelsPerYear.toFixed(1)}px/yr`}
           </span>
-          <button className="mobile-toolbar-btn" onClick={handleZoomIn}><Icon name="plus" size={14} /></button>
-          <button className="mobile-toolbar-btn" onClick={handleZoomReset}><Icon name="quatrefoil" size={14} /></button>
+          {defaultConfig.navButtons !== false && (
+            <>
+              <button className="mobile-toolbar-btn" onClick={handleZoomIn}><Icon name="plus" size={14} /></button>
+              <button className="mobile-toolbar-btn" onClick={handleZoomReset}><Icon name="quatrefoil" size={14} /></button>
+            </>
+          )}
         </div>
         {layoutToggle}
       </div>

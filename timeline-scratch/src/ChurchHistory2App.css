@@ -214,12 +214,16 @@
   backdrop-filter: none;
 }
 
-/* Detail panel, compact layout (panelLayout: 'compact'). Headings in
-   sentence case at the same weight as the panel's other headings, not an
-   all-caps label; the map comes after the description and smaller. */
+/* Detail panel, compact layout (panelLayout: 'compact'): the map comes
+   after the description and smaller. Its heading ("Alexandria, 3rd
+   Century", mapHeading) is set like the dates under the name, not as a
+   section heading (owner, 2026-10-09). */
 .ch2-app .historical-map-section h3 {
+  margin: 0 0 8px;
+  font-family: inherit;
   font-size: 16px;
-  color: var(--color-ink);
+  font-weight: 500;
+  color: var(--color-ink-faded);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -295,30 +299,8 @@
     z-index: 30;
   }
 
-  .ch2-app .timeline-container--phone .compass-up,
-  .ch2-app .timeline-container--phone .compass-down,
-  .ch2-app .timeline-container--phone .compass-left,
-  .ch2-app .timeline-container--phone .compass-right {
-    display: none;
-  }
-
-  .ch2-app .timeline-container--phone .compass-btn,
-  .ch2-app .timeline-container--phone .zoom-controls .btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .ch2-app .timeline-container--phone .zoom-controls .btn > span:not(.icon) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
+  /* No compass or zoom buttons here (navButtons: false); fingers pan and
+     pinch. */
 
   .ch2-app .timeline-container--phone .zoom-info {
     white-space: nowrap;
@@ -569,6 +551,19 @@ body:has(.ch2-app) {
 
 .ch2-app .timeline-modal--brief .modal-type-band {
   margin-bottom: 12px;
+}
+
+.ch2-app .timeline-modal--brief .modal-content.modal-content--framed {
+  --frame-pad: 16px 16px 12px;
+  padding: 0;
+}
+
+.ch2-app .timeline-modal--brief .modal-content--framed > .modal-type-band {
+  margin-bottom: 0;
+}
+
+.ch2-app .timeline-modal--brief .modal-content--framed.modal-content--banded > .modal-scroll {
+  padding-top: 12px;
 }
 
 .ch2-app .timeline-modal--brief .modal-content--banded > .modal-close {

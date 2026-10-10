@@ -2,6 +2,280 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Time bounds: no zooming out past the story; no clipped edge label (2026-10-10). Done, on #171
+
+**Context.** On the preview, Matthew zoomed right out and got "100 BC–102700 AD", with the whole timeline squeezed into the left edge. His asks:
+- **Zoom-out limit.** There's no reason to see past AD 2100.
+- **The start.** Keep about 100 BC, as now. Make it a rule: 100 years before the earliest entry, since entries may be added later. The forward end stays at 2100 so readers can see how far they are from the present.
+- **Clipped label.** Remove the half-visible "100 BC" axis label cut off at the left edge.
+- The zoom-in limit stays as it is.
+
+**Cause.**
+- `useZoomPan` caps zoom-out at 50 years per pixel whatever the range, so the view can be wider than the whole allowed span. `clampStart` then pins it to the start, and everything after the data is empty years.
+- The axis draws a label at every interval, including one whose text runs off the canvas edge (`utils/rendering.js` `drawTimeAxis`).
+
+**Changes (Lifelines-only by config; other apps unchanged):**
+1. **Bounds from the data:**
+   - New config `timeBounds: { before: 100, roundTo: 50, end: 2100 }` replaces `minYear: -100`.
+   - In `Timeline.jsx`, the floor is the earliest **church** entry (front data: figures, councils, texts, events, not the rulers) minus 100, rounded to the nearest 50. Today that's Jesus at 3 BC, giving 100 BC.
+   - The ceiling is the later of 2100 and the latest entry plus 100.
+   - Rulers are left out of the floor, because Augustus (63 BC) would push it to 150 BC. If Matthew wants rulers counted, it's a one-word change.
+   - `MobileTimeline` `dataBounds` uses the same bounds, via a shared helper in `utils/timeBounds.js` with a unit test.
+2. **Zoom-out stops at the whole range:** `useZoomPan` takes an opt-in `fitRange`. When it's set, the largest years-per-pixel is `min(maxYearsPerPixel, (maxYear − minYear) / width)`. It applies in `handleZoom` (wheel, pinch, keys) and in `animateViewport`/`setYearsPerPixel`. Fully zoomed out, the reader sees 100 BC to AD 2100 edge to edge. The vertical phone clamps `pixelsPerYear` the same way (its minimum is the scroll height divided by the range).
+3. **No clipped axis labels:** `drawTimeAxis` gets an opt-in `skipClippedLabels`. It doesn't draw a year label whose text would run past the left or right edge, while the tick line stays. The vertical phone's year gutter does the same at the top and bottom.
+
+**Verification**
+- Unit: the bounds helper (earliest 3 BC gives −100; earliest 30 BC gives −150; the end is 2100, or later when the data runs past 2000).
+- E2E:
+  - zooming out with `-` many times stops at a readout of "100 BC – 2100 AD";
+  - no axis label overflows the canvas;
+  - the phone pinch-out stops at the same range;
+  - the existing "starts at 100 BC" test still passes;
+  - Heresies is unchanged.
+- Shots: the default view plus a new `zoomed-out` state, desktop and phone; read the left edge.
+- DESIGN.md §6: the opening-view row names the bounds rule.
+- Unit, the full e2e and lint. Push to #171, which is still open (or a fresh branch if it's merged), then CI and the preview link.
+
+## Navigation buttons out; copy checklist before go-live (2026-10-09)
+
+**Context.**
+- Matthew can do everything without the on-screen buttons: trackpad on a Mac, mouse on a PC, gestures on a phone, and the keyboard. The navigation buttons go. A note about the controls can go in the Key later, in his words.
+- He wants **zero AI-written copy** on the live page, and asked for a checklist of every place that might still hold some, to work through before go-live.
+- [hawkandheron-dev/windhover-site#171](https://github.com/hawkandheron-dev/windhover-site/pull/171) is green and waiting on his "merge it". This work comes after it, in a new PR. If #171 merges first, restart the branch from main; otherwise stack on #171 and say so.
+
+### A. Remove the navigation buttons (Lifelines only, behind config `navButtons: false`). Done, on #171
+Matthew's answers:
+- keep the years readout and the Layout toggle;
+- add + / − / 0 keys;
+- the phone toolbar loses − / + / reset too.
+
+1. **Desktop and horizontal phone** (`Timeline.jsx` 1327-1431):
+   - When `defaultConfig.navButtons === false`, don't render `.compass-rose` (the four arrows and the centre reset) or the two zoom buttons.
+   - Keep `.timeline-controls` holding the `.zoom-info` readout and `{layoutToggle}`.
+   - Other apps keep their buttons, since the key defaults to shown.
+2. **Keyboard** (`Timeline.jsx` keydown at 1041-1070, today arrows only):
+   - `+`/`=` zooms in and `-`/`_` zooms out, about the middle, reusing `handleZoomIn`/`handleZoomOut`.
+   - `0` returns to the opening view, reusing `reset`.
+   - Not while typing in a field, not while a dialog is open, and not with Ctrl, Cmd or Alt held, so browser zoom (Ctrl/Cmd +) still works.
+   - Opt-in via `config.zoomKeys` (Lifelines on).
+3. **Vertical phone toolbar** (`MobileTimeline.jsx` 534-545):
+   - With `navButtons: false`, drop −, + and reset.
+   - Keep Filter, the readout and the Layout toggle. Pinch already zooms there (`pinchRef`, 222-244).
+4. **CSS:** delete the now-unused Lifelines rules for the 44px compass and zoom buttons and the hidden "Zoom in" words (`ChurchHistory2App.css` 302-325). Check the controls still sit above the ruler strip.
+5. **Tests that clicked the buttons move to keys or gestures, never deleted.** Each change is noted in the commit, since the decision changed.
+   - **Zoom buttons:** `church-history-2.spec.js` 622, 1821, 1901 and 2064 use `+`/`-` or ctrl+wheel.
+   - **Arrow buttons:** 300 (the "Scroll left" ×6) uses ArrowLeft held down.
+   - **Phone toolbar:** 746 and 767 use pinch (the `pinch()` helper exists at 1880).
+   - **Shots script:** `scripts/lifelines-shots.mjs` `zoom()` and `zoomInEither` press keys, or use pinch on the vertical phone.
+   - **New tests:**
+     - no compass or zoom buttons on Lifelines;
+     - Heresies still has them;
+     - `+`/`-` change the readout's span, and `0` returns to "1–500 AD";
+     - keys do nothing while typing in search;
+     - the vertical phone toolbar has no − or +.
+6. **DESIGN.md:**
+   - §6 Controls row: "the years readout and the Layout toggle; zoom and pan by trackpad, wheel, drag, pinch and keys (+ − 0, arrows); no on-screen buttons".
+   - Drop the "On a phone the arrows go…" clause.
+   - Delete the Known-violation entry about controls over bars at 820px, which these buttons caused, once checked in the shots.
+7. **Verify:**
+   - Shots of `default`, `panel` and `panel-far` (desktop and laptop), and phone in both layouts.
+   - Unit, the full e2e under Node 20, and lint. Then a PR, CI, and Matthew's "merge it".
+
+### B. Go-live copy checklist (Matthew's): zero AI-written copy before go-live
+How to use it:
+- Tick each item once the text there is in your words, or deliberately kept.
+- **[AI]** means Claude wrote it.
+- **[You]** means you wrote or chose it; there's nothing to do unless you want a change.
+- **[Label]** is a short control label; read it, change it if you like.
+- Send me the new text (paste it here or in a doc). I put it in place, render it, and tick the box.
+
+**1. The opening popup ("Welcome to Lifelines")** (`components/Tour/WelcomeDialog.jsx`)
+- [ ] Body: "This interactive timeline maps the overlapping lifespans of key figures in church history — revealing how the faith was passed…" [AI]
+- [ ] Question: "Would you like a brief guided tour?" [AI]
+- [ ] Buttons: "Take the Tour", "Skip" [Label]
+
+**2. About dialog** (`components/About/AboutDialog.jsx`)
+- [ ] Intro: "Lifelines is a church history timeline by lifespans, made by Windhover. It shows who was alive…" [AI]
+- [ ] Licence sentence (CC BY 4.0, credit to Matt Brown). [AI wording; the licence is your choice]
+- [ ] Credits, 4 lines: Wikipedia, OpenHistoricalMap/MapLibre, Wikimedia Commons, fonts. [AI, factual; the attribution must stay in some form]
+- [ ] Privacy, 5 lines: no cookies; Cloudflare Web Analytics; self-hosted fonts; feedback by email via Resend and Turnstile; Supabase, Wikipedia and OpenHistoricalMap requests. [AI, factual; must stay accurate]
+
+**3. Share preview and browser tab** (`timeline-scratch/church-history-2.html`)
+- [ ] Meta description: "See who was alive at the same time in church history… from the first century to the eighteenth…" [AI; "eighteenth" needs checking against the data]
+- [ ] og:description (the Substack/social preview text) [AI]
+- [ ] og:image alt text [AI]
+- [ ] Share image text: "Lifelines / A church history timeline by lifespans / WINDHOVER" [You]. The picture is regenerated by `npm run shots -- --share` if anything changes.
+- [ ] Tab title "Lifelines — A church history timeline by lifespans" [You]
+
+**4. Feedback** (`components/Feedback/FeedbackButton.jsx`, `services/feedbackService.js`, `functions/api/feedback*.js`)
+- [ ] Button tooltip: "Tell us what you think — no account needed" [AI; also inaccurate now that feedback needs a subscriber code]
+- [ ] Email step: "Feedback is open to subscribers of the newsletter…" and "Not subscribed yet? Subscribe free on Substack…" [AI]
+- [ ] Code step: "If {email} is subscribed, a six-digit code is on its way…" and "Nothing arrived? …" [AI]
+- [ ] Write step: "Spotted a mistake, missing a figure, or have a thought…?" and placeholder "What's on your mind?" [AI]
+- [ ] Sent: "Thank you / Your note reached us. We read every one." [AI]
+- [ ] About 20 error messages ("Could not send a code…", "That code has expired.", "That is a lot of feedback in one hour…"). [AI, plain; review as a list. I'll gather them into one place for you]
+- [ ] The code email: subject "{code} is your Lifelines feedback code", plus a 3-line body. [AI]
+
+**5. Tour**
+- [ ] The 4 scenes your edit didn't touch: "first-century", "origen", "augustine", "caesarius". These may still be Claude's text from March. The live copy is in the tour doc and the database.
+- [ ] Scene 19 ("year-530") extra line: "Click on a blank part of the timeline to see who's where…" [AI]
+- [ ] The built-in backup copy (`components/Tour/tourScenes.js`) is shown only if the database can't be reached. It's all AI-written and out of date.
+  - **My recommendation:** I replace it with a copy of your live text at build time, so it can never differ. No writing needed from you.
+- [ ] Tour buttons: "Back", "Next", "Finish", "Exit tour", "{n} of 20", "Picture: … · Source" [Label]
+- [ ] Picture alt text, 15 pictures (`CH_LinkedMedia.alt_text`): screen readers read these aloud. [Probably AI]
+
+**6. Smaller messages** [AI, plain]
+- [ ] Error: "Lifelines couldn't load the timeline. Check your connection and try again." / "Try again"; and "Loading the timeline…"
+- [ ] Map: "The map can't be shown in this browser."; "Showing borders c. {year}"
+- [ ] 404 page: "There's nothing at this address. It may have moved, or the link may have a typo." / "Go to Lifelines"
+- [ ] Year popup headings: "Reigning Emperor(s)", "Who's where?", "Events This Year", "Notable events and texts around {year}", "No data for this year."
+- [ ] Tooltips: Layout ("Lives run down/across the page"), Emperors tab ("Show/Fold the emperors and monarchs…"), About ("About Lifelines, credits and privacy"), Tour ("Take the guided tour"), years readout ("Years in view").
+- [ ] Screen-reader-only labels: "Skip to search", "Search figures, councils and texts", "Hide the key", "Open larger view", "Back to side panel", "Close details". [Label]
+- [ ] Wikipedia line "Text from Wikipedia, available under CC BY-SA 4.0." [required attribution; wording is yours]
+- [ ] The controls note for the Key, if you want one, after part A ships. [You write it]
+
+**7. Labels you chose or approved** (read once)
+- [ ] "Lifelines", "A church history timeline by lifespans", "Windhover", "Get a bird's eye view" [You]
+- [ ] Key rows: "Church figures", "Councils", "Events", "Texts & creeds", "Emperors & monarchs"; detail bands "Church figure", "Council", "Text", "Event", "Year", plus the realm names [Label]
+- [ ] Detail headings: "From Wikipedia", "Works & Sources", "Connections", "More about …", map heading "{place}, {centuries}" [Label, the last is yours]
+
+**8. Data in the database** (readers see it in the detail panel; the biggest job; a database pass, not code)
+- [ ] **Figure descriptions:** 107 of 249 active figures have one. Some are from Claude's data-entry passes (Feb 2026, e.g. the emperors: "First Roman emperor, reigning during the birth of Jesus. Established the Pax Romana."). Figures without one show the Wikipedia summary instead.
+  - **Options:** rewrite them; clear them so the Wikipedia summary shows; or keep the ones you recognise as yours.
+  - I can export all 107 into a doc with a keep / rewrite / clear column.
+- [ ] **Event, council and text descriptions:** all 66 shown have one. This includes the two I wrote for Constantinople II and III (M3 round 5). Same export offer.
+- [ ] **Source notes:** all 86 have one, e.g. "Concrete anchor for Basil ↔ Athanasius correspondence." Same export offer. They read as research notes, so one option is not to show them at all (a one-line change).
+
+**Not reader-facing, no action:** code comments, admin-only screens (`?admin`), the hidden `home.html`, and the adapter's unused labels.
+
+**My part, once you've decided:**
+- export the database items into a doc for you;
+- gather the error messages into one list;
+- wire your text in, render it and send screenshots;
+- replace the tour backup with your live text.
+- **Go-live gate:** every box above is ticked.
+
+## Update (2026-10-09, later): ring round bar and name read badly → zoom to fit
+
+Matthew, on the preview: the ring round bar and overhanging name (Dionysius of Alexandria) is what he feared. Done (backup option 2): selecting a figure whose name doesn't fit glides in until it does (`selectFitsName`, `viewFittingLabel` in utils/labelFit.js); the ring is round the bar only again. The map heading is set like the dates line (16px, 500, ink-faded).
+
+## Map headings, scrollbars inside the rounded frame, ring around bar and name (2026-10-09)
+
+**Context.** Matthew asked for three things on top of PR #171, which is open, green and found clean by Codex. They go in the same PR (new commit), since #171 isn't merged yet.
+1. **Map headings.** "Historical map" is redundant.
+   - The Year popup's map has no heading.
+   - A figure's map (popup and panel) is headed "[place], [century]", from their birth and death years: "Seville, 6th Century", "Seville, 6th and 7th Centuries".
+2. **Scrollbars inside the rounded frame.** On Windows the popup's scrollbar runs to the frame's edge, so the right corners look square while the left ones are rounded.
+3. **The name is longer than the bar.** At some zooms the selected ring cuts through the name (Remigius of Auxerre). Matthew picked option 1: the ring wraps the bar and the overhanging name together.
+   - **Backups if that doesn't work, in order:**
+     - zoom in on select;
+     - ring the bar and give the name chip a gold edge;
+     - ring plus a "fit to view" button in the panel.
+
+**What the code does:**
+- `HistoricalMap` (`components/Timeline/components/HistoricalMap.jsx:25`) takes `title`. `TimelineModal.jsx:549-558` passes `'Historical map'` when the layout is compact. It shows "Showing borders c. {birth year}".
+- `YearDetailMap.jsx:174` hard-codes `<h3>Historical Map</h3>`, inside `YearSummaryModal`.
+- `.modal-content` is the scroller (`TimelineModal.css:29-45`: `overflow-y: auto; border-radius: 16px`). Windows draws a square scrollbar track over the rounded corner. The band (`DetailTypeBand`) and the close and expand buttons are inside that scroller, so they scroll away.
+- The ring (`renderSelectedRing`, and the string-hover rings) covers only the bar. The name chip is drawn in `renderPeopleLabels` (`TimelineOverlay.jsx:185-265`), at `startX + 4`, or 10 when the bar is pinned to the left edge. Its width comes from `measureLabel(name, '600 14px')` plus padding, plus the dates when they fit, capped by `maxWidth` (`labelFit: 'fit'`).
+
+**Changes (Lifelines-only via config; other apps unchanged):**
+1. **Map headings**
+   - New `centurySpanLabel(startYear, endYear)` in `data/churchHistory2Centuries.js`, reusing `centuryOf` and `ordinal`. It handles BC separately, because `centuryOf` clamps BC years to the 1st century:
+     - one century → "6th Century";
+     - two → "6th and 7th Centuries";
+     - three or more → "4th to 6th Centuries";
+     - BC → "1st Century BC", e.g. "1st Century BC and 1st Century".
+   - New config `mapHeading(item, itemType)` returns `"${item.location}, ${centurySpanLabel(birth, death)}"` (a council or event uses its own year or years). `TimelineModal` uses it when present, otherwise the old title.
+   - `HistoricalMap` and `YearDetailMap`: `title={null}` renders no `<h3>`. `YearDetailMap` gets a `title` prop (default 'Historical Map'). `YearSummaryModal` passes `null` when `config.yearMapHeading === false` (Lifelines sets it). Check that `YearSummaryModal` receives `config`, and thread it through if not.
+   - The "Showing borders c. 534 AD" line stays, since it says which borders are drawn.
+   - Places that already contain a comma ("Lyons, Gaul") read "Lyons, Gaul, 2nd Century", as specified.
+2. **Scrollbar inside the frame** (config `detailScrollBody`, Lifelines):
+   - In `TimelineModal`, everything after the band and buttons goes into a `.modal-scroll` div.
+   - `.modal-content` becomes a flex column with `overflow: hidden`, keeping its radius, shadow and max-height. `.modal-scroll` takes `overflow-y: auto`, the padding, `overscroll-behavior` and `touch-action`.
+   - The band and the close and expand buttons then stay pinned while the body scrolls. That's a small bonus: you can close or collapse from anywhere.
+   - The scrollbar starts below the band, and the rounded clip of `.modal-content` trims its bottom end. Add `scrollbar-gutter: stable` and a bottom margin of about 8px, so the track ends inside the curve.
+   - Check that nothing else assumes `.modal-content` is the scroller: grep the scroll-to-top-on-item-change code, `handleModalWheel`, the brief card's max-height, and the e2e tests that scroll `.modal-content`.
+   - Applies to the popup, the brief card and the panel, so all three behave the same. The panel has square corners, so it simply gets the pinned band.
+3. **Ring around bar and name**
+   - Factor the label's x and width out of `renderPeopleLabels` into a small `labelBox(person)` helper in `TimelineOverlay.jsx`. It works out the same `labelX`, sticky, text, `measureLabel` and `maxWidth` decisions, and returns null when the label is hidden.
+   - The ring's right edge becomes `max(bar end, label right + 3)`, and its left edge `min(bar start, label left)` for the pinned case.
+   - Used by `renderSelectedRing` and by the string-hover rings, so both look alike.
+   - The ring keeps the bar's height, since the label sits inside the bar's row (`labelY = boxY + 3`).
+4. **DESIGN.md:**
+   - §3 String gold: the ring wraps the figure's name when it runs past the bar.
+   - §6 Detail panel: map heading "[place], [century or centuries]"; the Year map has no heading; the band and buttons stay put while the body scrolls inside the rounded frame.
+
+**Verification**
+- Unit tests for `centurySpanLabel`: 534–600 → "6th Century"; 534–636 → "6th and 7th Centuries"; 296–373 → "3rd and 4th Centuries"; 63 BC–AD 14 → "1st Century BC and 1st Century"; 250–450 → "3rd to 5th Centuries".
+- E2E (fixture):
+  - The panel's map heading reads "Alexandria, 3rd and 4th Centuries" for Athanasius.
+  - The Year dialog has no `.historical-map-section h3`.
+  - The open dialog's scroller is `.modal-scroll`. After scrolling it, the band and the close button are still in view.
+  - Selecting a figure whose name overruns the bar (zoom out to find one): the ring's right edge is at or past the label's right edge.
+  - Existing tests that scroll `.modal-content` are updated, saying why.
+- Shots: `panel`, `panel-expanded`, `year`, `detail-ruler`, desktop and laptop. Read the dialog corners at 2×.
+  - Chromium headless draws overlay scrollbars, so also run one shot with `--force-overlay-scrollbars` off or the classic scrollbar emulated, if possible. Otherwise check the computed layout: the scroller sits inside the clip.
+  - A zoomed-out `panel` shot to see the ring around the bar and the name.
+- Unit, the full e2e under Node 20, and lint on the touched files. Push to #171, watch CI, then report with the preview link.
+
+## No hover dimming, a gold ring for the selected figure, panel ⇄ popup (2026-10-09)
+
+**Context.** PR #170 is merged and live. Matthew raised three things:
+1. Hovering a figure makes every event, council and text flicker and fade. He thinks it's left over from an older version, and it can go.
+2. The selected figure should get the same gold border that a figure gets when you hover a related string. A better, more consistent "selected" look is also welcome.
+3. Outside the tour, details stay in the side panel, which keeps the context visible. The panel gains an **expand** button (two diagonal arrows pointing apart) that opens the larger popup. The tour keeps its popups, since the tour's own panel occupies the side.
+
+**What the code does today:**
+- **Hover dimming.** `useDepthFocus` (`ChurchHistory2App.jsx:150-192`) builds the focus set from `focusedPersonId ?? hoverPersonId`. With no selection, every person hover recomputes it.
+  - String labels snap to 0.5 opacity (`TimelineOverlay.jsx:434, 471`).
+  - Canvas strings snap from 0.3 to 0.12 (`TimelineCanvas.jsx:444-460`).
+  - The background wash re-blurs over 220ms (`DepthLayers.jsx`).
+  - It flickers because gaps between bars, and the string dots sitting on bars, send a "no person" hover, so the set empties and refills as the pointer moves.
+- **The selected figure has no mark at all** on the timeline (`selectedItem` never reaches the canvas or overlay). The gold ring for a hovered string is a DOM element in the overlay: `.point-string-person-ring` (`TimelineOverlay.jsx:450-462`, CSS `:232-241`), sized from the overlay's `bars`.
+- **Panel or popup** is chosen only by the tour (`ChurchHistory2App.jsx:316`: `detailVariant={tour.tourActive ? 'modal' : 'panel'}`). The panel's header has just the close button (`TimelineModal.jsx:625-632`). There is no expand icon in the set.
+
+**Changes (all Lifelines-only, by prop or config):**
+1. **Hover no longer dims.**
+   - In `useDepthFocus`, the focus comes only from the *selected* figure: `activeId = focusedPersonId`, with no hover preview.
+   - Hovering a figure still shows its hover card and darker edge; nothing else changes.
+   - **Selecting** a figure still lifts their own strings and ruler and quietens the rest. That is the context the panel is for, and it is steady, with no flicker. If Matthew wants that gone too, it's one line.
+   - Remove the now-dead `hoverPersonId` plumbing in the app (`onPersonHover` stays in the shared Timeline for other apps).
+2. **Gold ring on the selected figure.**
+   - The overlay takes an opt-in `selectedPersonId` prop. Timeline passes it only when `config.selectedRing` is set, which Lifelines sets.
+   - The overlay draws the same `.point-string-person-ring` around that figure's bar, at the same size, gold and glow as the hover ring, so "linked" and "selected" read as one visual language.
+   - It follows pan and zoom (it's computed from the same `bars`) and goes when the panel closes. It isn't drawn while the popup covers the timeline.
+   - This is consistent with the hover rule: gold means "this one, in focus".
+3. **Panel ⇄ popup.**
+   - New icons in the set's style (24×24, 1.5 stroke, round caps), added to both icon folders, `index.json` and `iconMap`:
+     - `expand.svg`: two diagonal arrows pointing apart;
+     - `collapse.svg`: two arrows pointing in.
+   - **Panel header:** an expand button beside the close button: 44×44, ink, `aria-label="Open larger view"`, tooltip "Larger view". It appears through an opt-in `onExpand` prop on `TimelineModal`, which only Lifelines passes.
+   - **App:**
+     - `detailExpanded` state; `detailVariant = tour.tourActive || detailExpanded ? 'modal' : 'panel'`.
+     - It resets when the selection closes or changes to another item.
+     - The popup is the existing modal, at its full width, with the bigger map.
+   - **In the expanded popup:**
+     - a collapse button (arrows in), `aria-label="Back to side panel"`, returns to the panel, with focus on the panel's title;
+     - × closes the detail entirely, as does Esc. Clicking the backdrop collapses back to the panel, which keeps the reader's place.
+     - It opens with the quiet fade, not the bar-grow: the reader is coming from the panel, not from the bar. In the tour, the grow from the bar stays.
+   - **Tour:** unchanged. Popups open as now, with no expand or collapse button.
+   - **Phones:** unchanged. There's no side panel there, so no expand button.
+4. **DESIGN.md:**
+   - §3: gold also marks the selected figure.
+   - §6 Detail row: the side panel by default outside the tour, with an expand button to the larger popup and back; the tour uses popups.
+   - §7/§8: hover no longer dims landmarks; selection does.
+
+**Verification**
+- E2E (fixture):
+  - Hovering Athanasius leaves every string label at opacity 1. Moving on and off a bar changes no label's opacity.
+  - Selecting Athanasius shows `.point-string-person-ring[data-person-id="athanasius"]` (a gold border); closing removes it.
+  - Expand in the panel → a modal dialog with `aria-modal`, no panel; collapse → the panel is back with focus on its title; × and Esc close everything.
+  - The tour's popup has no expand or collapse button.
+  - Update existing tests only where they encoded hover dimming. Say why in the commit, per rule 5.
+- Shots: `panel` (the ring visible beside the panel) and a new `panel-expanded` state, desktop and laptop, light and dark; read the header crops at 2×; `ux-review`.
+- Unit, the full e2e under Node 20, and lint on the touched files.
+- Commit, open a PR, subscribe, watch CI to green, and merge when Matthew says.
+
 ## Detail frame, realm colours, century cursor line (2026-10-08)
 
 Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thicker top band naming the type in white ("Emperors & monarchs", "Church figure", "Council", "Text", "Event", "Year"); colour monarchs by realm, with the unified empire maroon; check contrast. Then: the pointer's year line in the century's colour, 2–3px thicker.
@@ -12,7 +286,16 @@ Matthew: drop "Era:" from the popup; frame it in the entry's colour with a thick
 - `cursorLine`: 3px in the century colour; the pinned line and the Year dialog's band match.
 - Tests: unit `readable-color`, and three e2e tests in "Tour polish". Shots: new `detail-ruler`, `detail-text`, `year`, `cursor` states.
 
-## Now: "Yes to all" follow-ups (2026-10-08). Code is written, not yet committed
+## Now: merge PR #169 (CI suite on 7b18d74 completed with no failures)
+
+Matthew approved this work ("yes to all"). Both Codex threads are fixed, answered and resolved.
+1. Re-read the check runs on 7b18d74 and confirm all are green.
+2. Merge (merge commit) and unsubscribe.
+3. Fast-forward the branch to main and push.
+4. After CI's migration job has run, query `CH_TourScenes` (`jesus` narrative, `polycarp` link) and `CH_People` (`john-evangelist`).
+5. Tell Matthew it's live.
+
+## "Yes to all" follow-ups (2026-10-08). Code is written, not yet committed
 
 **Context.** PR #168 is merged and live. Matthew said yes to all three follow-ups.
 

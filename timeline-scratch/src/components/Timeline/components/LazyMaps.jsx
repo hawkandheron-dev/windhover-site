@@ -14,7 +14,7 @@ const YearDetailMapImpl = lazy(() => import('./YearDetailMap.jsx').then(m => ({ 
 function MapPlaceholder({ title, extraClass = '' }) {
   return (
     <div className="historical-map-section">
-      <h3>{title}</h3>
+      {title && <h3>{title}</h3>}
       <div className={`historical-map-container ${extraClass}`.trim()} aria-busy="true" />
     </div>
   );
@@ -23,7 +23,7 @@ function MapPlaceholder({ title, extraClass = '' }) {
 export function HistoricalMap(props) {
   if (!props.location) return null;
   return (
-    <Suspense fallback={<MapPlaceholder title={props.title ?? 'Historical Map'} />}>
+    <Suspense fallback={<MapPlaceholder title={props.title === undefined ? 'Historical Map' : props.title} />}>
       <HistoricalMapImpl {...props} />
     </Suspense>
   );
@@ -31,7 +31,7 @@ export function HistoricalMap(props) {
 
 export function YearDetailMap(props) {
   return (
-    <Suspense fallback={<MapPlaceholder title="Historical Map" extraClass="year-detail-map-container" />}>
+    <Suspense fallback={<MapPlaceholder title={props.title === undefined ? 'Historical Map' : props.title} extraClass="year-detail-map-container" />}>
       <YearDetailMapImpl {...props} />
     </Suspense>
   );

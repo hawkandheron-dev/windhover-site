@@ -142,15 +142,14 @@ function splitByLayer(merged) {
 /**
  * The depth state of the background layer, and which person it is focused on.
  *
- * Focus has two strengths and they are not the same interaction: hovering a
- * figure *previews* their background, clicking one *locks* it so it stays
- * legible while the detail panel is open. Holding Alt overrides both and
- * brings the whole layer forward.
+ * Focus follows the selected figure only: it stays legible while the detail
+ * panel is open. Hovering no longer previews it, because the landmarks
+ * flickered as the pointer crossed the gaps between bars (owner,
+ * 2026-10-09). Holding Alt brings the whole layer forward.
  */
 function useDepthFocus(index) {
   const [depthMode, setDepthMode] = useState('watercolour');
   const [focusedPersonId, setFocusedPersonId] = useState(null);
-  const [hoverPersonId, setHoverPersonId] = useState(null);
   const [altHeld, setAltHeld] = useState(false);
 
   useEffect(() => {
@@ -169,12 +168,9 @@ function useDepthFocus(index) {
     };
   }, []);
 
-  const activeId = focusedPersonId ?? hoverPersonId;
-  const isPreview = !focusedPersonId && Boolean(hoverPersonId);
-
   const focusIds = useMemo(
-    () => computeFocusSet(activeId, index),
-    [activeId, index]
+    () => computeFocusSet(focusedPersonId, index),
+    [focusedPersonId, index]
   );
 
   const handlePersonSelect = useCallback((personId) => {
@@ -186,8 +182,6 @@ function useDepthFocus(index) {
     setDepthMode,
     effectiveDepthMode: altHeld ? 'forward' : depthMode,
     focusIds,
-    isPreview,
-    onPersonHover: setHoverPersonId,
     onPersonSelect: handlePersonSelect,
   };
 }
@@ -303,8 +297,6 @@ function Timeline2({
         showBackgroundImage={false}
         focusIds={depth.focusIds}
         depthMode={sceneWantsBackground ? 'forward' : depth.effectiveDepthMode}
-        isFocusPreview={depth.isPreview}
-        onPersonHover={depth.onPersonHover}
         onPersonSelect={depth.onPersonSelect}
         // No depth control: the rulers stay faint, and hovering or choosing
         // a figure lifts theirs (owner's decision, M3 round 2). Its place in

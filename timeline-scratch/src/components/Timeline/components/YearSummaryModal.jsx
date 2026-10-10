@@ -2,7 +2,7 @@
  * Modal component for displaying year summary (people alive, periods active, points)
  */
 
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { Fragment, useEffect, useCallback, useState, useRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { DetailTypeBand } from './DetailTypeBand.jsx';
 import { YearDetailMap } from './LazyMaps.jsx';
@@ -68,6 +68,11 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
     onClose();
   }, [itemIndex, onSelectItem, onClose]);
 
+  // config.detailScrollBody: only the body scrolls (see TimelineModal).
+  const framed = config?.detailScrollBody === true;
+  const ScrollBody = framed ? 'div' : Fragment;
+  const scrollBodyProps = framed ? { className: 'modal-scroll' } : {};
+
   const typeBand = typeof config?.detailTypeBand === 'function'
     ? config.detailTypeBand({ year }, 'year')
     : null;
@@ -76,7 +81,7 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
     <div className="timeline-modal" onClick={onClose}>
       <div className="modal-backdrop" />
       <div
-        className={`modal-content year-summary-modal${typeBand ? ' modal-content--accent modal-content--banded' : ''}`}
+        className={`modal-content year-summary-modal${typeBand ? ' modal-content--accent modal-content--banded' : ''}${framed ? ' modal-content--framed' : ''}`}
         style={typeBand ? { '--detail-accent': typeBand.color } : undefined}
         onClick={e => e.stopPropagation()}
       >
@@ -89,6 +94,7 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
           &times;
         </button>
 
+        <ScrollBody {...scrollBodyProps}>
         <h2 className="modal-title">
           {formatYear(year)}
         </h2>
@@ -101,6 +107,9 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
             hoveredPersonId={hoveredPersonId}
             onHoverPerson={handleHoverPerson}
             credit={config?.mapCreditLine === true}
+            // config.yearMapHeading === false (Lifelines): the year above
+            // already says what the map shows.
+            title={config?.yearMapHeading === false ? null : undefined}
           />
         )}
 
@@ -246,6 +255,7 @@ export function YearSummaryModal({ year, summary, config, onClose, itemIndex, on
         {activePeriods.length === 0 && alivePeople.length === 0 && yearPoints.length === 0 && nearbyPoints.length === 0 && (
           <p className="summary-empty">No data for this year.</p>
         )}
+        </ScrollBody>
       </div>
     </div>
   );

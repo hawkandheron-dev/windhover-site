@@ -138,6 +138,46 @@ const TABLES = {
   ],
 };
 
+// Touches are dispatched as touch events inside the page, so the same
+// helper drives Chromium and WebKit (Safari's engine, which phones run).
+// It used to go through Chrome's DevTools protocol, which exists only in
+// Chromium (Firefox/WebKit CI, M4).
+async function touch(page) {
+  const send = (type, points) => page.evaluate(({ type, points }) => {
+    const at = points[0] || window.__lastTouchPoint || [0, 0];
+    const target = document.elementFromPoint(at[0], at[1]) || document.body;
+    if (points.length) window.__lastTouchPoint = points[0];
+    // Plain touch points on a plain event: desktop WebKit refuses
+    // `new Touch()` ("Illegal constructor"), and the timeline only reads
+    // identifier and clientX/Y from each point.
+    const point = ([x, y], i) => ({ identifier: i, target, clientX: x, clientY: y, pageX: x, pageY: y });
+    const touches = points.map(point);
+    const ev = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperties(ev, {
+      touches: { value: type === 'touchend' ? [] : touches },
+      targetTouches: { value: type === 'touchend' ? [] : touches },
+      changedTouches: { value: touches.length ? touches : [point(at, 0)] },
+    });
+    target.dispatchEvent(ev);
+  }, { type, points });
+  return {
+    async drag(from, to, steps = 8) {
+      await send('touchstart', [from]);
+      for (let i = 1; i <= steps; i++) {
+        await send('touchmove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
+      }
+      await send('touchend', []);
+    },
+    async pinch(center, fromGap, toGap, steps = 8) {
+      const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
+      await send('touchstart', at(fromGap));
+      for (let i = 1; i <= steps; i++) await send('touchmove', at(fromGap + (toGap - fromGap) * i / steps));
+      await send('touchend', []);
+    },
+  };
+}
+
+
 async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false, tables, clerkKey = '' } = {}) {
   await installConfigMock(page, { clerkKey });
   await installClerkMock(page);
@@ -294,10 +334,13 @@ test.describe('CH Timeline 2.0', () => {
     });
   }
 
-  test('the timeline starts at 100 BC', async ({ page }) => {
-    await loadPage(page);
+  test('the timeline starts at 100 BC (real data)', async ({ page }) => {
+    // 100 years before the earliest church entry (Jesus, 3 BC), now a rule
+    // rather than a fixed year (owner, 2026-10-10), so it needs real data.
+    await loadPage(page, { realData: true });
     // Pan far to the left: the view stops at the floor.
-    for (let i = 0; i < 6; i++) await page.locator('[title="Scroll left"]').dispatchEvent('mousedown');
+    // (Arrow-key panning is covered by the wheel below; the on-screen arrows
+    // went with the other buttons, owner 2026-10-09.)
     await page.locator('.timeline-container').evaluate(el => {
       for (let i = 0; i < 40; i++) el.dispatchEvent(new WheelEvent('wheel', { deltaX: -400, bubbles: true, cancelable: true }));
     });
@@ -618,8 +661,9 @@ test.describe('CH Timeline 2.0', () => {
     // scale the visible span is wider than the pannable range and the clamp
     // legitimately pins the viewport — the anchor invariant only means
     // something once the span fits inside the range.
+    // (With the + key: the zoom buttons went, owner 2026-10-09.)
     for (let i = 0; i < 4; i++) {
-      await page.locator('button:has-text("Zoom in")').click();
+      await page.keyboard.press('+');
       await page.waitForTimeout(120);
     }
     await page.waitForTimeout(300);
@@ -742,12 +786,13 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
     const label = page.locator('.mobile-zoom-label');
     await expect(label).toHaveText(/AD/);
     const before = await label.textContent();
-    // Zoom out twice: more years on screen, so the range must widen each time.
-    const zoomOut = page.locator('.mobile-zoom-controls .mobile-toolbar-btn').first();
-    await zoomOut.click();
+    // Pinch in twice: more years on screen, so the range must widen each
+    // time. (Pinch, now that the toolbar's zoom buttons went, owner 2026-10-09.)
+    const t = await touch(page);
+    await t.pinch([195, 500], 240, 120);
     await expect(label).not.toHaveText(before);
     const mid = await label.textContent();
-    await zoomOut.click();
+    await t.pinch([195, 500], 240, 120);
     await expect(label).not.toHaveText(mid);
   });
 
@@ -764,9 +809,13 @@ test.describe('Lifelines release fixes (milestone 1)', () => {
       return (years[0] + years[years.length - 1]) / 2;
     };
     const before = middle(await label.textContent());
-    const zoomIn = page.locator('.mobile-zoom-controls .mobile-toolbar-btn').nth(1);
-    await zoomIn.click();
-    await zoomIn.click();
+    // Spread the fingers about the middle of the screen (the toolbar's zoom
+    // buttons went, owner 2026-10-09).
+    const t = await touch(page);
+    const scroller = await page.locator('.mobile-timeline-scroll').boundingBox();
+    const mid = [195, scroller.y + scroller.height / 2];
+    await t.pinch(mid, 100, 200);
+    await t.pinch(mid, 100, 200);
     await expect(label).not.toHaveText(/BC/);
     expect(Math.abs(middle(await label.textContent()) - before)).toBeLessThanOrEqual(8);
   });
@@ -1635,12 +1684,13 @@ test.describe('Review round fixes (milestone 3)', () => {
     await expect(page.locator('.timeline-search-option-type')).toHaveCount(0);
   });
 
-  test('the detail panel leads with the description and a sentence-case map heading', async ({ page }) => {
+  test('the detail panel leads with the description, then a map headed by place and centuries', async ({ page }) => {
     await loadPage(page);
     await page.locator('.timeline-search-input').first().fill('Athanasius');
     await page.locator('.timeline-search-dropdown [role="option"]').first().click();
     const panel = page.locator('.timeline-modal--panel');
-    await expect(panel.locator('.historical-map-section h3')).toHaveText('Historical map');
+    // "Historical map" gave way to place and centuries (owner, 2026-10-09).
+    await expect(panel.locator('.historical-map-section h3')).toHaveText('Alexandria, 3rd and 4th Centuries');
     // boundingBox() doesn't wait; under a busy parallel run the description
     // could still be mounting when it was measured.
     await expect(panel.locator('.modal-description')).toBeVisible();
@@ -1817,7 +1867,7 @@ test.describe('Review round fixes (milestone 3)', () => {
   test('a click on empty timeline opens that year; a click on the controls does not', async ({ page }) => {
     await loadPage(page);
     // Controls and the legend are not empty timeline: no year summary.
-    await page.getByRole('button', { name: 'Zoom in' }).click();
+    await page.getByRole('button', { name: 'Horizontal' }).click();
     await page.getByRole('checkbox', { name: 'Councils' }).click();
     await page.getByRole('checkbox', { name: 'Councils' }).click();
     await expect(page.getByRole('heading', { level: 2 }).filter({ hasText: /\d+ (AD|BC)/ })).toHaveCount(0);
@@ -1846,45 +1896,6 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
     test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
   });
 
-  // Touches are dispatched as touch events inside the page, so the same
-  // helper drives Chromium and WebKit (Safari's engine, which phones run).
-  // It used to go through Chrome's DevTools protocol, which exists only in
-  // Chromium (Firefox/WebKit CI, M4).
-  async function touch(page) {
-    const send = (type, points) => page.evaluate(({ type, points }) => {
-      const at = points[0] || window.__lastTouchPoint || [0, 0];
-      const target = document.elementFromPoint(at[0], at[1]) || document.body;
-      if (points.length) window.__lastTouchPoint = points[0];
-      // Plain touch points on a plain event: desktop WebKit refuses
-      // `new Touch()` ("Illegal constructor"), and the timeline only reads
-      // identifier and clientX/Y from each point.
-      const point = ([x, y], i) => ({ identifier: i, target, clientX: x, clientY: y, pageX: x, pageY: y });
-      const touches = points.map(point);
-      const ev = new Event(type, { bubbles: true, cancelable: true });
-      Object.defineProperties(ev, {
-        touches: { value: type === 'touchend' ? [] : touches },
-        targetTouches: { value: type === 'touchend' ? [] : touches },
-        changedTouches: { value: touches.length ? touches : [point(at, 0)] },
-      });
-      target.dispatchEvent(ev);
-    }, { type, points });
-    return {
-      async drag(from, to, steps = 8) {
-        await send('touchstart', [from]);
-        for (let i = 1; i <= steps; i++) {
-          await send('touchmove', [[from[0] + (to[0] - from[0]) * i / steps, from[1] + (to[1] - from[1]) * i / steps]]);
-        }
-        await send('touchend', []);
-      },
-      async pinch(center, fromGap, toGap, steps = 8) {
-        const at = (gap) => [[center[0] - gap / 2, center[1]], [center[0] + gap / 2, center[1]]];
-        await send('touchstart', at(fromGap));
-        for (let i = 1; i <= steps; i++) await send('touchmove', at(fromGap + (toGap - fromGap) * i / steps));
-        await send('touchend', []);
-      },
-    };
-  }
-
   // "30–130 AD" → [30, 130]; good enough for AD-only spans.
   async function span(page) {
     const text = await page.locator('.zoom-info').textContent();
@@ -1896,11 +1907,8 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
     await loadPage(page, PHONE);
     await expect(page.locator('.mobile-timeline')).toHaveCount(0);
     await expect(page.locator('.zoom-info')).toHaveText('1–160 AD');
-    // Touch-sized zoom buttons, still named for a screen reader.
-    const zoomIn = page.getByRole('button', { name: 'Zoom in' });
-    const box = await zoomIn.boundingBox();
-    expect(box.width).toBeGreaterThanOrEqual(44);
-    expect(box.height).toBeGreaterThanOrEqual(44);
+    // No zoom or pan buttons: fingers do it (owner, 2026-10-09).
+    await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
   });
 
   test('a finger drag pans the timeline', async ({ page }) => {
@@ -1936,5 +1944,242 @@ test.describe('Horizontal phone prototype (milestone 3) @phone', () => {
     // Spreading the fingers threefold shows about a third as many years.
     await expect.poll(async () => { const [a, b] = await span(page); return b - a; })
       .toBeLessThan((b0 - a0) / 2);
+  });
+});
+
+test.describe('Selection and the larger view (2026-10-09)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  const openAthanasius = async (page) => {
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+  };
+
+  test('hovering a figure leaves the landmarks as they are', async ({ page }) => {
+    // Hovering used to preview the figure's focus, fading every other
+    // landmark, and the fade flickered as the pointer crossed the gaps
+    // between bars (owner, 2026-10-09).
+    await loadPage(page);
+    const labels = page.locator('.point-string-label');
+    const opacities = () => labels.evaluateAll(els => els.map(e => getComputedStyle(e).opacity));
+    const before = await opacities();
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    await page.mouse.move(label.x + label.width + 6, label.y + label.height / 2);
+    await expect(page.locator('.hover-preview')).toBeVisible();
+    expect(await opacities()).toEqual(before);
+    expect(before.every(o => o === '1')).toBe(true);
+  });
+
+  test('the open figure keeps a gold ring until the panel closes', async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    const ring = page.locator('.point-string-person-ring.is-selected[data-person-id="athanasius"]');
+    await expect(ring).toBeVisible();
+    await expect(ring).toHaveCSS('border-top-color', 'rgb(227, 169, 43)');
+    // It sits around Athanasius's bar.
+    const r = await ring.boundingBox();
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    expect(label.x).toBeGreaterThan(r.x);
+    expect(label.y).toBeGreaterThan(r.y);
+    expect(label.y + label.height).toBeLessThan(r.y + r.height);
+    await page.locator('.modal-close').click();
+    await expect(ring).toHaveCount(0);
+  });
+
+  test('the panel opens out into the larger view and back', async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+
+    // The same detail, now a centred dialog over the page.
+    const dialog = page.getByRole('dialog', { name: 'Athanasius' });
+    await expect(dialog).toBeVisible();
+    await expect(page.locator('.timeline-modal--panel')).toHaveCount(0);
+    await expect(page.locator('body.modal-open')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Open larger view' })).toHaveCount(0);
+    await expect(page.locator('#timeline-detail-title')).toBeFocused();
+
+    // Back to the panel, with focus on its title.
+    await page.getByRole('button', { name: 'Back to side panel' }).click();
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+    await expect(page.locator('body.modal-open')).toHaveCount(0);
+    await expect(page.locator('#timeline-detail-title')).toBeFocused();
+
+    // Clicking outside the larger view also goes back to the panel.
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+    await expect(dialog).toBeVisible();
+    await page.mouse.click(30, 450);
+    await expect(page.locator('.timeline-modal--panel')).toBeVisible();
+
+    // Esc from the larger view closes the detail, and the next figure opens
+    // in the panel again.
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.timeline-modal')).toHaveCount(0);
+    await openAthanasius(page);
+    await expect(page.getByRole('button', { name: 'Open larger view' })).toBeVisible();
+  });
+
+  test('a tour popup has no expand or collapse button (real data)', async ({ page }) => {
+    await loadPage(page, { realData: true, dismissWelcome: false });
+    await page.getByRole('button', { name: 'Take the Tour' }).click();
+    const next = () => page.evaluate(() => document.querySelector('[title^="Next"]')?.click());
+    for (let i = 0; i < 6; i++) { await next(); await page.waitForTimeout(200); }
+    await expect(page.locator('.tour-panel')).toContainText('7 of 20');
+    await expect(page.getByRole('dialog', { name: /Irenaeus/ })).toBeVisible();
+    await expect(page.locator('.modal-resize')).toHaveCount(0);
+  });
+  test("a figure's map is headed by place and centuries; the year's map has no heading", async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    await expect(page.locator('.timeline-modal--panel .historical-map-section h3'))
+      .toHaveText('Alexandria, 3rd and 4th Centuries');
+    await page.locator('.modal-close').click();
+    await page.mouse.move(300, 450);
+    await page.mouse.click(310, 455);
+    await expect(page.locator('.year-summary-modal')).toBeVisible();
+    await expect(page.locator('.year-summary-modal .historical-map-section h3')).toHaveCount(0);
+  });
+
+  test('only the body of the larger view scrolls; the band and buttons stay put', async ({ page }) => {
+    // The frame used to scroll itself, and Windows drew its square scrollbar
+    // over the rounded corners (owner, 2026-10-09).
+    await loadPage(page, { viewport: { width: 1280, height: 600 } });
+    await openAthanasius(page);
+    await page.getByRole('button', { name: 'Open larger view' }).click();
+    const frame = page.locator('.timeline-modal .modal-content');
+    const body = frame.locator('> .modal-scroll');
+    await expect(frame).toHaveCSS('overflow-y', 'hidden');
+    await expect(body).toHaveCSS('overflow-y', 'auto');
+    expect(await body.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+    await page.waitForTimeout(400); // the dialog's opening scale
+    const bandBefore = await frame.locator('.modal-type-band').boundingBox();
+    await body.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    expect(await frame.locator('.modal-type-band').boundingBox()).toEqual(bandBefore);
+    await expect(page.getByRole('button', { name: 'Close details' })).toBeInViewport();
+  });
+
+  test("choosing a figure whose name runs past their bar zooms in until it fits", async ({ page }) => {
+    // A ring round bar and overhanging name read badly (owner, 2026-10-09).
+    await loadPage(page);
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('-');
+      await page.waitForTimeout(150);
+    }
+    const readout = page.locator('.zoom-info');
+    const before = await readout.textContent();
+    await openAthanasius(page);
+    await expect(readout).not.toHaveText(before);
+    await page.waitForTimeout(900); // the 600ms glide
+    const ring = await page.locator('.point-string-person-ring.is-selected').boundingBox();
+    const label = await page.locator('.person-label', { hasText: 'Athanasius' }).first().boundingBox();
+    // The ring is round the bar alone, and the whole name, dates too, sits inside.
+    await expect(page.locator('.person-label', { hasText: 'Athanasius' }).first()).toContainText('296');
+    expect(label.x).toBeGreaterThan(ring.x);
+    expect(label.x + label.width).toBeLessThan(ring.x + ring.width);
+  });
+
+  test('choosing a figure whose name already fits leaves the view alone', async ({ page }) => {
+    await loadPage(page);
+    await openAthanasius(page);
+    await page.waitForTimeout(900); // the panel has taken its width
+    // Search centres the figure, so the range moves; its length is the zoom.
+    const readout = page.locator('.zoom-info');
+    const span = async () => { const [a, b] = (await readout.textContent()).match(/\d+/g).map(Number); return b - a; };
+    const before = await span();
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Eusebius');
+    await page.locator('.timeline-search-option', { hasText: 'Eusebius' }).first().click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText('Eusebius');
+    await page.waitForTimeout(900);
+    expect(await span()).toBe(before);
+  });
+});
+
+test.describe('No navigation buttons; keys zoom (2026-10-09)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  const span = async (page) => {
+    const [a, b] = (await page.locator('.zoom-info').textContent()).match(/\d+/g).map(Number);
+    return b - a;
+  };
+
+  test('the timeline has only the years readout and the Layout toggle', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator('.zoom-info')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Layout' })).toBeVisible();
+    await expect(page.locator('.compass-rose')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Zoom (in|out)/ })).toHaveCount(0);
+  });
+
+  test('+ and − zoom, and 0 goes back to the opening view', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+    const opening = await span(page);
+    await page.keyboard.press('+');
+    await expect.poll(() => span(page)).toBeLessThan(opening);
+    await page.keyboard.press('-');
+    await page.keyboard.press('-');
+    await expect.poll(() => span(page)).toBeGreaterThan(opening);
+    await page.keyboard.press('0');
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+  });
+
+  test('typing in search never zooms', async ({ page }) => {
+    await loadPage(page);
+    await page.locator('.timeline-search input').first().fill('');
+    await page.locator('.timeline-search input').first().pressSequentially('+-0');
+    await page.waitForTimeout(300);
+    await expect(page.locator('.zoom-info')).toHaveText('1–500 AD');
+  });
+
+  test('the phone toolbar keeps Filter, the readout and Layout, without zoom buttons', async ({ page }) => {
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true });
+    const bar = page.locator('.mobile-timeline-toolbar');
+    await expect(bar.locator('.mobile-toolbar-btn', { hasText: 'Filter' })).toBeVisible();
+    await expect(bar.locator('.mobile-zoom-label')).toBeVisible();
+    await expect(bar.locator('.mobile-zoom-controls button')).toHaveCount(0);
+  });
+});
+
+test.describe('Time bounds (2026-10-10)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  test('zooming right out stops at 100 BC to AD 2100 (real data)', async ({ page }) => {
+    // It used to run on to 102700 AD (owner, 2026-10-10).
+    await loadPage(page, { realData: true });
+    for (let i = 0; i < 20; i++) await page.keyboard.press('-');
+    await expect(page.locator('.zoom-info')).toHaveText(/^100 BC\s*[–-]\s*2100 AD$/);
+  });
+
+  test('no year label is cut off at either edge of the axis (real data)', async ({ page }) => {
+    await loadPage(page, { realData: true });
+    for (let i = 0; i < 20; i++) await page.keyboard.press('-');
+    await page.waitForTimeout(300);
+    // The axis is drawn on the canvas: read the leftmost and rightmost few
+    // pixel columns of the label band just under the axis line for ink.
+    const ink = await page.evaluate(() => {
+      const c = [...document.querySelectorAll('.timeline-container canvas')].pop();
+      const ctx = c.getContext('2d');
+      const dpr = c.width / c.clientWidth;
+      const axis = document.querySelector('.timeline-container').getBoundingClientRect();
+      // The axis y isn't exposed; scan the whole height of two thin strips.
+      const strip = (x) => ctx.getImageData(Math.round(x * dpr), 0, Math.max(1, Math.round(2 * dpr)), c.height).data;
+      const dark = (d) => { let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] < 120 && d[i + 1] < 120 && d[i + 2] < 120) n++; return n; };
+      return { left: dark(strip(0)), right: dark(strip(c.clientWidth - 2)), w: axis.width };
+    });
+    expect(ink.left).toBe(0);
+    expect(ink.right).toBe(0);
   });
 });

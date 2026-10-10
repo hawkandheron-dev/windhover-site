@@ -122,7 +122,7 @@ export function HistoricalMap({ location, birthYear, title = 'Historical Map', c
 
   return (
     <div className="historical-map-section">
-      <h3>{title}</h3>
+      {title && <h3>{title}</h3>}
       {mapsWork ? (
         <div className="historical-map-container" ref={mapContainerRef} />
       ) : (

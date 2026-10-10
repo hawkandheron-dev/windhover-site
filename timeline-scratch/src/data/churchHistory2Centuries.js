@@ -94,3 +94,28 @@ export function ordinal(n) {
     default: return `${n}th`;
   }
 }
+
+/** The century number of a year, counting back from AD 1 for a BC year. */
+function centuryNumber(year) {
+  return year < 1 ? Math.floor(-year / 100) + 1 : centuryOf(year);
+}
+
+/**
+ * The centuries a life or event spans, for a map heading (owner, 2026-10-09):
+ * "6th Century", "6th and 7th Centuries", "4th to 6th Centuries". Across AD 1
+ * each end names its era: "1st Century BC and 1st Century".
+ */
+export function centurySpanLabel(startYear, endYear = startYear) {
+  const valid = (y) => y !== null && y !== undefined && !Number.isNaN(y);
+  if (!valid(startYear)) return '';
+  const end = valid(endYear) ? endYear : startYear;
+  const era = (y) => (y < 1 ? ' BC' : '');
+  const a = centuryNumber(startYear);
+  const b = centuryNumber(end);
+  if ((startYear < 1) !== (end < 1)) {
+    return `${ordinal(a)} Century${era(startYear)} and ${ordinal(b)} Century${era(end)}`;
+  }
+  if (a === b) return `${ordinal(a)} Century${era(end)}`;
+  const joint = Math.abs(a - b) === 1 ? 'and' : 'to';
+  return `${ordinal(a)} ${joint} ${ordinal(b)} Centuries${era(end)}`;
+}

@@ -456,8 +456,12 @@ export function drawVerticalGuideLines(ctx, width, height, viewportStartYear, ye
  * @param {number} labelInterval - Year interval between labels
  * @param {string} eraLabels - "BC/AD" or "BCE/CE"
  * @param {Object} [palette] - Optional colour overrides; defaults to parchment
+ * @param {Object} [options]
+ * @param {boolean} [options.skipClippedLabels] - Leave out a year label whose
+ *   text would run past either edge (Lifelines: a half-shown "100 BC" at the
+ *   left edge, owner 2026-10-10). Its tick still shows.
  */
-export function drawTimeAxis(ctx, width, height, axisY, viewportStartYear, yearsPerPixel, labelInterval, eraLabels = 'BC/AD', palette = {}) {
+export function drawTimeAxis(ctx, width, height, axisY, viewportStartYear, yearsPerPixel, labelInterval, eraLabels = 'BC/AD', palette = {}, { skipClippedLabels = false } = {}) {
   ctx.save();
   ctx.strokeStyle = palette.axis || '#bbb0a0';
   ctx.fillStyle = palette.axisText || '#5a4e3a';
@@ -490,6 +494,10 @@ export function drawTimeAxis(ctx, width, height, axisY, viewportStartYear, years
     const label = formatYear(year, eraLabels);
 
     // Draw label
+    if (skipClippedLabels) {
+      const half = ctx.measureText(label).width / 2;
+      if (x - half < 0 || x + half > width) continue;
+    }
     ctx.fillText(label, x, axisY + 8);
   }
 
