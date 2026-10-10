@@ -217,6 +217,9 @@ export const churchHistory2Config = {
    *  so the ring round the bar holds the name (owner, 2026-10-09: a ring
    *  round bar and overhanging name read badly). */
   selectFitsName: true,
+  /** Admins can take an entry out of the public view, and put it back in
+   *  Expanded view (owner, 2026-10-10). */
+  adminVisibility: true,
   /** No on-screen pan or zoom buttons: trackpad, wheel, drag, pinch and
    *  keys do it all, and + / − / 0 zoom and reset from the keyboard (owner,
    *  2026-10-09). The years readout and the Layout toggle stay. */

@@ -239,6 +239,10 @@ export function TimelineCanvas({
         ? { color: person.emphasisColor || color }
         : null;
 
+      // An entry out of the public view, shown only in admins' Expanded
+      // view: drawn faint, so it reads as set aside (Lifelines, 2026-10-10).
+      if (person.hidden) { ctx.save(); ctx.globalAlpha = 0.35; }
+
       // Monarchs: draw lifespan in lighter shade, reign in full color
       if (person.isMonarch && person.reignStartYear != null && person.reignEndYear != null) {
         const lifespanColor = lightenColor(color, 0.55);
@@ -257,6 +261,7 @@ export function TimelineCanvas({
         // Regular person or monarch without reign data: single color box
         drawPersonBox(ctx, x, displayWidth, y, boxHeight, color, isHovered, emphasis, person.gradient || null);
       }
+      if (person.hidden) ctx.restore();
 
       // The focus layer is the only place a background figure gets a name —
       // blurred labels on the resting layer are noise, not information.
@@ -449,7 +454,7 @@ export function TimelineCanvas({
       const x = Math.round(yearToPixel(getYearRange(point.date).start, viewportStartYear, yearsPerPixel)) + 0.5;
       if (x < -2 || x > width + 2) continue;
       const inFocus = focusActive && stringFocusIds.has(point.id);
-      ctx.globalAlpha = focusActive ? (inFocus ? 0.85 : 0.12) : 0.3;
+      ctx.globalAlpha = (focusActive ? (inFocus ? 0.85 : 0.12) : 0.3) * (point.hidden ? 0.5 : 1);
       ctx.lineWidth = inFocus ? 2 : 1;
       ctx.strokeStyle = point.color || '#888';
       ctx.beginPath();

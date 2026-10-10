@@ -100,7 +100,12 @@ const DOCTRINAL_ROLE_LABELS = {
 
 // ── Data fetching ─────────────────────────────────────────────────────────
 
-export async function fetchChurchHistory2Data() {
+/**
+ * @param {{includeHidden?: boolean}} [options] - includeHidden (admins' "Expanded
+ *   view" in the Key, owner 2026-10-10): keep inactive figures and events
+ *   and minor events, flagged `hidden: true`, instead of dropping them.
+ */
+export async function fetchChurchHistory2Data(options = {}) {
   const supabase = await getSupabase();
 
   const [
@@ -144,22 +149,24 @@ export async function fetchChurchHistory2Data() {
     movementFigures: movementFigures || [],
     movementEvents: movementEvents || [],
     eventConnections: eventConnections || [],
-  });
+  }, options);
 }
 
 // ── Transform ─────────────────────────────────────────────────────────────
 
-export function transformToTimelineFormat(db) {
+export function transformToTimelineFormat(db, { includeHidden = false } = {}) {
+  const keepPerson = (p) => (includeHidden || isActive(p)) && !HIDDEN_ROLES.has(p.doctrinal_role);
+  const keepEvent = (ev) => includeHidden || isShownEvent(ev);
   // Who survives the `active` flag and the hidden roles. Every relationship
   // below is filtered against this, so nothing points at a figure the timeline
   // no longer draws — a connection pill that opens nothing is worse than an
   // absent one.
   const keptPersonIds = new Set(
     db.people
-      .filter(p => isActive(p) && !HIDDEN_ROLES.has(p.doctrinal_role))
+      .filter(keepPerson)
       .map(p => p.person_id)
   );
-  const keptEventIds = new Set(db.events.filter(isShownEvent).map(e => e.event_id));
+  const keptEventIds = new Set(db.events.filter(keepEvent).map(e => e.event_id));
 
   const connectionMap = buildConnectionMap(db.connections);
   const sourceMap = buildSourceMap(db.sources, db.sourceFigures);
@@ -213,7 +220,7 @@ export function transformToTimelineFormat(db) {
   const reigns = [];
 
   for (const p of db.people) {
-    if (!isActive(p) || HIDDEN_ROLES.has(p.doctrinal_role)) continue;
+    if (!keepPerson(p)) continue;
 
     const shared = {
       id: p.person_id,
@@ -225,6 +232,8 @@ export function transformToTimelineFormat(db) {
       deathYear: p.death_year ?? null,
       location: p.location,
       description: p.description || null,
+      // Out of the public view (active = false); only kept in Expanded view.
+      hidden: !isActive(p),
       referenceUrl: p.reference_url || null,
       doctrinalRole: p.doctrinal_role || null,
       doctrinalRoleLabel: DOCTRINAL_ROLE_LABELS[p.doctrinal_role] || null,
@@ -281,7 +290,7 @@ export function transformToTimelineFormat(db) {
   // the main layer with the pin-and-flag callout the 1.0 timeline used, where
   // they are always labelled. Minor landmarks and inactive rows fall out here
   // (isShownEvent) rather than being special-cased.
-  const frontPoints = db.events.filter(isShownEvent).map(ev => {
+  const frontPoints = db.events.filter(keepEvent).map(ev => {
     const style = EVENT_STYLES[ev.event_type] || EVENT_STYLES.event;
     return {
       id: ev.event_id,
@@ -298,6 +307,10 @@ export function transformToTimelineFormat(db) {
       filterKey: style.filterKey,
       location: ev.location,
       description: ev.description || null,
+      // Out of the public view: inactive, or a minor landmark. Only kept in
+      // Expanded view; `minor` lets "Return to view" lift it to major too.
+      hidden: !isShownEvent(ev),
+      minor: ev.significance === 'minor',
       referenceUrl: ev.reference_url || null,
       connectedPeople: (eventConnectionMap.get(ev.event_id) || []).filter(id => keptPersonIds.has(id)),
       sources: sourceMap.get(ev.event_id) || [],
@@ -367,5 +380,22 @@ export function transformToTimelineFormat(db) {
       works: db.works,
       eventConnections: db.eventConnections,
     },
+  };
+}
+
+/**
+ * The public view of a dataset loaded with includeHidden: the same object
+ * without the people and points flagged `hidden`. Used the moment Expanded
+ * view turns off (or an admin signs out), so hidden entries don't linger
+ * on screen while the public data reloads (Codex review, PR #172).
+ */
+export function stripHidden(data) {
+  if (!data) return data;
+  const hasHidden = (data.people || []).some(p => p.hidden) || (data.points || []).some(p => p.hidden);
+  if (!hasHidden) return data;
+  return {
+    ...data,
+    people: (data.people || []).filter(p => !p.hidden),
+    points: (data.points || []).filter(p => !p.hidden),
   };
 }

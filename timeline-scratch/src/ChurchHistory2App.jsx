@@ -11,7 +11,7 @@ import {
 import { Timeline } from './components/Timeline/Timeline.jsx';
 import { TimelineSearch } from './components/Timeline/components/TimelineSearch.jsx';
 import { computeFocusSet } from './components/Timeline/utils/focusSet.js';
-import { fetchChurchHistory2Data, fetchTourScenes, updateLinkedMediaCrop } from './data/churchHistory2Adapter.js';
+import { fetchChurchHistory2Data, stripHidden, fetchTourScenes, updateLinkedMediaCrop } from './data/churchHistory2Adapter.js';
 import { churchHistory2Config, BACK_STYLES } from './data/churchHistory2Data.js';
 import { AddNoteModal } from './components/Notes/AddNoteModal.jsx';
 import { ViewMyNotesModal } from './components/Notes/ViewMyNotesModal.jsx';
@@ -495,7 +495,7 @@ function LifelinesShell({ frontData, backData, index, loading, error, onRetry, s
 /**
  * Inner app that calls useAuth — only rendered when ClerkProvider wraps us.
  */
-function AuthenticatedApp({ frontData, backData, index, loading, error, onRetry, allPeople, onReloadData, tourScenes }) {
+function AuthenticatedApp({ frontData, backData, index, loading, error, onRetry, allPeople, onReloadData, tourScenes, expandedView = false, onExpandedViewChange }) {
   const { getToken, isSignedIn, userId } = useAuth();
   const { user: clerkUser } = useUser();
   const [addNoteOpen, setAddNoteOpen] = useState(false);
@@ -568,6 +568,16 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, onRetry,
       .catch(err => console.warn('Failed to save crop position:', err));
   }, [isAdmin, getToken]);
 
+  // Expanded view is for admins only: signing out (or a non-admin account)
+  // drops back to the public view.
+  useEffect(() => {
+    if (!isAdmin && expandedView) onExpandedViewChange?.(false);
+  }, [isAdmin, expandedView, onExpandedViewChange]);
+
+  const legendToggle = useMemo(() => (isAdmin && onExpandedViewChange
+    ? { label: 'Expanded view', note: 'Admins: show hidden entries', checked: expandedView, onChange: onExpandedViewChange }
+    : null), [isAdmin, expandedView, onExpandedViewChange]);
+
   const timelineProps = useMemo(() => ({
     authContext,
     allPeople,
@@ -575,7 +585,8 @@ function AuthenticatedApp({ frontData, backData, index, loading, error, onRetry,
     contributorContext,
     onEntityUpdated: handleEntityUpdated,
     onDataChanged: handleEntityUpdated,
-  }), [authContext, allPeople, adminContext, contributorContext, handleEntityUpdated]);
+    legendToggle,
+  }), [authContext, allPeople, adminContext, contributorContext, handleEntityUpdated, legendToggle]);
 
   if (view === 'suggestions' && isAdmin) {
     return (
@@ -715,6 +726,9 @@ function ChurchHistory2App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // Admins' Expanded view (the Key): also load the entries kept out of the
+  // public view, marked as hidden (owner, 2026-10-10).
+  const [expandedView, setExpandedView] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -725,7 +739,7 @@ function ChurchHistory2App() {
         setError(null);
         // Both at once: the tour scenes used to wait for all ten tables.
         const [result, scenes] = await Promise.all([
-          fetchChurchHistory2Data(),
+          fetchChurchHistory2Data({ includeHidden: expandedView }),
           fetchTourScenes().catch(() => null),
         ]);
         if (cancelled) return;
@@ -751,11 +765,16 @@ function ChurchHistory2App() {
 
     loadData();
     return () => { cancelled = true; };
-  }, [reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [reloadKey, expandedView]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleReloadData = useCallback(() => {
     setReloadKey(k => k + 1);
   }, []);
+
+  // Hidden entries go the moment Expanded view is off, not when the reload
+  // that follows returns.
+  const shownFront = useMemo(() => (expandedView ? frontData : stripHidden(frontData)), [expandedView, frontData]);
+  const shownBack = useMemo(() => (expandedView ? backData : stripHidden(backData)), [expandedView, backData]);
 
   return (
     <div className="app ch2-app">
@@ -770,8 +789,8 @@ function ChurchHistory2App() {
       </a>
       {hasClerk ? (
         <AuthenticatedApp
-          frontData={frontData}
-          backData={backData}
+          frontData={shownFront}
+          backData={shownBack}
           index={index}
           loading={loading}
           error={error}
@@ -779,11 +798,13 @@ function ChurchHistory2App() {
           allPeople={allPeople}
           onReloadData={handleReloadData}
           tourScenes={tourScenes}
+          expandedView={expandedView}
+          onExpandedViewChange={setExpandedView}
         />
       ) : (
         <UnauthenticatedApp
-          frontData={frontData}
-          backData={backData}
+          frontData={shownFront}
+          backData={shownBack}
           index={index}
           loading={loading}
           error={error}

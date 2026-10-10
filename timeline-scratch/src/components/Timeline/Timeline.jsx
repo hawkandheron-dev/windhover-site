@@ -50,7 +50,7 @@ const DEPTH_MODES = [
   { id: 'forward',     label: 'Front',  title: 'Bring the whole background into focus — or hold Alt' },
 ];
 
-export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle, animationWave, detailMapFrom }, ref) {
+export const Timeline = forwardRef(function Timeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode, isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, layout, layoutToggle, animationWave, detailMapFrom, legendToggle }, ref) {
   const isMobile = useMobileDetect();
 
   // Which timeline to draw. By default the vertical one on small screens and
@@ -68,6 +68,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       <MobileTimeline
         ref={ref}
         layoutToggle={layoutToggle}
+        legendToggle={legendToggle}
         detailBrief={detailBrief}
         data={data}
         backData={backData}
@@ -96,6 +97,7 @@ export const Timeline = forwardRef(function Timeline({ data, config, onViewportC
       layoutToggle={layoutToggle}
       animationWave={animationWave}
       detailMapFrom={detailMapFrom}
+      legendToggle={legendToggle}
       onViewportChange={onViewportChange}
       onItemClick={onItemClick}
       suppressModal={suppressModal}
@@ -139,7 +141,7 @@ if (typeof window !== 'undefined') {
 }
 const noHover = () => Date.now() - lastTouchAt < TOUCH_ECHO_MS;
 
-const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false, detailMapFrom }, ref) {
+const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onViewportChange, onItemClick, suppressModal = false, authContext, allPeople, adminContext, contributorContext, onEntityUpdated, onDataChanged, showBackgroundImage = false, layoutSizes, animatingIds, animatingPointIds, hideLegend = false, isTourMode = false, backData, focusIds, depthMode = 'watercolour', isFocusPreview = false, detailVariant = 'modal', onPersonHover, onPersonSelect, onDepthModeChange, phoneLayout = false, layoutToggle, animationWave, detailBrief = false, detailMapFrom, legendToggle }, ref) {
   const containerRef = useRef(null);
   const wasDraggingRef = useRef(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -1349,6 +1351,7 @@ const DesktopTimeline = forwardRef(function DesktopTimeline({ data, config, onVi
           siteTitle={defaultConfig.siteTitle}
           siteSubtitle={defaultConfig.siteSubtitle}
           config={defaultConfig}
+          extraToggle={legendToggle}
         />
       )}
 

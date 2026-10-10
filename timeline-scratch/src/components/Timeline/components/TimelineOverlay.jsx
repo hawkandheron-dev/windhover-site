@@ -77,6 +77,8 @@ export function TimelineOverlay({
 
   // Get opacity for a person based on period highlighting and monarch dimming
   const getPersonOpacity = (person) => {
+    // Out of the public view (admins' Expanded view): faint, like its bar.
+    if (person.hidden) return 0.5;
     if (hoveredPeriod) {
       const { start, end } = getYearRange(person.startDate, person.endDate);
       return isInHoveredPeriod(start, end) ? 1 : 0.3;
@@ -478,8 +480,8 @@ export function TimelineOverlay({
           ))}
           {showLabel && (
             <div
-              className={`point-string-label${inFocus ? ' is-focus' : ''}${hovered ? ' is-hover' : ''}`}
-              style={{ left: `${x + LABEL_OFFSET}px`, top: `${rowY}px`, opacity: focusActive && !inFocus ? 0.5 : 1 }}
+              className={`point-string-label${inFocus ? ' is-focus' : ''}${hovered ? ' is-hover' : ''}${point.hidden ? ' is-hidden' : ''}`}
+              style={{ left: `${x + LABEL_OFFSET}px`, top: `${rowY}px`, opacity: (focusActive && !inFocus) || point.hidden ? 0.5 : 1 }}
               {...handlers}
             >
               <StringMark mark={mark} color={point.color} size={8} />

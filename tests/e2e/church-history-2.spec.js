@@ -178,12 +178,15 @@ async function touch(page) {
 }
 
 
-async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false, tables, clerkKey = '' } = {}) {
+async function loadPage(page, { viewport = { width: 1400, height: 900 }, mobile = false, dismissWelcome = true, query = '', at, realData = false, tables, clerkKey = '', setup } = {}) {
   await installConfigMock(page, { clerkKey });
   await installClerkMock(page);
   // realData: the snapshot of the live tables, for checks that only mean
   // something at real density (the fixture has seven people).
   await installSupabaseTableMock(page, tables ?? (realData ? SNAPSHOT : TABLES));
+  // Routes added here win over the ones above (Playwright tries the most
+  // recent first), e.g. a signed-in admin.
+  if (setup) await setup(page);
   await page.setViewportSize(viewport);
   // A query goes on the clean URL: the .html form redirects to it (here and on
   // Cloudflare Pages), and serve drops the query on the way.
@@ -2181,5 +2184,127 @@ test.describe('Time bounds (2026-10-10)', () => {
     });
     expect(ink.left).toBe(0);
     expect(ink.right).toBe(0);
+  });
+});
+
+// A signed-in admin, for the admin-only tools. Clerk's React bindings load
+// clerk-js and listen to it; this stub is just enough of it to report one
+// signed-in user with a session, and the users table says they are an admin.
+async function signInAsAdmin(page, writes) {
+  const stub = `
+    (function () {
+      var user = { id: 'user_admin', firstName: 'Ad', fullName: 'Ad Min',
+        primaryEmailAddress: { emailAddress: 'admin@example.com' }, emailAddresses: [],
+        publicMetadata: {}, unsafeMetadata: {} };
+      var session = { id: 'sess_admin', status: 'active', user: user, factorVerificationAge: null,
+        lastActiveToken: { jwt: { claims: { sub: 'user_admin' } }, getRawString: function () { return 'test-token'; } },
+        getToken: async function () { return 'test-token'; } };
+      var client = { sessions: [session], activeSessions: [session], lastActiveSessionId: session.id,
+        signIn: {}, signUp: {} };
+      var listeners = [];
+      window.Clerk = {
+        loaded: false, version: '5.60.0', sdkMetadata: {}, user: user, session: session, client: client,
+        organization: null, telemetry: null, isSatellite: false, frontendApi: 'clerk.test',
+        load: async function () { this.loaded = true; },
+        addListener: function (fn) { listeners.push(fn); fn({ client: client, session: session, user: user, organization: null }); return function () {}; },
+        signOut: async function () {}, openSignIn: function () {}, openSignUp: function () {},
+        mountUserButton: function () {}, unmountUserButton: function () {},
+        mountSignIn: function () {}, unmountSignIn: function () {},
+        __unstable__updateProps: function () {}, __internal_updateProps: function () {},
+        setActive: async function () {}, buildSignInUrl: function () { return '#'; },
+      };
+    })();
+  `;
+  for (const glob of ['**/npm/@clerk/clerk-js**', '**/clerk.browser.js']) {
+    await page.route(glob, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: stub }));
+  }
+  await page.route('**/*.supabase.co/**', async (route) => {
+    const req = route.request();
+    const name = decodeURIComponent(new URL(req.url()).pathname.split('/rest/v1/')[1] || '').split('?')[0];
+    if (name === 'users') {
+      return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify([{ clerk_user_id: 'user_admin', role: 'admin', display_name: 'Ad Min', email: 'admin@example.com' }]) });
+    }
+    if (req.method() === 'PATCH') {
+      writes.push({ table: name, url: req.url(), body: req.postDataJSON() });
+      return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({}) });
+    }
+    return route.fallback();
+  });
+}
+
+test.describe('Admins: remove from view, expanded view (2026-10-10)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  const openFigure = async (page, name) => {
+    const search = page.locator('.timeline-search input').first();
+    await search.fill(name);
+    await page.locator('.timeline-search-option', { hasText: name }).first().click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText(name);
+  };
+
+  test('a reader sees neither tool', async ({ page }) => {
+    await loadPage(page);
+    await expect(page.getByText('Expanded view')).toHaveCount(0);
+    await openFigure(page, 'Athanasius');
+    await expect(page.getByRole('button', { name: 'Remove from view' })).toHaveCount(0);
+  });
+
+  test('an admin can remove a figure from view; it saves active = false', async ({ page }) => {
+    const writes = [];
+    await loadPage(page, { clerkKey: TEST_CLERK_KEY, query: '?admin', setup: (p) => signInAsAdmin(p, writes) });
+    await openFigure(page, 'Athanasius');
+    await page.getByRole('button', { name: 'Remove from view' }).click();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0].table).toBe('CH_People');
+    expect(writes[0].url).toContain('person_id=eq.athanasius');
+    expect(writes[0].body).toEqual({ active: false });
+  });
+
+  test("an admin's Expanded view shows hidden entries, which can be returned to view", async ({ page }) => {
+    const writes = [];
+    await loadPage(page, { clerkKey: TEST_CLERK_KEY, query: '?admin', setup: (p) => signInAsAdmin(p, writes) });
+    // Melanchthon is inactive in the fixture: not on the timeline at first.
+    await expect(page.locator('.person-label', { hasText: 'Melanchthon' })).toHaveCount(0);
+    await page.getByRole('checkbox', { name: /Expanded view/ }).check();
+    const search = page.locator('.timeline-search input').first();
+    await search.fill('Melanchthon');
+    await page.locator('.timeline-search-option', { hasText: 'Melanchthon' }).first().click();
+    const panel = page.locator('.timeline-modal--panel');
+    await expect(panel.locator('.modal-hidden-tag')).toHaveText('Hidden from view');
+    await panel.getByRole('button', { name: 'Return to view' }).click();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0].body).toEqual({ active: true });
+  });
+
+  test('turning Expanded view off hides the entries at once, before the reload returns', async ({ page }) => {
+    const writes = [];
+    await loadPage(page, { clerkKey: TEST_CLERK_KEY, query: '?admin', setup: (p) => signInAsAdmin(p, writes) });
+    const toggle = page.getByRole('checkbox', { name: /Expanded view/ });
+    await toggle.check();
+    const hidden = page.locator('.person-label', { hasText: 'Melanchthon' });
+    // Melanchthon (1497) is far right of the opening view: find him.
+    await page.locator('.timeline-search input').first().fill('Melanchthon');
+    await page.locator('.timeline-search-option', { hasText: 'Melanchthon' }).first().click();
+    await expect(hidden).toHaveCount(1);
+    await page.locator('.modal-close').click();
+    // Hold the public reload back: the hidden entry must still go at once.
+    await page.route('**/rest/v1/CH_People**', () => {});
+    await page.getByRole('button', { name: 'Key' }).click().catch(() => {});
+    await toggle.uncheck();
+    await expect(hidden).toHaveCount(0, { timeout: 1500 });
+  });
+
+  test('on a phone, the Filter drawer has Expanded view too (Codex review)', async ({ page }) => {
+    const writes = [];
+    await loadPage(page, { viewport: { width: 390, height: 844 }, mobile: true, clerkKey: TEST_CLERK_KEY, query: '?admin', setup: (p) => signInAsAdmin(p, writes) });
+    await page.locator('.mobile-toolbar-btn', { hasText: 'Filter' }).click();
+    const toggle = page.getByRole('checkbox', { name: /Expanded view/ });
+    await expect(toggle).toBeVisible();
+    await toggle.check();
+    await expect(page.locator('.mobile-person-lane.is-hidden').first()).toBeAttached();
   });
 });

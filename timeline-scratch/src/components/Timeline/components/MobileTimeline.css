@@ -649,3 +649,14 @@
     animation: mobileRulersGlow 2600ms ease-out backwards;
   }
 }
+
+/* Entries out of the public view, shown only in admins' Expanded view. */
+.mobile-person-lane.is-hidden,
+.mobile-string.is-hidden {
+  opacity: 0.45;
+}
+
+.mobile-filter-extra {
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
+}

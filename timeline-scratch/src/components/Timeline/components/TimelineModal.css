@@ -1353,3 +1353,26 @@
 .modal-content--framed > .modal-resize {
   right: 68px;
 }
+
+/* Admins: Remove from view / Return to view (config.adminVisibility). */
+.modal-visibility {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 4px 0 16px;
+}
+
+.modal-hidden-tag {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-faded);
+  border: 1px dashed var(--color-border-hover, rgba(120, 100, 70, 0.4));
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.modal-visibility-error {
+  font-size: 13px;
+  color: var(--color-error, #b3261e);
+}
