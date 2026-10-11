@@ -16,6 +16,7 @@ import { Icon } from './Icon.jsx';
 import { DetailTypeBand } from './DetailTypeBand.jsx';
 import { EditableText } from './EditableText.jsx';
 import { sanitizeHtml } from '../../../utils/sanitize.js';
+import { formatDescriptionHtml } from '../../../utils/formatDescription.js';
 import { getWorksForAuthor } from '../../../data/works.js';
 import { fetchDescription } from '../../../services/wikipediaService.js';
 import {
@@ -33,8 +34,9 @@ import { HistoricalMap } from './LazyMaps.jsx';
 import { updatePerson, updateEvent } from '../../../services/entityEditService.js';
 import './TimelineModal.css';
 
-function linkifyDescription(description, itemIndex, currentItemId) {
-  if (!description || !itemIndex) return description;
+function linkifyDescription(description, itemIndex, currentItemId, { formatText = false } = {}) {
+  if (!description) return description;
+  if (!itemIndex) return formatText ? formatDescriptionHtml(description) : description;
 
   try {
     // Extract and strip trailing Wikipedia/Britannica URLs from the description,
@@ -49,6 +51,13 @@ function linkifyDescription(description, itemIndex, currentItemId) {
       const source = url.includes('wikipedia.org') ? 'Wikipedia' : 'Britannica';
       wikiLinkHtml = ` <a class="modal-wiki-source" href="${url}" target="_blank" rel="noopener noreferrer">Read more on ${source}</a>`;
     }
+    // config.descriptionText (Lifelines): the text is plain text, so its
+    // paragraphs and line breaks are kept and its addresses become links.
+    // "Read more on Wikipedia" then sits inside the last paragraph.
+    const withWikiLink = (html) => (formatText && html.endsWith('</p>')
+      ? `${html.slice(0, -4)}${wikiLinkHtml}</p>`
+      : html + wikiLinkHtml);
+    if (formatText) cleanedDescription = formatDescriptionHtml(cleanedDescription);
 
     const entries = Array.from(itemIndex.values())
       .map(({ item: entryItem, type }) => ({
@@ -60,7 +69,7 @@ function linkifyDescription(description, itemIndex, currentItemId) {
       .map(entry => ({ ...entry, lowerName: entry.name.toLowerCase() }))
       .sort((a, b) => b.name.length - a.name.length);
 
-    if (entries.length === 0) return cleanedDescription + wikiLinkHtml;
+    if (entries.length === 0) return withWikiLink(cleanedDescription);
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(`<div>${cleanedDescription}</div>`, 'text/html');
@@ -130,10 +139,10 @@ function linkifyDescription(description, itemIndex, currentItemId) {
       node.replaceWith(fragment);
     });
 
-    return root.innerHTML + wikiLinkHtml;
+    return withWikiLink(root.innerHTML);
   } catch (error) {
     console.warn('Failed to linkify modal description:', error);
-    return description;
+    return formatText ? formatDescriptionHtml(description) : description;
   }
 }
 
@@ -400,8 +409,10 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   const descriptionHtml = useMemo(() => {
     if (!item?.description) return '';
-    return linkifyDescription(item.description, itemIndex, item.id);
-  }, [item, itemIndex]);
+    return linkifyDescription(item.description, itemIndex, item.id, {
+      formatText: config?.descriptionText === true,
+    });
+  }, [item, itemIndex, config?.descriptionText]);
 
   const worksForPerson = useMemo(() => {
     if (itemType !== 'person') return [];
@@ -803,10 +814,19 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
               {item.description ? (
                 // The rendered HTML is linkified and sanitised; the pencil
                 // above edits item.description, the raw column behind it.
-                <span
-                  onClick={handleReferenceClick}
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(descriptionHtml) }}
-                />
+                config?.descriptionText ? (
+                  // Paragraphs need a block parent.
+                  <div
+                    className="modal-description-text"
+                    onClick={handleReferenceClick}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(descriptionHtml, { allowTarget: true }) }}
+                  />
+                ) : (
+                  <span
+                    onClick={handleReferenceClick}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(descriptionHtml) }}
+                  />
+                )
               ) : null}
             </EditableText>
           </div>

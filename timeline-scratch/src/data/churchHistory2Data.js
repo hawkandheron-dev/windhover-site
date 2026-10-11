@@ -220,6 +220,9 @@ export const churchHistory2Config = {
   /** Admins can take an entry out of the public view, and put it back in
    *  Expanded view (owner, 2026-10-10). */
   adminVisibility: true,
+  // Descriptions are plain text (often a quotation or a poem): keep their
+  // paragraphs and line breaks, and turn web addresses into links.
+  descriptionText: true,
   /** No on-screen pan or zoom buttons: trackpad, wheel, drag, pinch and
    *  keys do it all, and + / − / 0 zoom and reset from the keyboard (owner,
    *  2026-10-09). The years readout and the Layout toggle stay. */

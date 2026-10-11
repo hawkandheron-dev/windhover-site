@@ -2308,3 +2308,34 @@ test.describe('Admins: remove from view, expanded view (2026-10-10)', () => {
     await expect(page.locator('.mobile-person-lane.is-hidden').first()).toBeAttached();
   });
 });
+
+test.describe('Descriptions keep their lines and links (2026-10-11)', () => {
+  // Matthew pastes quotations and prayers into descriptions; HTML ran their
+  // lines together into one paragraph, and addresses were plain text.
+  const prayer = '"Christ with me,\nChrist before me,\n\nChrist behind me."\n(St. Patrick\'s Breastplate)\n\n'
+    + 'See https://www.newadvent.org/cathen/11554a.htm and [the Life](https://example.org/life).';
+  const tables = {
+    ...TABLES,
+    CH_People: TABLES.CH_People.map(p => (p.person_id === 'athanasius' ? { ...p, description: prayer } : p)),
+  };
+
+  test('a pasted prayer keeps its stanzas and lines; addresses are links', async ({ page }) => {
+    await loadPage(page, { tables });
+    await page.locator('.timeline-search-input').first().fill('Athanasius');
+    await page.locator('.timeline-search-option', { hasText: 'Athanasius' }).first().click();
+    const text = page.locator('.modal-description-text');
+    await expect(text).toBeVisible();
+    await expect(text.locator('p')).toHaveCount(3);
+    // Each verse line is its own block, so a wrapped line reads as one line.
+    await expect(text.locator('p').first().locator('> span')).toHaveCount(2);
+    await expect(text.locator('p').first().locator('> span').first()).toHaveCSS('display', 'block');
+    await expect(text.locator('p').nth(1)).toContainText('(St. Patrick');
+
+    const bare = text.locator('a.modal-description-link', { hasText: 'newadvent.org/cathen/11554a.htm' });
+    await expect(bare).toHaveAttribute('href', 'https://www.newadvent.org/cathen/11554a.htm');
+    await expect(bare).toHaveAttribute('target', '_blank');
+    await expect(bare).toHaveAttribute('rel', /noopener/);
+    await expect(text.locator('a.modal-description-link', { hasText: 'the Life' }))
+      .toHaveAttribute('href', 'https://example.org/life');
+  });
+});

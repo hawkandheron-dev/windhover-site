@@ -66,6 +66,8 @@ const DEFAULT_STATES = [
   { name: 'default',       viewports: ['phone', 'tablet', 'laptop', 'desktop', 'retina'] },
   { name: 'default-dark',  viewports: ['phone', 'desktop'], colorScheme: 'dark' },
   { name: 'panel',         viewports: ['phone', 'tablet', 'laptop', 'desktop'], act: openPanel },
+  // A quoted prayer in the description: stanzas, line breaks and a link.
+  { name: 'quote',         viewports: ['phone', 'laptop', 'desktop'], act: (page) => openPerson(page, 'Patrick') },
   { name: 'panel-expanded', viewports: ['laptop', 'desktop'], act: expandPanel },
   { name: 'zoomed-out', viewports: ['phone', 'desktop'], act: (page) => zoom('Zoom out', 20)(page) },
   { name: 'panel-far', viewports: ['desktop'], act: async (page, vp) => { await zoom('Zoom out', 5)(page); await openPanel(page, vp); } },
@@ -198,6 +200,14 @@ async function openPanel(page, vp) {
   const option = page.locator('.timeline-search-dropdown [role="option"]').first();
   await option.click();
   await page.waitForTimeout(600); // panel slide + depth transition
+}
+async function openPerson(page, name) {
+  const input = page.locator('.timeline-search-input').first();
+  await input.click();
+  await input.fill(name);
+  await page.waitForTimeout(250);
+  await page.locator('.timeline-search-dropdown [role="option"]', { hasText: name }).first().click();
+  await page.waitForTimeout(600);
 }
 async function expandPanel(page, vp) {
   await openPanel(page, vp);
