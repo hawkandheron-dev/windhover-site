@@ -337,6 +337,29 @@
   font-weight: 600;
 }
 
+/* Plain-text descriptions (config.descriptionText): a blank line is a new
+   paragraph and a line break stays, so a quoted prayer keeps its lines. */
+.modal-description-text p:last-child {
+  margin-bottom: 0;
+}
+
+/* Each line of a multi-line paragraph, with a hanging indent: a verse line
+   that wraps on a narrow screen reads as one line, not two. */
+.modal-description-verse > span {
+  display: block;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+
+/* Ink and an underline, like the tour's links: action blue is kept for the
+   one filled primary button (DESIGN.md §3). Long addresses may break. */
+.modal-description-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
 /* Wikipedia description section */
 .modal-wiki-description {
   margin: 0 0 20px;
