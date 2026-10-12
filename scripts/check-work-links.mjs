@@ -94,7 +94,9 @@ export function pageTitles(html) {
   const t = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1];
   const h = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map((m) => strip(m[1])).filter(Boolean);
   const og = /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i.exec(html)?.[1];
-  return [t && strip(t), ...h.slice(0, 2), og && decode(og)].filter(Boolean);
+  // New Advent's numbered parts ("Treatise 3") put the real title in the first bold line under the heading.
+  const lead = /<\/h1>[\s\S]{0,1500}?<p><strong>([^<]{3,100})<\/strong><\/p>/.exec(html)?.[1];
+  return [t && strip(t), ...h.slice(0, 2), og && decode(og), lead && strip(lead).replace(/\.$/, '')].filter(Boolean);
 }
 
 // ── comparing names ────────────────────────────────────────────────────────
@@ -130,6 +132,8 @@ export function nameVariants(name) {
 // The same work under another title in the catalogues, each read and confirmed by hand.
 const ALIASES = {
   'against heresies': 'Adversus haereses', // New Advent's title for Irenaeus
+  'exhortation to the greeks': 'Exhortation to the Heathen', // New Advent's title for Clement's Protrepticus
+  'on the holy spirit': 'De Spiritu Sancto', // New Advent's title for Basil's treatise
 };
 /** Words that differ only by a spelling variant: proslogion/proslogium, antony/anthony. */
 export function tokenEq(a, b) {
@@ -206,7 +210,8 @@ export async function expandNewAdvent(catalogue, wanted) {
           // The title is the first bold paragraph under the heading ("Treatise 3" / "On the Lapsed.").
           const after = sub.status === 200 ? sub.body.slice(sub.body.indexOf('</h1>')) : '';
           const t = strip(/<p><strong>([^<]{3,100})<\/strong><\/p>/.exec(after)?.[1] ?? '').replace(/\.$/, '');
-          if (t) title = `${title}: ${t}`;
+          // Just the title, so "On the Unity of the Church" is matched as itself, not as "Treatise I: On the Unity…".
+          if (t) title = t;
         }
         extra.push({ title, url: `https://www.newadvent.org/fathers/${m[1]}.htm`, part: w.title });
       }
@@ -508,6 +513,7 @@ async function main() {
 
 // Matches read and found to be about something else, so they go to Matthew instead.
 const NOT_THESE = {
+  'CH_Works:Theological Orations (Orations 27–31)': 'the page found is only the first of the five Theological Orations (27); the set is in Select Orations',
   'CH_Works:Sentences (Sententiae)': 'Wikipedia\'s "Sentences" is about the medieval genre (Peter Lombard), not Isidore\'s book',
 };
 
