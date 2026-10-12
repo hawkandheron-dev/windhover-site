@@ -193,10 +193,17 @@ export async function expandNewAdvent(catalogue, wanted) {
       const res = await fetchText(w.url);
       if (res.status !== 200) continue;
       const seen = new Set();
-      for (const m of res.body.matchAll(new RegExp(`<a href="(?:\\.\\./fathers/|)(${id}\\d{2,3}[a-z]?)\\.htm"[^>]*>([^<]{3,120})</a>`, 'g'))) {
+      for (const m of res.body.matchAll(new RegExp(`<a href="(?:\\.\\./fathers/|)(${id}\\d{2,3}[a-z]?)\\.htm"[^>]*>(?:<[^>]+>)*([^<]{3,120})`, 'g'))) {
         if (seen.has(m[1])) continue;
         seen.add(m[1]);
-        extra.push({ title: strip(m[2]), url: `https://www.newadvent.org/fathers/${m[1]}.htm`, part: w.title });
+        let title = strip(m[2]);
+        // "Treatise III" says nothing: the part's own page has the title ("On the Lapsed").
+        if (/^treatise\b/i.test(title)) {
+          const sub = await fetchText(`https://www.newadvent.org/fathers/${m[1]}.htm`);
+          const t = sub.status === 200 ? pageTitles(sub.body).map((x) => x.replace(/^church fathers:\s*/i, '').replace(/\s*\([^)]*\)\s*$/, '')).find(Boolean) : '';
+          if (t) title = `${title}: ${t}`;
+        }
+        extra.push({ title, url: `https://www.newadvent.org/fathers/${m[1]}.htm`, part: w.title });
       }
     }
     a.works.push(...extra);
