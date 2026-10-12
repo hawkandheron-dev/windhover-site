@@ -100,7 +100,7 @@ export function pageTitles(html) {
 }
 
 // ── comparing names ────────────────────────────────────────────────────────
-const STOP = new Set(['saint', 'the', 'of', 'on', 'to', 'and', 'a', 'an', 'in', 'de', 'ad', 'against', 'concerning', 'epistle', 'letter', 'letters', 'selected', 'church', 'fathers', 'works', 'book', 'books']);
+const STOP = new Set(['saint', 'the', 'of', 'on', 'to', 'and', 'a', 'an', 'in', 'de', 'ad', 'against', 'concerning', 'epistle', 'letter', 'letters', 'selected', 'fathers', 'works', 'book', 'books']);
 const ORD = {
   first: '1', second: '2', third: '3', i: '1', ii: '2', iii: '3', '1st': '1', '2nd': '2', '3rd': '3',
   // New Advent calls Athanasius's "Orations Against the Arians" "Four Discourses".
@@ -393,7 +393,7 @@ async function judgeCurrent(url, work) {
   else if (j.score >= 0.75 && kind === 'volume') cls = 'work'; // a book whose own title names the work
   else if (kind === 'author' || kind === 'volume') cls = kind;
   else cls = j.score >= 0.6 ? 'work' : 'other';
-  return { ...j, cls };
+  return { ...j, cls, url };
 }
 
 async function propose(person, work, ctx) {
@@ -428,8 +428,15 @@ async function propose(person, work, ctx) {
   return [...judged, ...(await judge(about))].sort(rank);
 }
 
+// Hosts that carry the text of a work: a link already there is not traded for an article about it.
+const FULL_TEXT = /newadvent\.org\/fathers|ccel\.org\/ccel\/[^/]+\/[^/]+|wikisource\.org\/wiki\/(?!Author:)|gutenberg\.org|archive\.org\/details|perseus|sourcebooks\.fordham/;
+
 function decide(work, current, judged) {
   if (current.cls === 'work') return { action: 'keep', why: 'the page names the work' };
+  // (A blocked page, such as archive.org to a script, cannot be read: it is not replaced either.)
+  if ((current.ok || current.cls === 'blocked') && ['other', 'blocked'].includes(current.cls) && FULL_TEXT.test(current.url) && !judged[0]?.full) {
+    return { action: 'keep', why: `already a text of the work (${new URL(current.url).hostname}); an article about it would be a step down` };
+  }
   const top = judged[0];
   const group = GROUP_NAME.test(work.name) || tokens(work.name).length === 0;
   if (top && top.verified >= 0.8 && (!group || top.full)) {
@@ -468,7 +475,9 @@ async function auditSources(snap) {
     const j = await judgeSource(src);
     const fix = SOURCE_FIXES[src.source_id];
     const base = { table: 'CH_Sources', id: src.source_id, person: 'Sources', name: src.title, current: { url: src.url, cls: j.cls, title: j.seen } };
-    if (fix) {
+    if (fix && src.url === fix.url) {
+      rows.push({ ...base, action: 'keep', why: 'already points at the replacement' });
+    } else if (fix) {
       const t = await fetchText(fix.url);
       if (t.status !== 200) throw new Error(`replacement for ${src.source_id} is not reachable: ${t.status}`);
       rows.push({ ...base, action: 'change', confidence: 'sure', to: { url: fix.url, finalUrl: fix.url, source: fix.source }, why: fix.why });
