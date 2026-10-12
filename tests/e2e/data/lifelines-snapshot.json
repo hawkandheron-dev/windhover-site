@@ -8370,9 +8370,9 @@
 {
 "source_id":"src-calvin-farel-ligonier",
 "title":"William Farel (persuaded Calvin to stay in Geneva)",
-"source_name":"Ligonier",
+"source_name":"Wikipedia",
 "year":null,
-"url":"https://www.ligonier.org/learn/articles/william-farel",
+"url":"https://en.wikipedia.org/wiki/William_Farel",
 "notes":"Narrative of decisive collaboration.",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
@@ -8397,9 +8397,9 @@
 {
 "source_id":"src-ccel-perpetua",
 "title":"The Passion of Perpetua and Felicity (includes Saturus)",
-"source_name":"CCEL",
+"source_name":"New Advent (Church Fathers)",
 "year":null,
-"url":"https://www.ccel.org/ccel/pearse/morefathers/files/perpetua.htm",
+"url":"https://www.newadvent.org/fathers/0324.htm",
 "notes":"Primary narrative includes Perpetua’s martyr-companions, including Saturus.",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
@@ -8496,9 +8496,9 @@
 {
 "source_id":"src-eusebius-papias",
 "title":"Eusebius on Papias as hearer of John and companion of Polycarp",
-"source_name":"CatholicLibrary.org",
+"source_name":"New Advent (Church Fathers)",
 "year":"~325",
-"url":"https://www.catholiclibrary.org/library/view?docId=Fathers-EN/eusebius_ChurchHistory.html",
+"url":"https://www.newadvent.org/fathers/250103.htm",
 "notes":"Traditional report tying Papias to John and Polycarp.",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
@@ -8640,9 +8640,9 @@
 {
 "source_id":"src-moerbeke-pims",
 "title":"William of Moerbeke and translation activity (Aquinas circle)",
-"source_name":"PIMS",
+"source_name":"Wikipedia",
 "year":null,
-"url":"https://pims.ca/wp-content/uploads/2017/02/Moerbeke-translation.pdf",
+"url":"https://en.wikipedia.org/wiki/William_of_Moerbeke",
 "notes":"Translator relationship (mechanics vary by scholarly account).",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
@@ -8759,7 +8759,7 @@
 "title":"Possidius – Life of Augustine",
 "source_name":"Tertullian.org",
 "year":"~430",
-"url":"https://www.tertullian.org/fathers/possidius_life_of_augustine_1_trans.htm",
+"url":"https://www.tertullian.org/fathers/possidius_life_of_augustine_02_text.htm",
 "notes":"Biographer and close associate.",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
@@ -8802,9 +8802,9 @@
 {
 "source_id":"src-teresa-john-cross-aleteia",
 "title":"Teresa of Avila and John of the Cross reform collaboration",
-"source_name":"Aleteia",
+"source_name":"Wikipedia",
 "year":null,
-"url":"https://aleteia.org/2018/12/14/teresa-of-avila-and-john-of-the-cross-a-very-thorny-friendship/",
+"url":"https://en.wikipedia.org/wiki/John_of_the_Cross",
 "notes":"Collaboration within Carmelite reform.",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
@@ -8867,7 +8867,7 @@
 "title":"William Bradford (Robinson/Brewster as formative leaders)",
 "source_name":"Wikipedia",
 "year":null,
-"url":"https://en.wikipedia.org/wiki/William_Bradford_(Plymouth_Colony)",
+"url":"https://en.wikipedia.org/wiki/William_Bradford_(governor)",
 "notes":"Common biographical summary of ecclesial leadership relationships.",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
@@ -10459,14 +10459,14 @@
 "work_id":77,
 "person_id":"ambrose-milan",
 "name":"On the Duties of the Clergy (De Officiis Ministrorum)",
-"text_url":"https://www.ccel.org/ccel/ambrose",
+"text_url":"https://www.newadvent.org/fathers/3401.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":78,
 "person_id":"ambrose-milan",
 "name":"On the Mysteries (De Mysteriis)",
-"text_url":"https://www.ccel.org/ccel/ambrose",
+"text_url":"https://www.newadvent.org/fathers/3405.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10480,35 +10480,35 @@
 "work_id":80,
 "person_id":"ambrose-milan",
 "name":"On the Holy Spirit (De Spiritu Sancto)",
-"text_url":"https://www.ccel.org/ccel/ambrose",
+"text_url":"https://www.newadvent.org/fathers/3402.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":81,
 "person_id":"ambrose-milan",
 "name":"On Repentance (De Paenitentia)",
-"text_url":"https://www.ccel.org/ccel/ambrose",
+"text_url":"https://www.newadvent.org/fathers/3406.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":184,
 "person_id":"anselm",
 "name":"Proslogion",
-"text_url":"https://ccel.org/ccel/anselm",
+"text_url":"https://ccel.org/ccel/anselm/basic_works",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":185,
 "person_id":"anselm",
 "name":"Monologion",
-"text_url":"https://ccel.org/ccel/anselm",
+"text_url":"https://ccel.org/ccel/anselm/basic_works",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":186,
 "person_id":"anselm",
 "name":"Why God Became Man (Cur Deus Homo)",
-"text_url":"https://ccel.org/ccel/anselm",
+"text_url":"https://ccel.org/ccel/anselm/basic_works",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10557,14 +10557,14 @@
 "work_id":58,
 "person_id":"athanasius",
 "name":"Life of Antony",
-"text_url":"https://ccel.org/ccel/athanasius",
+"text_url":"https://www.newadvent.org/fathers/2811.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":59,
 "person_id":"athanasius",
 "name":"Orations Against the Arians",
-"text_url":"https://ccel.org/ccel/athanasius",
+"text_url":"https://www.newadvent.org/fathers/2816.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10599,14 +10599,14 @@
 "work_id":93,
 "person_id":"augustine",
 "name":"The City of God",
-"text_url":"https://www.ccel.org/ccel/augustine/cityofgod.html",
+"text_url":"https://www.newadvent.org/fathers/1201.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":94,
 "person_id":"augustine",
 "name":"On the Trinity (De Trinitate)",
-"text_url":"https://www.ccel.org/ccel/augustine",
+"text_url":"https://www.newadvent.org/fathers/1301.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10634,7 +10634,7 @@
 "work_id":266,
 "person_id":"bartolome-las-casas",
 "name":"History of the Indies (Historia de las Indias)",
-"text_url":"https://en.wikisource.org/wiki/Author:Bartolom%C3%A9_de_las_Casas",
+"text_url":"https://en.wikipedia.org/wiki/Historia_de_las_Indias",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10662,14 +10662,14 @@
 "work_id":62,
 "person_id":"basil-great",
 "name":"On the Holy Spirit",
-"text_url":"https://www.ccel.org/ccel/basil",
+"text_url":"https://www.newadvent.org/fathers/3203.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":63,
 "person_id":"basil-great",
 "name":"Hexaemeron",
-"text_url":"https://www.ccel.org/ccel/basil",
+"text_url":"https://www.newadvent.org/fathers/3201.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10711,14 +10711,14 @@
 "work_id":142,
 "person_id":"bede",
 "name":"Ecclesiastical History of the English People",
-"text_url":"https://www.ccel.org/ccel/bede",
+"text_url":"https://en.wikipedia.org/wiki/Ecclesiastical_History_of_the_English_People",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":143,
 "person_id":"bede",
 "name":"On the Reckoning of Time (De Temporum Ratione)",
-"text_url":"https://www.ccel.org/ccel/bede",
+"text_url":"https://en.wikipedia.org/wiki/The_Reckoning_of_Time",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10746,14 +10746,14 @@
 "work_id":121,
 "person_id":"benedict-nursia",
 "name":"Rule of St Benedict",
-"text_url":"https://www.penguinrandomhouse.com/books/630016/the-rule-of-saint-benedict-by-translated-with-an-introduction-by-anthony-c-meisel-and-m-l-del-mastro/",
+"text_url":"https://en.wikipedia.org/wiki/Rule_of_Saint_Benedict",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":195,
 "person_id":"bernard-clairvaux",
 "name":"On Loving God (De Diligendo Deo)",
-"text_url":"https://www.ccel.org/ccel/bernard",
+"text_url":"https://ccel.org/ccel/bernard/loving_god",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10767,7 +10767,7 @@
 "work_id":197,
 "person_id":"bernard-clairvaux",
 "name":"On Consideration (De Consideratione)",
-"text_url":"https://www.ccel.org/ccel/bernard",
+"text_url":"https://en.wikipedia.org/wiki/De_consideratione",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10781,7 +10781,7 @@
 "work_id":199,
 "person_id":"bernard-clairvaux",
 "name":"Life of St Malachy (Vita Sancti Malachiae)",
-"text_url":"https://www.ccel.org/ccel/bernard",
+"text_url":"https://ccel.org/ccel/bernard/st_malachy",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10837,14 +10837,14 @@
 "work_id":240,
 "person_id":"christine-pisan",
 "name":"The Book of the City of Ladies",
-"text_url":"https://en.wikisource.org/wiki/Author:Christine_de_Pizan",
+"text_url":"https://en.wikipedia.org/wiki/The_Book_of_the_City_of_Ladies",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":241,
 "person_id":"christine-pisan",
 "name":"The Treasure of the City of Ladies",
-"text_url":"https://en.wikisource.org/wiki/Author:Christine_de_Pizan",
+"text_url":"https://en.wikipedia.org/wiki/The_Treasure_of_the_City_of_Ladies",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10872,49 +10872,49 @@
 "work_id":24,
 "person_id":"clement-alexandria",
 "name":"Protrepticus (Exhortation to the Greeks)",
-"text_url":"https://ccel.org/ccel/schaff/anf02.html",
+"text_url":"https://www.newadvent.org/fathers/0208.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":25,
 "person_id":"clement-alexandria",
 "name":"Paedagogus (The Instructor)",
-"text_url":"https://ccel.org/ccel/schaff/anf02.html",
+"text_url":"https://www.newadvent.org/fathers/0209.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":26,
 "person_id":"clement-alexandria",
 "name":"Stromata (Miscellanies)",
-"text_url":"https://ccel.org/ccel/schaff/anf02.html",
+"text_url":"https://www.newadvent.org/fathers/0210.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":27,
 "person_id":"clement-alexandria",
 "name":"Who Is the Rich Man That Shall Be Saved? (Quis Dives Salvetur)",
-"text_url":"https://ccel.org/ccel/schaff/anf02.html",
+"text_url":"https://www.newadvent.org/fathers/0207.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":14,
 "person_id":"clement-rome",
 "name":"First Epistle of Clement to the Corinthians (1 Clement)",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/1010.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":51,
 "person_id":"cyprian",
 "name":"On the Unity of the Catholic Church",
-"text_url":"https://ccel.org/ccel/cyprian",
+"text_url":"https://www.newadvent.org/fathers/050701.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":52,
 "person_id":"cyprian",
 "name":"On the Lapsed",
-"text_url":"https://ccel.org/ccel/cyprian",
+"text_url":"https://www.newadvent.org/fathers/050703.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10928,14 +10928,14 @@
 "work_id":54,
 "person_id":"cyprian",
 "name":"On the Lord’s Prayer",
-"text_url":"https://ccel.org/ccel/cyprian",
+"text_url":"https://www.newadvent.org/fathers/050704.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":55,
 "person_id":"cyprian",
 "name":"Letters (Epistles)",
-"text_url":"https://ccel.org/ccel/cyprian",
+"text_url":"https://www.newadvent.org/fathers/0506.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10970,7 +10970,7 @@
 "work_id":108,
 "person_id":"cyril-alexandria",
 "name":"Commentary on Luke (fragments/selected)",
-"text_url":"https://www.ccel.org/ccel/cyril",
+"text_url":"https://ccel.org/ccel/cyril/stluke-series",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11005,42 +11005,42 @@
 "work_id":226,
 "person_id":"dante-alighieri",
 "name":"The Divine Comedy",
-"text_url":"https://www.ccel.org/ccel/dante",
+"text_url":"https://ccel.org/ccel/dante/divinecomedy",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":227,
 "person_id":"dante-alighieri",
 "name":"Vita Nuova",
-"text_url":"https://www.ccel.org/ccel/dante",
+"text_url":"https://en.wikipedia.org/wiki/La_Vita_Nuova",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":228,
 "person_id":"dante-alighieri",
 "name":"Convivio",
-"text_url":"https://www.ccel.org/ccel/dante",
+"text_url":"https://en.wikipedia.org/wiki/Convivio",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":229,
 "person_id":"dante-alighieri",
 "name":"De Vulgari Eloquentia",
-"text_url":"https://www.ccel.org/ccel/dante",
+"text_url":"https://en.wikipedia.org/wiki/De_vulgari_eloquentia",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":230,
 "person_id":"dante-alighieri",
 "name":"De Monarchia",
-"text_url":"https://www.ccel.org/ccel/dante",
+"text_url":"https://en.wikipedia.org/wiki/De_Monarchia",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":259,
 "person_id":"desiderius-erasmus",
 "name":"In Praise of Folly",
-"text_url":"https://www.ccel.org/ccel/erasmus",
+"text_url":"https://ccel.org/ccel/erasmus/folly",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11054,7 +11054,7 @@
 "work_id":261,
 "person_id":"desiderius-erasmus",
 "name":"Colloquies",
-"text_url":"https://www.ccel.org/ccel/erasmus",
+"text_url":"https://ccel.org/ccel/erasmus/colloquies1",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11250,14 +11250,14 @@
 "work_id":68,
 "person_id":"gregory-nazianzus",
 "name":"Orations (selected)",
-"text_url":"https://ccel.org/ccel/schaff/npnf207",
+"text_url":"https://www.newadvent.org/fathers/3102.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":69,
 "person_id":"gregory-nazianzus",
 "name":"Letters (selected)",
-"text_url":"https://ccel.org/ccel/schaff/npnf207",
+"text_url":"https://www.newadvent.org/fathers/3103.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11271,7 +11271,7 @@
 "work_id":71,
 "person_id":"gregory-nazianzus",
 "name":"Oration 43: Funeral Oration on Basil",
-"text_url":"https://ccel.org/ccel/schaff/npnf207",
+"text_url":"https://www.newadvent.org/fathers/310243.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11299,28 +11299,28 @@
 "work_id":73,
 "person_id":"gregory-nyssa",
 "name":"Great Catechism",
-"text_url":"https://www.ccel.org/g/gregorynyssa/index.html",
+"text_url":"https://www.newadvent.org/fathers/2908.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":74,
 "person_id":"gregory-nyssa",
 "name":"On the Making of Man",
-"text_url":"https://www.ccel.org/g/gregorynyssa/index.html",
+"text_url":"https://www.newadvent.org/fathers/2914.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":75,
 "person_id":"gregory-nyssa",
 "name":"On the Soul and the Resurrection",
-"text_url":"https://www.ccel.org/g/gregorynyssa/index.html",
+"text_url":"https://www.newadvent.org/fathers/2915.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":76,
 "person_id":"gregory-nyssa",
 "name":"Against Eunomius",
-"text_url":"https://www.ccel.org/g/gregorynyssa/index.html",
+"text_url":"https://www.newadvent.org/fathers/2901.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11355,7 +11355,7 @@
 "work_id":190,
 "person_id":"hildegard-bingen",
 "name":"Scivias",
-"text_url":"https://en.wikisource.org/wiki/Author:Hildegard_of_Bingen",
+"text_url":"https://en.wikipedia.org/wiki/Scivias",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11376,7 +11376,7 @@
 "work_id":193,
 "person_id":"hildegard-bingen",
 "name":"Physica",
-"text_url":"https://en.wikisource.org/wiki/Author:Hildegard_of_Bingen",
+"text_url":"https://en.wikipedia.org/wiki/Physica_(Hildegard)",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11390,14 +11390,14 @@
 "work_id":37,
 "person_id":"hippolytus",
 "name":"Apostolic Tradition (attributed)",
-"text_url":"https://ccel.org/ccel/schaff/anf05",
+"text_url":"https://en.wikipedia.org/wiki/Apostolic_Tradition",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":38,
 "person_id":"hippolytus",
 "name":"Refutation of All Heresies",
-"text_url":"https://ccel.org/ccel/schaff/anf05",
+"text_url":"https://www.newadvent.org/fathers/0501.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11411,7 +11411,7 @@
 "work_id":40,
 "person_id":"hippolytus",
 "name":"On Christ and Antichrist",
-"text_url":"https://ccel.org/ccel/schaff/anf05",
+"text_url":"https://www.newadvent.org/fathers/0516.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11446,35 +11446,35 @@
 "work_id":15,
 "person_id":"ignatius-antioch",
 "name":"Letter to the Ephesians",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0104.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":16,
 "person_id":"ignatius-antioch",
 "name":"Letter to the Magnesians",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0105.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":17,
 "person_id":"ignatius-antioch",
 "name":"Letter to the Trallians",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0106.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":18,
 "person_id":"ignatius-antioch",
 "name":"Letter to the Romans",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0107.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":19,
 "person_id":"ignatius-antioch",
 "name":"Letter to Polycarp",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0110.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11502,7 +11502,7 @@
 "work_id":30,
 "person_id":"irenaeus",
 "name":"Against Heresies",
-"text_url":"https://ccel.org/ccel/schaff/anf01",
+"text_url":"https://www.newadvent.org/fathers/0103.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11523,7 +11523,7 @@
 "work_id":320,
 "person_id":"isaac-newton",
 "name":"Opticks",
-"text_url":"https://www.britannica.com/topic/Opticks-by-Newton",
+"text_url":"https://en.wikipedia.org/wiki/Opticks",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11600,21 +11600,21 @@
 "work_id":82,
 "person_id":"jerome",
 "name":"On Illustrious Men (De Viris Illustribus)",
-"text_url":"https://ccel.org/ccel/jerome",
+"text_url":"https://www.newadvent.org/fathers/2708.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":83,
 "person_id":"jerome",
 "name":"Against Jovinian (Adversus Jovinianum)",
-"text_url":"https://ccel.org/ccel/jerome",
+"text_url":"https://www.newadvent.org/fathers/3009.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":84,
 "person_id":"jerome",
 "name":"Letter 22 to Eustochium",
-"text_url":"https://ccel.org/ccel/jerome",
+"text_url":"https://www.newadvent.org/fathers/3001022.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11635,28 +11635,28 @@
 "work_id":311,
 "person_id":"john-bunyan",
 "name":"The Pilgrim’s Progress",
-"text_url":"https://ccel.org/ccel/bunyan",
+"text_url":"https://ccel.org/ccel/bunyan/pilgrim",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":312,
 "person_id":"john-bunyan",
 "name":"Grace Abounding to the Chief of Sinners",
-"text_url":"https://ccel.org/ccel/bunyan",
+"text_url":"https://en.wikipedia.org/wiki/Grace_Abounding_to_the_Chief_of_Sinners",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":313,
 "person_id":"john-bunyan",
 "name":"The Holy War",
-"text_url":"https://ccel.org/ccel/bunyan",
+"text_url":"https://ccel.org/ccel/bunyan/holy_war",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":314,
 "person_id":"john-bunyan",
 "name":"The Life and Death of Mr. Badman",
-"text_url":"https://ccel.org/ccel/bunyan",
+"text_url":"https://ccel.org/ccel/bunyan/badman",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11677,7 +11677,7 @@
 "work_id":291,
 "person_id":"john-calvin",
 "name":"Commentary on Romans",
-"text_url":"https://www.ccel.org/ccel/calvin",
+"text_url":"https://ccel.org/ccel/calvin/calcom38",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11719,56 +11719,56 @@
 "work_id":87,
 "person_id":"john-chrysostom",
 "name":"On the Priesthood",
-"text_url":"https://www.ccel.org/ccel/chrysostom",
+"text_url":"https://www.newadvent.org/fathers/1922.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":88,
 "person_id":"john-chrysostom",
 "name":"Homilies on Matthew",
-"text_url":"https://www.ccel.org/ccel/chrysostom",
+"text_url":"https://www.newadvent.org/fathers/2001.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":89,
 "person_id":"john-chrysostom",
 "name":"Homilies on John",
-"text_url":"https://www.ccel.org/ccel/chrysostom",
+"text_url":"https://www.newadvent.org/fathers/2401.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":90,
 "person_id":"john-chrysostom",
 "name":"Homilies on Romans",
-"text_url":"https://www.ccel.org/ccel/chrysostom",
+"text_url":"https://www.newadvent.org/fathers/2102.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":91,
 "person_id":"john-chrysostom",
 "name":"Letters to Olympias",
-"text_url":"https://www.ccel.org/ccel/chrysostom",
+"text_url":"https://www.newadvent.org/fathers/1916.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":300,
 "person_id":"john-cross",
 "name":"Ascent of Mount Carmel",
-"text_url":"https://www.ccel.org/ccel/john_cross",
+"text_url":"https://ccel.org/ccel/john_cross/ascent",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":301,
 "person_id":"john-cross",
 "name":"Dark Night of the Soul",
-"text_url":"https://www.ccel.org/ccel/john_cross",
+"text_url":"https://ccel.org/ccel/john_cross/dark_night",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":302,
 "person_id":"john-cross",
 "name":"Spiritual Canticle",
-"text_url":"https://www.ccel.org/ccel/john_cross",
+"text_url":"https://ccel.org/ccel/john_cross/canticle",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11824,28 +11824,28 @@
 "work_id":306,
 "person_id":"john-owen",
 "name":"On the Mortification of Sin in Believers",
-"text_url":"https://www.ccel.org/ccel/owen",
+"text_url":"https://ccel.org/ccel/owen/mort",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":307,
 "person_id":"john-owen",
 "name":"The Death of Death in the Death of Christ",
-"text_url":"https://www.ccel.org/ccel/owen",
+"text_url":"https://ccel.org/ccel/owen/deathofdeath",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":308,
 "person_id":"john-owen",
 "name":"Communion with God",
-"text_url":"https://www.ccel.org/ccel/owen",
+"text_url":"https://ccel.org/ccel/owen/communion",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":309,
 "person_id":"john-owen",
 "name":"The Glory of Christ",
-"text_url":"https://www.ccel.org/ccel/owen",
+"text_url":"https://ccel.org/ccel/owen/glory",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11859,7 +11859,7 @@
 "work_id":162,
 "person_id":"john-scotus-eriugena",
 "name":"Periphyseon (De Divisione Naturae)",
-"text_url":"https://www.booksamillion.com/p/Periphyseon/Johannes-Scotus-Eriugena/9780884024620",
+"text_url":"https://en.wikipedia.org/wiki/De_divisione_naturae",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11908,7 +11908,7 @@
 "work_id":328,
 "person_id":"john-wesley",
 "name":"Explanatory Notes upon the New Testament",
-"text_url":"https://ccel.org/ccel/wesley/journal",
+"text_url":"https://en.wikipedia.org/wiki/Explanatory_Notes_Upon_the_New_Testament",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -11957,21 +11957,21 @@
 "work_id":21,
 "person_id":"justin-martyr",
 "name":"First Apology",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0126.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":22,
 "person_id":"justin-martyr",
 "name":"Second Apology",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0127.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":23,
 "person_id":"justin-martyr",
 "name":"Dialogue with Trypho",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0128.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12027,35 +12027,35 @@
 "work_id":275,
 "person_id":"martin-luther",
 "name":"Ninety-Five Theses",
-"text_url":"https://www.ccel.org/ccel/luther",
+"text_url":"https://ccel.org/ccel/luther/first_prin",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":276,
 "person_id":"martin-luther",
 "name":"Small Catechism",
-"text_url":"https://www.ccel.org/ccel/luther",
+"text_url":"https://ccel.org/ccel/luther/smallcat",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":277,
 "person_id":"martin-luther",
 "name":"Large Catechism",
-"text_url":"https://www.ccel.org/ccel/luther",
+"text_url":"https://ccel.org/ccel/luther/largecatechism",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":278,
 "person_id":"martin-luther",
 "name":"The Bondage of the Will",
-"text_url":"https://www.ccel.org/ccel/luther",
+"text_url":"https://ccel.org/ccel/luther/bondage",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":279,
 "person_id":"martin-luther",
 "name":"The Freedom of a Christian",
-"text_url":"https://www.ccel.org/ccel/luther",
+"text_url":"https://en.wikipedia.org/wiki/On_the_Freedom_of_a_Christian",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12104,7 +12104,7 @@
 "work_id":357,
 "person_id":"nestorius",
 "name":"The Bazaar of Heracleides",
-"text_url":"https://archive.org/details/nestoriusbazaaro00nestuoft",
+"text_url":"https://en.wikipedia.org/wiki/Bazaar_of_Heracleides",
 "created_at":"2026-08-12T02:27:42.767316+00:00"
 },
 {
@@ -12139,7 +12139,7 @@
 "work_id":251,
 "person_id":"nicholas-cusa",
 "name":"On Learned Ignorance (De Docta Ignorantia)",
-"text_url":"https://www.ccel.org/ccel/nicolas",
+"text_url":"https://en.wikipedia.org/wiki/De_Docta_Ignorantia",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12174,7 +12174,7 @@
 "work_id":359,
 "person_id":"novatian",
 "name":"On the Trinity",
-"text_url":"https://www.newadvent.org/fathers/0512.htm",
+"text_url":"https://www.newadvent.org/fathers/0511.htm",
 "created_at":"2026-08-12T02:27:42.767316+00:00"
 },
 {
@@ -12202,28 +12202,28 @@
 "work_id":42,
 "person_id":"origen",
 "name":"On First Principles (De Principiis)",
-"text_url":"https://www.ccel.org/ccel/origen",
+"text_url":"https://www.newadvent.org/fathers/0412.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":43,
 "person_id":"origen",
 "name":"Against Celsus",
-"text_url":"https://www.ccel.org/ccel/origen",
+"text_url":"https://www.newadvent.org/fathers/0416.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":44,
 "person_id":"origen",
 "name":"On Prayer",
-"text_url":"https://www.ccel.org/ccel/origen",
+"text_url":"https://ccel.org/ccel/origen/prayer",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":45,
 "person_id":"origen",
 "name":"Commentary on the Gospel of John",
-"text_url":"https://www.ccel.org/ccel/origen",
+"text_url":"https://www.newadvent.org/fathers/1015.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12244,7 +12244,7 @@
 "work_id":13,
 "person_id":"papias",
 "name":"Exposition of the Sayings of the Lord (fragments)",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0125.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12321,14 +12321,14 @@
 "work_id":351,
 "person_id":"pelagius",
 "name":"Commentary on Romans",
-"text_url":"https://en.wikipedia.org/wiki/Pelagius",
+"text_url":"https://en.wikipedia.org/wiki/Commentary_on_Romans_(Pelagius)",
 "created_at":"2026-08-12T02:27:42.767316+00:00"
 },
 {
 "work_id":41,
 "person_id":"perpetua",
 "name":"The Passion of Perpetua and Felicity (Perpetua’s diary portion)",
-"text_url":"https://www.cambridge.org/core/journals/church-history/article/suicide-by-gladiator-the-acts-of-perpetua-and-felicitas-in-its-north-african-context/956AA0BD2ED4F9F14CF28071B1085CF9",
+"text_url":"https://en.wikipedia.org/wiki/Passion_of_Saints_Perpetua_and_Felicity",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12363,14 +12363,14 @@
 "work_id":166,
 "person_id":"photios-constantinople",
 "name":"Bibliotheca (Myriobiblon)",
-"text_url":"https://ccel.org/ccel/pearse/morefathers/files/photius_bibliotheca_01.htm",
+"text_url":"https://en.wikipedia.org/wiki/Myriobiblon",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":167,
 "person_id":"photios-constantinople",
 "name":"Mystagogy of the Holy Spirit",
-"text_url":"https://ccel.org/ccel/pearse/morefathers/files/photius_bibliotheca_01.htm",
+"text_url":"https://en.wikipedia.org/wiki/Mystagogy_of_the_Holy_Spirit",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12391,7 +12391,7 @@
 "work_id":20,
 "person_id":"polycarp",
 "name":"Letter to the Philippians",
-"text_url":"https://ccel.org/ccel/schaff/anf-series/anf-series",
+"text_url":"https://www.newadvent.org/fathers/0136.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12412,21 +12412,21 @@
 "work_id":125,
 "person_id":"pope-gregory-great",
 "name":"Pastoral Rule (Regula Pastoralis)",
-"text_url":"https://www.ccel.org/ccel/gregory",
+"text_url":"https://www.newadvent.org/fathers/3601.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":126,
 "person_id":"pope-gregory-great",
 "name":"Moralia on Job",
-"text_url":"https://www.ccel.org/ccel/gregory",
+"text_url":"https://en.wikipedia.org/wiki/Moralia_in_Job",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":127,
 "person_id":"pope-gregory-great",
 "name":"Dialogues",
-"text_url":"https://www.ccel.org/ccel/gregory",
+"text_url":"https://en.wikipedia.org/wiki/Dialogues_(Pope_Gregory_I)",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12664,35 +12664,35 @@
 "work_id":28,
 "person_id":"tatians",
 "name":"Diatessaron",
-"text_url":"https://ccel.org/ccel/schaff/anf02.html",
+"text_url":"https://www.newadvent.org/fathers/1002.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":29,
 "person_id":"tatians",
 "name":"Address to the Greeks",
-"text_url":"https://ccel.org/ccel/schaff/anf02.html",
+"text_url":"https://www.newadvent.org/fathers/0202.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":295,
 "person_id":"teresa-avila",
 "name":"The Life of Teresa of Jesus (Autobiography)",
-"text_url":"https://ccel.org/ccel/teresa",
+"text_url":"https://ccel.org/ccel/teresa/life",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":296,
 "person_id":"teresa-avila",
 "name":"The Way of Perfection",
-"text_url":"https://ccel.org/ccel/teresa",
+"text_url":"https://ccel.org/ccel/teresa/way",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":297,
 "person_id":"teresa-avila",
 "name":"The Interior Castle",
-"text_url":"https://ccel.org/ccel/teresa",
+"text_url":"https://ccel.org/ccel/teresa/castle2",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12713,35 +12713,35 @@
 "work_id":32,
 "person_id":"tertullian",
 "name":"Apology",
-"text_url":"https://ccel.org/ccel/tertullian",
+"text_url":"https://www.newadvent.org/fathers/0301.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":33,
 "person_id":"tertullian",
 "name":"Prescription Against Heretics",
-"text_url":"https://ccel.org/ccel/tertullian",
+"text_url":"https://www.newadvent.org/fathers/0311.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":34,
 "person_id":"tertullian",
 "name":"Against Marcion",
-"text_url":"https://ccel.org/ccel/tertullian",
+"text_url":"https://www.newadvent.org/fathers/0312.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":35,
 "person_id":"tertullian",
 "name":"On Baptism",
-"text_url":"https://ccel.org/ccel/tertullian",
+"text_url":"https://www.newadvent.org/fathers/0321.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":36,
 "person_id":"tertullian",
 "name":"On the Flesh of Christ",
-"text_url":"https://ccel.org/ccel/tertullian",
+"text_url":"https://www.newadvent.org/fathers/0315.htm",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12790,21 +12790,21 @@
 "work_id":217,
 "person_id":"thomas-aquinas",
 "name":"Summa Contra Gentiles",
-"text_url":"https://ccel.org/ccel/aquinas",
+"text_url":"https://en.wikipedia.org/wiki/Summa_contra_Gentiles",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":218,
 "person_id":"thomas-aquinas",
 "name":"Catena Aurea",
-"text_url":"https://ccel.org/ccel/aquinas",
+"text_url":"https://ccel.org/ccel/aquinas/catena-series",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":219,
 "person_id":"thomas-aquinas",
 "name":"On Being and Essence (De Ente et Essentia)",
-"text_url":"https://ccel.org/ccel/aquinas",
+"text_url":"https://en.wikipedia.org/wiki/De_ente_et_essentia",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12839,7 +12839,7 @@
 "work_id":248,
 "person_id":"thomas-kempis",
 "name":"The Imitation of Christ",
-"text_url":"https://www.ccel.org/ccel/kempis",
+"text_url":"https://ccel.org/ccel/kempis/imitation",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12860,14 +12860,14 @@
 "work_id":270,
 "person_id":"thomas-more",
 "name":"Utopia",
-"text_url":"https://ccel.org/ccel/more",
+"text_url":"https://en.wikipedia.org/wiki/Utopia_(book)",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":271,
 "person_id":"thomas-more",
 "name":"Dialogue of Comfort against Tribulation",
-"text_url":"https://ccel.org/ccel/more",
+"text_url":"https://ccel.org/ccel/more/comfort",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
