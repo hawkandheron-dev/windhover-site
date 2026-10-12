@@ -121,6 +121,9 @@ export function nameVariants(name) {
   const out = [name.replace(/\s*\([^)]*\)/g, '').trim()];
   for (const m of name.matchAll(/\(([^)]+)\)/g)) out.push(m[1].trim());
   for (const v of [...out]) if (ALIASES[norm(v)]) out.push(ALIASES[norm(v)]);
+  // "Letter 22 to Eustochium" is New Advent's "Letter 22".
+  const numbered = /\b(letter|epistle|oration|homily)\s+(\d+)\b/i.exec(name);
+  if (numbered) out.push(`${numbered[1]} ${numbered[2]}`);
   return [...new Set(out.filter(Boolean))];
 }
 
@@ -200,7 +203,9 @@ export async function expandNewAdvent(catalogue, wanted) {
         // "Treatise III" says nothing: the part's own page has the title ("On the Lapsed").
         if (/^treatise\b/i.test(title)) {
           const sub = await fetchText(`https://www.newadvent.org/fathers/${m[1]}.htm`);
-          const t = sub.status === 200 ? pageTitles(sub.body).map((x) => x.replace(/^church fathers:\s*/i, '').replace(/\s*\([^)]*\)\s*$/, '')).find(Boolean) : '';
+          // The title is the first bold paragraph under the heading ("Treatise 3" / "On the Lapsed.").
+          const after = sub.status === 200 ? sub.body.slice(sub.body.indexOf('</h1>')) : '';
+          const t = strip(/<p><strong>([^<]{3,100})<\/strong><\/p>/.exec(after)?.[1] ?? '').replace(/\.$/, '');
           if (t) title = `${title}: ${t}`;
         }
         extra.push({ title, url: `https://www.newadvent.org/fathers/${m[1]}.htm`, part: w.title });
@@ -279,8 +284,7 @@ export async function judgePage(url, work) {
     const words = tokens(t);
     const variants = nameVariants(work.name).map((v) => tokens(v));
     const contain = Math.max(...variants.map((v) => (v.length ? v.filter((x) => has(words, x)).length / v.length : 0)));
-    const extras = Math.max(0, words.length - Math.max(...variants.map((v) => v.length)));
-    const s = Math.max(bestSim(work.name, t), contain === 1 && extras > 3 ? 0.7 : contain * 0.9);
+    const s = Math.max(bestSim(work.name, t), contain * 0.9);
     if (s > best.score) best = { score: s, title: t };
   }
   return { ok: true, status: res.status, finalUrl: res.finalUrl, ...best };
