@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   norm, tokens, tokenEq, nameVariants, sim, bestSim, addressKind, sameAuthor, sourceSubject, newAdventCandidates2,
+  containScore, isGone,
 } from '../../scripts/check-work-links.mjs';
 
 describe('work-link audit: matching names', () => {
@@ -60,5 +61,25 @@ describe('work-link audit: sources and catalogue', () => {
     ];
     const hit = newAdventCandidates2({ name: 'Ambrose of Milan' }, { name: 'On the Holy Spirit (De Spiritu Sancto)' }, catalogue);
     expect(hit.map((h) => h.url)).toEqual(['https://www.newadvent.org/fathers/3402.htm']);
+  });
+});
+
+describe('work-link audit: guarding against false matches and false deaths', () => {
+  it('does not accept a longer title that merely contains a short work name', () => {
+    expect(containScore('On Truth', 'Truth and Reconciliation')).toBeLessThan(0.8);
+    expect(containScore('On Truth (De Veritate)', 'Truth (2015 film)')).toBeLessThan(0.8);
+    expect(containScore('Hexaemeron', 'Hexaemeron')).toBe(0.9);
+  });
+
+  it('accepts a book whose title lists several works', () => {
+    const book = 'Proslogium; Monologium; An Appendix in Behalf of the Fool by Gaunilon; and Cur Deus Homo';
+    expect(containScore('Monologion', book)).toBe(0.9);
+    expect(containScore('Proslogion', book)).toBe(0.9);
+  });
+
+  it('calls a link dead only when the page is gone, not when it could not be read', () => {
+    expect(isGone(404)).toBe(true);
+    expect(isGone(410)).toBe(true);
+    for (const unreadable of [0, 403, 408, 429, 500, 502, 503]) expect(isGone(unreadable), String(unreadable)).toBe(false);
   });
 });

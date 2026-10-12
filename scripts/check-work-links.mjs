@@ -278,6 +278,25 @@ export function newAdventCandidates2(person, work, catalogue) {
 const SITE_BITS = /\s*[-–—|:]\s*(christian classics ethereal library|wikisource|wikipedia|britannica|bible gateway|new advent|the free encyclopedia|stanford encyclopedia of philosophy)\b.*$/i;
 const cleanTitle = (t) => t.replace(/^church fathers:\s*/i, '').replace(/^(work info|author info):\s*/i, '').replace(SITE_BITS, '').trim();
 
+/**
+ * How well a page title names a work by containing its words: 0 to 0.9.
+ * A title may carry a few extra words, but not so many that it is a different thing:
+ * "On Truth" is not "Truth and Reconciliation". A title that lists several works
+ * ("Proslogium; Monologium; ...; and Cur Deus Homo") is a book of them and is allowed.
+ */
+export function containScore(workName, pageTitle) {
+  const B = tokens(pageTitle);
+  const listed = (pageTitle.match(/[;,]/g) ?? []).length >= 2;
+  let best = 0;
+  for (const v of nameVariants(workName)) {
+    const A = tokens(v);
+    if (!A.length || !A.every((t) => has(B, t))) continue;
+    const extras = Math.max(0, B.length - A.length);
+    best = Math.max(best, listed || extras <= (A.length >= 2 ? 1 : 0) ? 0.9 : 0.7);
+  }
+  return best;
+}
+
 /** Fetch a page and score how well its title names the work: 0..1 and the title seen. */
 export async function judgePage(url, work) {
   const res = await fetchText(url);
@@ -285,11 +304,7 @@ export async function judgePage(url, work) {
   const titles = pageTitles(res.body).map(cleanTitle);
   let best = { score: 0, title: titles[0] ?? '' };
   for (const t of titles) {
-    // A page about several works: its title lists them, so also look for the work's words inside it.
-    const words = tokens(t);
-    const variants = nameVariants(work.name).map((v) => tokens(v));
-    const contain = Math.max(...variants.map((v) => (v.length ? v.filter((x) => has(words, x)).length / v.length : 0)));
-    const s = Math.max(bestSim(work.name, t), contain * 0.9);
+    const s = Math.max(bestSim(work.name, t), containScore(work.name, t));
     if (s > best.score) best = { score: s, title: t };
   }
   return { ok: true, status: res.status, finalUrl: res.finalUrl, ...best };
@@ -394,11 +409,14 @@ const RANK = { newadvent: 0, ccel: 1, wikisource: 2, other: 3, wikipedia: 4 };
 
 const SQL_Q = (v) => `'${String(v).replace(/'/g, "''")}'`;
 
+export const isGone = (status) => status >= 400 && status < 500 && ![403, 429, 408, 451].includes(status);
+
 async function judgeCurrent(url, work) {
   const j = await judgePage(url, work);
   const kind = addressKind(url);
   let cls;
-  if (!j.ok) cls = j.status === 403 || j.status === 429 || j.status === 999 ? 'blocked' : 'dead';
+  // Only a real "gone" (404, 410) is dead; a timeout, a refusal or a server error just means we could not read it.
+  if (!j.ok) cls = isGone(j.status) ? 'dead' : 'blocked';
   else if (j.score >= 0.6 && kind === 'unknown') cls = 'work';
   else if (j.score >= 0.75 && kind === 'volume') cls = 'work'; // a book whose own title names the work
   else if (kind === 'author' || kind === 'volume') cls = kind;
@@ -439,7 +457,9 @@ async function propose(person, work, ctx) {
 }
 
 // Hosts that carry the text of a work: a link already there is not traded for an article about it.
-const FULL_TEXT = /newadvent\.org\/fathers|ccel\.org\/ccel\/[^/]+\/[^/]+|wikisource\.org\/wiki\/(?!Author:)|gutenberg\.org|archive\.org\/details|perseus|sourcebooks\.fordham/;
+const FULL_TEXT = /newadvent\.org\/fathers|ccel\.org\/ccel\/[^/]+\/[^/]+|wikisource\.org\/wiki\/(?!Author:)|gutenberg\.org|archive\.org\/details|perseus|sourcebooks\.fordham|biblegateway\.com|biblehub\.com|blueletterbible\.org/;
+// Pages about a work, not the work: swapping one article for a better one is fine. Shops are not the work either.
+const ABOUT_OR_SHOP = /wikipedia\.org|britannica\.com|plato\.stanford\.edu|newadvent\.org\/cathen|booksamillion|barnesandnoble|penguinrandomhouse|amazon\.|worldcat|ecampus|abebooks|bookshop/;
 
 function decide(work, current, judged) {
   if (current.cls === 'work') return { action: 'keep', why: 'the page names the work' };
@@ -448,6 +468,10 @@ function decide(work, current, judged) {
     return { action: 'keep', why: `already a text of the work (${new URL(current.url).hostname}); an article about it would be a step down` };
   }
   const top = judged[0];
+  // The current page loads but we could not tell what it is (a scan, a manuscript page, a catalogue): the owner decides, since an article would be a step down if it is the work.
+  if (['other', 'blocked'].includes(current.cls) && !ABOUT_OR_SHOP.test(current.url ?? '') && top && !top.full) {
+    return { action: 'review', confidence: 'doubtful', candidates: judged.slice(0, 3), why: 'the current page loads but I could not confirm it is not the work; the only candidate is an article about it' };
+  }
   const group = GROUP_NAME.test(work.name) || tokens(work.name).length === 0;
   if (top && top.verified >= 0.8 && (!group || top.full)) {
     return { action: 'change', confidence: top.full ? 'sure' : 'sure-about', to: top, why: `${top.via}; page title: "${top.seen}"` };
@@ -601,7 +625,7 @@ export async function judgeSource(src) {
     return A.length ? A.filter((t) => has(S, t)).length / A.length : 0;
   }));
   let cls;
-  if (!j.ok) cls = j.status === 403 || j.status === 429 || j.status === 999 ? (slugScore >= 0.6 ? 'ok-blocked' : 'blocked') : 'dead';
+  if (!j.ok) cls = !isGone(j.status) ? (slugScore >= 0.6 ? 'ok-blocked' : 'blocked') : 'dead';
   else if (j.score >= 0.6) cls = 'ok';
   else if (slugScore >= 0.6) cls = 'ok-slug';
   else cls = addressKind(src.url) === 'volume' ? 'volume' : 'mismatch';
