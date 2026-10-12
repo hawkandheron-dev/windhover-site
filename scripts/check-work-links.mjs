@@ -351,6 +351,16 @@ export async function wikipediaAbout(work, person) {
   const all = authorTokens(person.name).filter((t) => t.length > 2);
   const authorWords = all.filter((t) => !COMMON_NAMES.has(t)).length ? all.filter((t) => !COMMON_NAMES.has(t)) : all;
   const out = new Map();
+  // First the work's own name as an article title: a search can rank a person above it ("Leo Tomé" for "Tome of Leo").
+  for (const v of nameVariants(work.name).slice(0, 2)) {
+    for (const t of [v, `${v} (${authorWords[0] ?? ''})`]) {
+      const art = await wikipediaArticle(`https://en.wikipedia.org/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}`);
+      if (!art || /may refer to|disambiguation/i.test(art.intro.slice(0, 300))) continue;
+      const opening = norm(`${art.title} ${art.intro.slice(0, 700)}`).split(' ');
+      const named = authorWords.some((w) => opening.some((x) => tokenEq(x, w)));
+      if (named && WORK_WORDS.test(art.intro.slice(0, 700))) out.set(art.finalUrl, { url: art.finalUrl, via: `Wikipedia: "${art.title}"`, score: 1, host: 'wikipedia' });
+    }
+  }
   for (const v of nameVariants(work.name).slice(0, 2)) {
     const q = encodeURIComponent(`${v} ${authorWords[0] ?? ''}`.trim());
     const res = await fetchText(`https://en.wikipedia.org/wiki/Special:Search?search=${q}&fulltext=1&ns0=1`);
@@ -465,6 +475,7 @@ const SOURCE_OK = {
   'src-newadvent-constantinople-1': 'the page is the First Council of Constantinople (382): canons',
   'src-newadvent-council-ephesus': 'the page is the Council of Ephesus: documents',
   'src-newadvent-nicaea-canons': 'the page is the First Council of Nicaea: canons and creed',
+  'src-eusebius-eh-v-20': 'chapter 20 is in Book V of the Church History, which this page is',
   'src-photios-oca': 'the OCA article on St Photius',
   'src-tertullian-prescription-32': 'a deep link to chapter 32 of the Prescription, in ANF vol. 3',
 };

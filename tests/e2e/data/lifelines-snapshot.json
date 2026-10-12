@@ -11033,7 +11033,7 @@
 "work_id":230,
 "person_id":"dante-alighieri",
 "name":"De Monarchia",
-"text_url":"https://www.ccel.org/ccel/dante",
+"text_url":"https://en.wikipedia.org/wiki/De_Monarchia",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -12363,14 +12363,14 @@
 "work_id":166,
 "person_id":"photios-constantinople",
 "name":"Bibliotheca (Myriobiblon)",
-"text_url":"https://ccel.org/ccel/pearse/morefathers/files/photius_bibliotheca_01.htm",
+"text_url":"https://en.wikipedia.org/wiki/Myriobiblon",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
 "work_id":167,
 "person_id":"photios-constantinople",
 "name":"Mystagogy of the Holy Spirit",
-"text_url":"https://ccel.org/ccel/pearse/morefathers/files/photius_bibliotheca_01.htm",
+"text_url":"https://en.wikipedia.org/wiki/Mystagogy_of_the_Holy_Spirit",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
