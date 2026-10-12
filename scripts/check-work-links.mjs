@@ -98,11 +98,12 @@ export function pageTitles(html) {
 }
 
 // ── comparing names ────────────────────────────────────────────────────────
-const STOP = new Set(['the', 'of', 'on', 'to', 'and', 'a', 'an', 'in', 'de', 'ad', 'against', 'concerning', 'epistle', 'letter', 'letters', 'selected', 'church', 'fathers', 'works', 'book', 'books']);
+const STOP = new Set(['saint', 'the', 'of', 'on', 'to', 'and', 'a', 'an', 'in', 'de', 'ad', 'against', 'concerning', 'epistle', 'letter', 'letters', 'selected', 'church', 'fathers', 'works', 'book', 'books']);
 const ORD = {
   first: '1', second: '2', third: '3', i: '1', ii: '2', iii: '3', '1st': '1', '2nd': '2', '3rd': '3',
   // New Advent calls Athanasius's "Orations Against the Arians" "Four Discourses".
   orations: 'discourses', oration: 'discourses', discourse: 'discourses',
+  st: 'saint',
 };
 
 export function norm(s) {
@@ -110,18 +111,29 @@ export function norm(s) {
     .replace(/æ/g, 'ae').replace(/œ/g, 'oe').replace(/[’']/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 export function tokens(s, { keepStop = false } = {}) {
-  return norm(s).split(' ').filter(Boolean).map((t) => ORD[t] ?? t).filter((t) => keepStop || !STOP.has(t));
+  const all = norm(s).split(' ').filter(Boolean).map((t) => ORD[t] ?? t);
+  const kept = all.filter((t) => keepStop || !STOP.has(t));
+  // "Letters (selected)" is all filler: match on its own words rather than on nothing.
+  return kept.length || keepStop ? kept : all.filter((t) => t !== 'selected');
 }
 /** A work's name and the alternative given in brackets: "On the Mysteries (De Mysteriis)". */
 export function nameVariants(name) {
   const out = [name.replace(/\s*\([^)]*\)/g, '').trim()];
   for (const m of name.matchAll(/\(([^)]+)\)/g)) out.push(m[1].trim());
+  for (const v of [...out]) if (ALIASES[norm(v)]) out.push(ALIASES[norm(v)]);
   return [...new Set(out.filter(Boolean))];
 }
+
+// The same work under another title in the catalogues, each read and confirmed by hand.
+const ALIASES = {
+  'against heresies': 'Adversus haereses', // New Advent's title for Irenaeus
+};
 /** Words that differ only by a spelling variant: proslogion/proslogium, antony/anthony. */
 export function tokenEq(a, b) {
   if (a === b) return true;
   const n = Math.min(a.length, b.length);
+  // jovinian / jovinianus: one is the start of the other.
+  if (n >= 6 && Math.abs(a.length - b.length) <= 3 && (a.startsWith(b) || b.startsWith(a))) return true;
   if (n < 5 || Math.abs(a.length - b.length) > 2) return false;
   const limit = n >= 9 ? 2 : 1;
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
@@ -283,25 +295,35 @@ export async function wikipediaArticle(url) {
   return { title, intro: intro.slice(0, 1800), finalUrl: res.finalUrl };
 }
 
-/** Articles about this work (not the idea it is named after): the title names it, and its opening names the author. */
+const WORK_WORDS = /\b(treatise|book|work|letters?|epistles?|poems?|poetry|text|commentary|dialogues?|hymns?|homil(?:y|ies)|confession|rule|sermons?|apology|chronicle|history|catechism|theses|prayers?|canons?|creed|autobiograph\w*|novel|allegory|manuscript|writings?|essay|tract|oration|discourses?|gospel|opus|summa|meditations?|revelations?|testament|poem|encyclical|decree|declaration|definition|argument|dialogue|sentences|etymolog\w*)\b/i;
+
+/** Articles about this work (not the idea it is named after, not a person who shares a word with it). */
 export async function wikipediaAbout(work, person) {
-  const authorWords = authorTokens(person.name).filter((t) => t.length > 2);
+  const all = authorTokens(person.name).filter((t) => t.length > 2);
+  const authorWords = all.filter((t) => !COMMON_NAMES.has(t)).length ? all.filter((t) => !COMMON_NAMES.has(t)) : all;
   const out = new Map();
   for (const v of nameVariants(work.name).slice(0, 2)) {
     const q = encodeURIComponent(`${v} ${authorWords[0] ?? ''}`.trim());
     const res = await fetchText(`https://en.wikipedia.org/wiki/Special:Search?search=${q}&fulltext=1&ns0=1`);
     if (res.status !== 200) continue;
-    const hits = [...res.body.matchAll(/<a href="(\/wiki\/[^"#?]+)" title="([^"]+)"[^>]*data-serp-pos/g)].slice(0, 5);
+    const hits = [...res.body.matchAll(/<a href="(\/wiki\/[^"#?]+)" title="([^"]+)"[^>]*data-serp-pos/g)].slice(0, 5).map((m) => [m[1], decode(m[2])]);
     // A search that lands exactly on one article redirects there.
-    const landed = /\/wiki\/(?!Special:)/.test(res.finalUrl) ? [[null, res.finalUrl.split('/wiki/')[1], decode(decodeURIComponent(res.finalUrl.split('/wiki/')[1]).replace(/_/g, ' '))]] : [];
-    for (const [, href, title] of [...landed, ...hits]) {
-      const s = bestSim(work.name, title.replace(/\s*\([^)]*\)\s*/g, ' '));
-      if (s < 0.9) continue;
-      const url = href?.startsWith('/') ? wikiHref('en.wikipedia.org', href) : `https://en.wikipedia.org/wiki/${href}`;
+    const landed = /\/wiki\/(?!Special:)/.test(res.finalUrl) ? [[`/wiki/${res.finalUrl.split('/wiki/')[1]}`, decodeURIComponent(res.finalUrl.split('/wiki/')[1]).replace(/_/g, ' ')]] : [];
+    for (const [href, title] of [...landed, ...hits]) {
+      const bare = title.replace(/\s*\([^)]*\)\s*/g, ' ');
+      // Compared with filler words kept, so "Jovinian" is not "Against Jovinian".
+      const s = Math.max(...nameVariants(work.name).map((n) => {
+        const A = tokens(n, { keepStop: true }), B = tokens(bare, { keepStop: true });
+        return A.length && B.length ? (A.filter((t) => has(B, t)).length / A.length + B.filter((t) => has(A, t)).length / B.length) / 2 : 0;
+      }));
+      if (s < 0.8) continue;
+      const url = wikiHref('en.wikipedia.org', href);
       const art = await wikipediaArticle(url);
       if (!art) continue;
-      const mentions = authorWords.some((w) => norm(`${art.title} ${art.intro}`).split(' ').some((t) => tokenEq(t, w)));
-      if (mentions) out.set(url, { url, via: `Wikipedia: "${art.title}"`, score: s, host: 'wikipedia' });
+      const opening = norm(`${art.title} ${art.intro.slice(0, 700)}`).split(' ');
+      const named = authorWords.some((w) => opening.some((t) => tokenEq(t, w)));
+      const aWork = WORK_WORDS.test(art.intro.slice(0, 700));
+      if (named && aWork) out.set(url, { url, via: `Wikipedia: "${art.title}"`, score: s, host: 'wikipedia' });
     }
   }
   return [...out.values()].sort((a, b) => b.score - a.score);
@@ -348,7 +370,9 @@ async function propose(person, work, ctx) {
     }
     return out;
   };
-  const rank = (a, b) => (b.verified >= 0.8) - (a.verified >= 0.8) || a.rank - b.rank || b.verified - a.verified;
+  // An English edition before an Italian or Latin one (CCEL's "comedy-it").
+  const foreign = (c) => /-(it|la|lat|el|grc|de|fr|es)$/i.test(new URL(c.url).pathname);
+  const rank = (a, b) => (b.verified >= 0.8) - (a.verified >= 0.8) || foreign(a) - foreign(b) || a.rank - b.rank || b.verified - a.verified;
   const judged = (await judge(cands)).sort(rank);
   if (judged[0]?.verified >= 0.8) return judged;
   const about = (await wikipediaAbout(work, person)).slice(0, 2).map((c) => ({ ...c, rank: RANK.wikipedia, full: false }));
@@ -359,7 +383,7 @@ function decide(work, current, judged) {
   if (current.cls === 'work') return { action: 'keep', why: 'the page names the work' };
   const top = judged[0];
   const group = GROUP_NAME.test(work.name) || tokens(work.name).length === 0;
-  if (top && top.verified >= 0.8 && !group) {
+  if (top && top.verified >= 0.8 && (!group || top.full)) {
     return { action: 'change', confidence: top.full ? 'sure' : 'sure-about', to: top, why: `${top.via}; page title: "${top.seen}"` };
   }
   return { action: 'review', confidence: 'doubtful', candidates: judged.slice(0, 3), why: group ? 'a group of works' : top ? `best match "${top.seen}" scored ${top.verified.toFixed(2)}` : 'nothing found' };
