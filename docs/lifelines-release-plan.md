@@ -4,7 +4,7 @@
 
 ## Works & Sources links: point at the work, not the author (2026-10-12). Done: PR open
 
-> **Outcome:** `scripts/check-work-links.mjs` audited all 448 links. The migration `20261012120000_ch_work_source_links.sql` applies 130 (123 works, 7 sources); 146 works are listed for Matthew in the doc "Works & Sources: links still to settle" (21 dead, 83 still on an author page, 42 unconfirmed). Notes in `docs/works-sources-links.md`.
+> **Outcome:** `scripts/check-work-links.mjs` audited all 448 links. The migration `20261012120000_ch_work_source_links.sql` applies 127 (120 works, 7 sources); 148 works are listed for Matthew in the doc "Works & Sources: links still to settle" (17 dead, 83 still on an author page, 48 unconfirmed). Codex's three review points are fixed. Notes in `docs/works-sources-links.md`.
 
 **Context.** Many links under Works & Sources land on the author's page rather than the work they're labelled with. Matthew asked for every link to be checked against the work or source it names. The rule: link the work's own text (New Advent is usually the best); if the text isn't available, link an article *about* the work (Wikipedia, Stanford Encyclopedia of Philosophy, Britannica, or similar).
 

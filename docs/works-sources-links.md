@@ -35,19 +35,22 @@ Rules it follows, each from a mistake found by reading the first results:
   words kept ("Against Jovinian" is not "Jovinian"), its opening names the author,
   and it reads like a work (not a film, not a person who shares a word with it).
 - A link that is already a text of the work (New Advent, CCEL, Wikisource,
-  Gutenberg, archive.org) is not traded for an article about it, and a page the
-  script cannot read is not replaced.
+  Gutenberg, archive.org, Bible Gateway) is not traded for an article about it, and a
+  page that loads but whose content could not be confirmed (a scan, a manuscript page)
+  goes to review when the only candidate is an article. Only a real 404 or 410 counts as
+  dead; a timeout, a refusal or a server error means "could not read", and such a page
+  is never replaced.
 - A page found for two different figures' works goes to review, not to the database.
 - Titles New Advent gives differently (Irenaeus's Against Heresies is *Adversus
   haereses*) are in a small alias table in the script, each confirmed by hand.
 
 ## What was done (2026-10-12)
 
-`supabase/migrations/20261012120000_ch_work_source_links.sql` applies the 130
-changes it was sure of (123 works, 7 sources). Each update is guarded by the address
-it replaces, so it does not overwrite a link edited since. 146 works were left for
-the owner and are listed in the doc "Works & Sources: links still to settle": links
-that are dead, links still on an author page where nothing was found, and links that
-load but do not clearly name the work. `tests/unit/work-links.test.js` keeps the
+`supabase/migrations/20261012120000_ch_work_source_links.sql` applies the 127
+changes it was sure of (120 works, 7 sources). Each update is guarded by the address
+it replaces, so it does not overwrite a link edited since. 148 works were left for
+the owner and are listed in the doc "Works & Sources: links still to settle": 17 links
+that are dead (a real 404), 83 still on an author page where nothing was found, and 48
+that load or could not be read but do not clearly name the work. `tests/unit/work-links.test.js` keeps the
 migration and the snapshot in agreement and checks none of the changes points back
 at an author page.
