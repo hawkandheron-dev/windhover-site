@@ -2,6 +2,76 @@
 
 > **Status:** M1 merged ([hawkandheron-dev/windhover-site#158](https://github.com/hawkandheron-dev/windhover-site/pull/158)). M2 is open as [hawkandheron-dev/windhover-site#159](https://github.com/hawkandheron-dev/windhover-site/pull/159), and Matthew's preview check passed 5/5. For step 2, `/?admin` showing a Sign In button while signed out is the intended result: `?admin` only reveals the button, and the admin tools appear after signing in. Still to confirm: plain `/` shows no Sign In button. M2 merged. **Now: M3**, detailed in the next section. Sync this file to `docs/lifelines-release-plan.md` on the next commit.
 
+## Works & Sources links: point at the work, not the author (2026-10-12). Done: PR open
+
+> **Outcome:** `scripts/check-work-links.mjs` audited all 448 links. The migration `20261012120000_ch_work_source_links.sql` applies 130 (123 works, 7 sources); 146 works are listed for Matthew in the doc "Works & Sources: links still to settle" (21 dead, 83 still on an author page, 42 unconfirmed). Notes in `docs/works-sources-links.md`.
+
+**Context.** Many links under Works & Sources land on the author's page rather than the work they're labelled with. Matthew asked for every link to be checked against the work or source it names. The rule: link the work's own text (New Advent is usually the best); if the text isn't available, link an article *about* the work (Wikipedia, Stanford Encyclopedia of Philosophy, Britannica, or similar).
+
+**What the data shows (live tables, read-only; sandbox now reaches New Advent, CCEL, Wikipedia and SEP; Britannica returns 403 to scripts):**
+- **Works** (`CH_Works.text_url`): 362 rows for 114 figures. 239 share a URL with another work, so one page stands in for several.
+  - 133 are CCEL **author** pages (`ccel.org/ccel/<author>`), 27 are Wikisource **author** pages, and about 80 more are CCEL volume pages that hold many works (e.g. 11 works share `anf-series`).
+  - 23 already point at New Advent, 12 at Bible Gateway, 14 at Google Books, and about 40 are scattered one-offs.
+- **Sources** (`CH_Sources.url`): 86 rows. 30 New Advent, 25 Wikipedia, 6 Britannica, 4 CCEL (some are whole NPNF volumes, e.g. `npnf104`), the rest scattered. Each has a title naming what it supports.
+- `works.js` (static fallback in `TimelineModal`) is **not used by Lifelines**: no active figure falls back to it. Nothing to change there.
+- `text_url` is nullable, but per Matthew's answer a link with no good match is **kept and listed**, not cleared.
+
+**Checked 2026-10-12:** the snapshot's Works and Sources match the live tables exactly (same count and a matching fingerprint of every id, link and name), so the audit can read the snapshot without a fresh export. The script gets a `--live-hash` note in its docs for re-checking this before a migration is written.
+
+**Matthew's decisions:** auto-apply the sure matches; send the doubtful ones to him in a short doc; keep the current link where nothing better is found.
+
+### 1. An audit script, `scripts/check-work-links.mjs` (reusable; reads the live tables or the snapshot)
+For each work and source, with polite rate limits (about 2 requests a second per host, a descriptive User-Agent, results cached on disk so reruns are cheap):
+1. **Fetch the current link** and record status, final URL after redirects, and the page's title/h1.
+2. **Classify:** *work page* (the title matches the work's name), *author or volume page* (the title matches the author or a whole volume, or the address shape says so), *dead* (4xx/5xx, timeout), *other* (e.g. a shop page).
+3. **Find a better target for every link that isn't a work page**, in this order:
+   - **New Advent Fathers.** Crawl `newadvent.org/fathers/` (the index and each work's page) to build a catalogue of title → address. Match with the work's name and its alternative title in brackets (e.g. "On the Duties of the Clergy (De Officiis Ministrorum)"), ignoring case, accents and ordinals.
+   - **CCEL per-work pages** (`ccel.org/ccel/<author>/<work>`), found from each author's page.
+   - **Wikisource work pages**, via the MediaWiki API (`list=search` on the title, restricted to the main namespace, then `Author:` pages' work lists).
+   - **Other free text** already in the table (Gutenberg, Perseus, Columbia's *Epistolae*) when it is the right work.
+   - **An article about the work**: Wikipedia (search API, requiring the article's title or first sentence to name the work), the Stanford Encyclopedia, or Britannica. Britannica can't be fetched by script, so it is used only as an existing link or when a Wikipedia article doesn't exist, and is flagged for a manual check.
+4. **Verify the candidate** by fetching it: HTTP 200, and the page's own title (or h1) contains the work's name or its alternate name. A candidate that doesn't pass is never auto-applied.
+5. **Write `.link-audit/report.json` and `report.md`:** every row with the current link, its class, the proposed link, the evidence (fetched title) and a confidence of **sure** (title matches, full text), **sure-about** (an article titled for the work), or **doubtful** (anything else: several plausible matches, a work named generically such as "Letters (selected)", or a page I couldn't fetch).
+   - A work whose name is a group ("Letters", "Sermons (selected)") links to the best collection page and is marked doubtful.
+
+### 2. Apply the sure ones: one migration
+- `supabase/migrations/20261012…_ch_work_source_links.sql`: `update "CH_Works" set text_url = … where work_id = …` and the same for `CH_Sources` (by `source_id`), each guarded by `and text_url = '<old>'` so it never overwrites an edit Matthew has made in the admin tools since. Idempotent; CI applies it on merge, as before.
+- Refresh `tests/e2e/data/lifelines-snapshot.json` the same way (a script patches the matching rows without changing the file's layout).
+- The PR body carries the before/after table for the applied rows, grouped by figure.
+
+### 3. The doubtful ones go to Matthew
+A short Claude Doc, one section per figure: the work, the current link, my best one or two candidates with the title I saw at each, and a "which one?" column to fill in. When he's answered, I write a second migration.
+
+### 4. Keep it clean afterwards
+- A unit test (`tests/unit/work-links.test.js`) on the snapshot: no work links to a CCEL or Wikisource **author** page, and no two works by one figure share the same address (a work may still share one with a sibling that's printed in the same text, listed explicitly).
+- Run the audit script's "dead link" check as a manual command only (not in CI, since third-party sites go down); its report format is documented in `docs/`.
+
+### Files
+- New: `scripts/check-work-links.mjs`, `supabase/migrations/20261012…_ch_work_source_links.sql`, `tests/unit/work-links.test.js`.
+- Changed: `tests/e2e/data/lifelines-snapshot.json`. No app code changes, so no UI shots are needed. DESIGN.md is unaffected.
+
+### Verification
+- Re-run the audit script after the migration (against the updated snapshot): zero author-page links remain except the doubtful list; every applied link still returns 200 and its title matches.
+- Spot-check by fetching 15 applied links by hand-picked figures (Athanasius, Augustine, Anselm, Basil, Bede, Alcuin, Dante) and reading the page titles.
+- Unit and the full e2e (unchanged, since the snapshot's links aren't asserted); lint is untouched.
+- PR, CI to green, Matthew's "merge it", then confirm with a read-only query that the live rows match, and check one figure's panel on windhoverhistory.com.
+
+### Risks and how they're handled
+- **Wrong matches** are the main risk: a candidate is applied only when the fetched page title names the work. Anything else is listed, not applied.
+- **Rate limits and bot blocking**: slow, cached requests; a User-Agent naming the project; Britannica is not scripted.
+- **Third-party layouts change**: the audit is a tool for now, not a CI gate.
+
+## Earlier: merge PR #172 (Matthew said "Merge it", 2026-10-10). Done
+
+All 5 checks passed on head 7bb3785: Unit, Build, E2E (Chromium), E2E (Firefox, WebKit), Cloudflare Pages. Both Codex threads are fixed, answered and resolved. Nothing is left for Claude until Matthew says "merge it". Approving this plan does **not** count as "merge it".
+
+When he says it:
+1. Re-read the check runs on the head and confirm all 5 are green.
+2. Merge with a merge commit, then unsubscribe from the PR.
+3. Fast-forward `claude/clever-curie-0627ec` to main and push.
+4. After CI's migration job has run, check with a read-only query that matthewlanebrown@gmail.com has role `admin`.
+5. Tell Matthew to sign in at windhoverhistory.com/?admin and try "Remove from view" and "Expanded view" in the Key.
+
 ## Admin tools not showing on the preview; make matthewlanebrown an admin (2026-10-10)
 
 **Context.** On the PR #172 preview, Matthew sees no "Remove from view" when signed in as matthewlanebrown@gmail.com or hawkandheron.co@gmail.com. The `users` table, read-only, shows two causes:
