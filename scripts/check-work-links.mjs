@@ -103,7 +103,7 @@ const ORD = {
   first: '1', second: '2', third: '3', i: '1', ii: '2', iii: '3', '1st': '1', '2nd': '2', '3rd': '3',
   // New Advent calls Athanasius's "Orations Against the Arians" "Four Discourses".
   orations: 'discourses', oration: 'discourses', discourse: 'discourses',
-  st: 'saint',
+  st: 'saint', in: 'on',
 };
 
 export function norm(s) {
@@ -183,6 +183,27 @@ export async function newAdventCatalogue() {
   return authors;
 }
 
+/** A collection page (Cyprian's Treatises) links its parts as ../fathers/050703.htm: add them to the catalogue. */
+export async function expandNewAdvent(catalogue, wanted) {
+  for (const a of catalogue.filter((x) => wanted(x.name))) {
+    const extra = [];
+    for (const w of a.works) {
+      const id = /fathers\/(\d+[a-z]?)\.htm/.exec(w.url)?.[1];
+      if (!id) continue;
+      const res = await fetchText(w.url);
+      if (res.status !== 200) continue;
+      const seen = new Set();
+      for (const m of res.body.matchAll(new RegExp(`<a href="(?:\\.\\./fathers/|)(${id}\\d{2,3}[a-z]?)\\.htm"[^>]*>([^<]{3,120})</a>`, 'g'))) {
+        if (seen.has(m[1])) continue;
+        seen.add(m[1]);
+        extra.push({ title: strip(m[2]), url: `https://www.newadvent.org/fathers/${m[1]}.htm`, part: w.title });
+      }
+    }
+    a.works.push(...extra);
+  }
+  return catalogue;
+}
+
 const FIRST = (s) => tokens(s.replace(/\(.*?\)/g, ''), { keepStop: true }).filter((t) => !['saint', 'st', 'pope', 'of', 'the', 'bishop'].includes(t))[0];
 
 /** Candidate New Advent pages for one work of one figure. */
@@ -213,13 +234,24 @@ export function sameAuthor(personName, otherName) {
   return short.every((t) => has(long, t));
 }
 
+/** All of the work's words are in the page title, which adds at most two of its own: "Hexaemeron" in "Nine Homilies of Hexaemeron". */
+export function contained(workName, pageTitle) {
+  const B = tokens(pageTitle);
+  let best = 0;
+  for (const v of nameVariants(workName)) {
+    const A = tokens(v);
+    if (A.length && A.every((t) => has(B, t)) && B.length - A.length <= 2) best = Math.max(best, 0.85);
+  }
+  return best;
+}
+
 export function newAdventCandidates2(person, work, catalogue) {
   const out = [];
   for (const a of catalogue) {
     if (!sameAuthor(person.name, a.name)) continue;
     for (const w of a.works) {
-      const s = bestSim(work.name, w.title);
-      if (s >= 0.74) out.push({ url: w.url, via: `New Advent, ${a.name}: "${w.title}"`, score: s, host: 'newadvent' });
+      const s = Math.max(bestSim(work.name, w.title), contained(work.name, w.title));
+      if (s >= 0.74) out.push({ url: w.url, via: `New Advent, ${a.name}: "${w.title}"${w.part ? ` (in ${w.part})` : ''}`, score: s, host: 'newadvent' });
     }
   }
   return out.sort((x, y) => y.score - x.score);
@@ -240,7 +272,8 @@ export async function judgePage(url, work) {
     const words = tokens(t);
     const variants = nameVariants(work.name).map((v) => tokens(v));
     const contain = Math.max(...variants.map((v) => (v.length ? v.filter((x) => has(words, x)).length / v.length : 0)));
-    const s = Math.max(bestSim(work.name, t), contain * 0.9);
+    const extras = Math.max(0, words.length - Math.max(...variants.map((v) => v.length)));
+    const s = Math.max(bestSim(work.name, t), contain === 1 && extras > 3 ? 0.7 : contain * 0.9);
     if (s > best.score) best = { score: s, title: t };
   }
   return { ok: true, status: res.status, finalUrl: res.finalUrl, ...best };
@@ -445,7 +478,7 @@ async function main() {
   }
   const memo = (fn) => { const m = new Map(); return (k) => m.get(k) ?? m.set(k, fn(k)).get(k); };
   const ctx = {
-    catalogue: await newAdventCatalogue(), authorUrls,
+    catalogue: await expandNewAdvent(await newAdventCatalogue(), (name) => [...people.values()].some((p) => sameAuthor(p.name, name))), authorUrls,
     ccel: memo(ccelBooks), wikisource: memo(wikisourceWorks), quick: args.includes('--quick'),
   };
 
@@ -458,7 +491,25 @@ async function main() {
     if ((i + 1) % 20 === 0) console.error(`${i + 1}/${works.length}`);
   }
   if (!ONLY) rows.push(...await auditSources(snap));
+  guardDuplicates(rows);
   writeReport(rows);
+}
+
+// Matches read and found to be about something else, so they go to Matthew instead.
+const NOT_THESE = {
+  'CH_Works:Sentences (Sententiae)': 'Wikipedia\'s "Sentences" is about the medieval genre (Peter Lombard), not Isidore\'s book',
+};
+
+/** One article cannot be the answer for two different people's works. */
+function guardDuplicates(rows) {
+  const owners = new Map();
+  for (const r of rows.filter((x) => x.action === 'change' && x.table === 'CH_Works')) {
+    (owners.get(r.to.url) ?? owners.set(r.to.url, new Set()).get(r.to.url)).add(r.person);
+  }
+  for (const r of rows.filter((x) => x.action === 'change')) {
+    const reason = NOT_THESE[`${r.table}:${r.name}`] ?? (owners.get(r.to.url)?.size > 1 ? `the same page was found for ${[...owners.get(r.to.url)].join(' and ')}` : null);
+    if (reason) Object.assign(r, { action: 'review', confidence: 'doubtful', candidates: [{ ...r.to, seen: r.to.seen ?? '', verified: r.to.verified ?? 0 }], why: reason, to: undefined });
+  }
 }
 
 function writeReport(rows) {
