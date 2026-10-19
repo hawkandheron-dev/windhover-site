@@ -2052,7 +2052,19 @@ test.describe('Selection and the larger view (2026-10-09)', () => {
   test('only the body of the larger view scrolls; the band and buttons stay put', async ({ page }) => {
     // The frame used to scroll itself, and Windows drew its square scrollbar
     // over the rounded corners (owner, 2026-10-09).
-    await loadPage(page, { viewport: { width: 1280, height: 600 } });
+    // The dialog must be taller than the window for there to be anything to
+    // scroll. It used to get that from the static works.js list, which Lifelines
+    // no longer falls back to (Link Status, 2026-10-19), so give him works here.
+    const work = (id, name) => ({ work_id: id, person_id: 'athanasius', name, text_url: `https://example.org/${id}`, link_status: 'Verified' });
+    const tables = {
+      ...TABLES,
+      CH_Works: [
+        work(1, 'On the Incarnation'), work(2, 'Life of Antony'), work(3, 'Orations Against the Arians'),
+        work(4, 'Letters to Serapion on the Holy Spirit'), work(5, 'Festal Letters'), work(6, 'Apologia contra Arianos'),
+        work(7, 'Defence of His Flight'), work(8, 'History of the Arians'), work(9, 'On the Councils of Ariminum and Seleucia'),
+      ],
+    };
+    await loadPage(page, { viewport: { width: 1280, height: 600 }, tables });
     await openAthanasius(page);
     await page.getByRole('button', { name: 'Open larger view' }).click();
     const frame = page.locator('.timeline-modal .modal-content');
