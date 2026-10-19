@@ -74,7 +74,7 @@ export function buildConnectionMap(dbConnections) {
   return connectionMap;
 }
 
-/** person_id or event_id → [{ id, source, title, year, url, notes }]. */
+/** person_id or event_id → [{ id, source, title, year, url, notes, linkStatus }]. */
 export function buildSourceMap(dbSources, dbSourceFigures) {
   const sourceMap = new Map();
   const sourceById = new Map();
@@ -95,14 +95,15 @@ export function buildSourceMap(dbSources, dbSourceFigures) {
         title: src.title,
         year: src.year,
         url: src.url,
-        notes: src.notes
+        notes: src.notes,
+        linkStatus: src.link_status
       });
     }
   });
   return sourceMap;
 }
 
-/** person_id → [{ name, textUrl }]. */
+/** person_id → [{ name, textUrl, linkStatus }]. */
 export function buildWorksMap(dbWorks) {
   const worksMap = new Map();
   dbWorks.forEach(w => {
@@ -110,7 +111,8 @@ export function buildWorksMap(dbWorks) {
     if (!worksMap.has(w.person_id)) worksMap.set(w.person_id, []);
     worksMap.get(w.person_id).push({
       name: w.name,
-      textUrl: w.text_url
+      textUrl: w.text_url,
+      linkStatus: w.link_status
     });
   });
   return worksMap;

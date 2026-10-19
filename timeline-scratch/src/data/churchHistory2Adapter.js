@@ -60,6 +60,33 @@ export function isBackgroundPerson(person) {
 const isActive = (row) => row.active !== false;
 
 /**
+ * Link Status (CH_Works.link_status, CH_Sources.link_status). A work or source
+ * whose link is Unverified is not shown to readers; one with no link at all
+ * has nothing to verify and always shows. A row without the column (an older
+ * snapshot) counts as Verified.
+ */
+const isUnverifiedLink = (entry) =>
+  entry.linkStatus === 'Unverified' && Boolean(entry.textUrl || entry.url);
+
+/**
+ * Splits a figure's works or sources into what to show and what is held back.
+ * In Expanded view the held-back ones are shown too, flagged `hidden` so the
+ * panel can mark them. Otherwise they come back in `held`, which only the admin
+ * editor reads: it saves works by replacing the whole list, so it must be able
+ * to carry them through a save.
+ */
+function splitUnverified(entries, includeHidden) {
+  const shown = [];
+  const held = [];
+  for (const entry of entries) {
+    if (!isUnverifiedLink(entry)) shown.push(entry);
+    else if (includeHidden) shown.push({ ...entry, hidden: true });
+    else held.push(entry);
+  }
+  return { shown, held };
+}
+
+/**
  * Landmarks are major or minor since the 20261004 migration (owner's call, M3
  * round 5): the seven ecumenical councils and sixteen turning-point events are
  * major, the rest minor, and minor ones are hidden for now. A row without the
@@ -172,6 +199,18 @@ export function transformToTimelineFormat(db, { includeHidden = false } = {}) {
   const sourceMap = buildSourceMap(db.sources, db.sourceFigures);
   const worksMap = buildWorksMap(db.works);
   const eventConnectionMap = buildEventConnectionMap(db.eventConnections);
+
+  /** A figure's or landmark's works and sources, with Unverified links held back. */
+  const linkLists = (id, { works = true } = {}) => {
+    const sources = splitUnverified(sourceMap.get(id) || [], includeHidden);
+    const out = { sources: sources.shown, unverifiedSources: sources.held };
+    if (works) {
+      const w = splitUnverified(worksMap.get(id) || [], includeHidden);
+      out.works = w.shown;
+      out.unverifiedWorks = w.held;
+    }
+    return out;
+  };
   for (const [eventId, personIds] of eventConnectionMap) {
     if (!keptEventIds.has(eventId)) { eventConnectionMap.delete(eventId); continue; }
     eventConnectionMap.set(eventId, personIds.filter(id => keptPersonIds.has(id)));
@@ -239,8 +278,7 @@ export function transformToTimelineFormat(db, { includeHidden = false } = {}) {
       doctrinalRoleLabel: DOCTRINAL_ROLE_LABELS[p.doctrinal_role] || null,
       movements: affiliationsFor(p.person_id),
       connections: connectionsFor(p.person_id),
-      sources: sourceMap.get(p.person_id) || [],
-      works: worksMap.get(p.person_id) || [],
+      ...linkLists(p.person_id),
     };
 
     if (p.is_monarch) {
@@ -313,7 +351,7 @@ export function transformToTimelineFormat(db, { includeHidden = false } = {}) {
       minor: ev.significance === 'minor',
       referenceUrl: ev.reference_url || null,
       connectedPeople: (eventConnectionMap.get(ev.event_id) || []).filter(id => keptPersonIds.has(id)),
-      sources: sourceMap.get(ev.event_id) || [],
+      ...linkLists(ev.event_id, { works: false }),
       movements: (movementsByEvent.get(ev.event_id) || []).map(l => ({
         id: l.movement.movement_id,
         name: l.movement.name,

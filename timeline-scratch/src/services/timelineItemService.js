@@ -114,6 +114,8 @@ export async function updateWorksForPerson(personId, works, getToken) {
       person_id: personId,
       name: w.name,
       text_url: w.textUrl || null,
+      // Unverified until someone confirms the link (CH_Works.link_status).
+      link_status: w.linkStatus || 'Unverified',
     }));
     const { error: insErr } = await supabase
       .from('CH_Works')
@@ -126,7 +128,7 @@ export async function updateWorksForPerson(personId, works, getToken) {
 
 /**
  * Replace source-figure links for a person.
- * Each source: { id, source, title, year, url, notes }
+ * Each source: { id, source, title, year, url, notes, linkStatus }
  * Creates new CH_Sources rows for any source without an id,
  * then links them via CH_Source_Figures.
  */
@@ -155,6 +157,7 @@ export async function updateSourcesForPerson(personId, sources, getToken) {
           year: src.year || null,
           url: src.url || null,
           notes: src.notes || null,
+          link_status: src.linkStatus || 'Unverified',
         })
         .eq('source_id', src.id);
       sourceIds.push(src.id);
@@ -168,6 +171,7 @@ export async function updateSourcesForPerson(personId, sources, getToken) {
           year: src.year || null,
           url: src.url || null,
           notes: src.notes || null,
+          link_status: src.linkStatus || 'Unverified',
         })
         .select()
         .single();
