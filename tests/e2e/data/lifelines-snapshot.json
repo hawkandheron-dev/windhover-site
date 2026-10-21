@@ -8592,7 +8592,7 @@
 "title":"Ignatius – Epistle to Polycarp",
 "source_name":"New Advent (Church Fathers)",
 "year":"~110",
-"url":"https://www.newadvent.org/fathers/0109.htm",
+"url":"https://www.newadvent.org/fathers/0110.htm",
 "notes":"Personal letter addressed to Polycarp.",
 "link_status":"Verified",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
@@ -8884,7 +8884,7 @@
 "year":"~200",
 "url":"https://www.ccel.org/ccel/schaff/anf03.v.iii.ii.xxxii.html",
 "notes":"Names Polycarp as placed by John and Clement ordained by Peter (as recorded by churches).",
-"link_status":"Verified",
+"link_status":"Unverified",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {
@@ -10186,13 +10186,6 @@
 "id":158,
 "source_id":"src-theodoret-eh",
 "person_id":"theodoret-cyrus",
-"event_id":null,
-"created_at":"2026-08-12T02:27:42.767316+00:00"
-},
-{
-"id":159,
-"source_id":"src-irenaeus-ah-1",
-"person_id":"irenaeus",
 "event_id":null,
 "created_at":"2026-08-12T02:27:42.767316+00:00"
 },
@@ -11737,14 +11730,6 @@
 "name":"Against Heresies",
 "text_url":"https://www.newadvent.org/fathers/0103.htm",
 "link_status":"Verified",
-"created_at":"2026-02-01T13:28:30.242989+00:00"
-},
-{
-"work_id":31,
-"person_id":"irenaeus",
-"name":"Demonstration of the Apostolic Preaching (Proof of the Apostolic Preaching)",
-"text_url":"https://ccel.org/ccel/schaff/anf01",
-"link_status":"Unverified",
 "created_at":"2026-02-01T13:28:30.242989+00:00"
 },
 {

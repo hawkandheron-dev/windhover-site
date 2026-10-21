@@ -60,4 +60,13 @@ describe('Link Status', () => {
       expect(['Verified', 'Unverified'], String(r.work_id ?? r.source_id)).toContain(r.link_status);
     }
   });
+
+  it("the snapshot matches the 2026-10-21 link fixes (Polycarp, Tertullian, Irenaeus)", () => {
+    const src = (id) => snapshot.CH_Sources.find(r => r.source_id === id);
+    expect(src('src-ignatius-to-polycarp').url).toBe('https://www.newadvent.org/fathers/0110.htm');
+    expect(src('src-tertullian-prescription-32').link_status).toBe('Unverified');
+    expect(snapshot.CH_Works.some(w => w.work_id === 31)).toBe(false);
+    expect(snapshot.CH_Source_Figures.some(f => f.source_id === 'src-irenaeus-ah-1' && f.person_id === 'irenaeus')).toBe(false);
+    expect(snapshot.CH_Source_Figures.some(f => f.source_id === 'src-irenaeus-ah-1' && f.person_id === 'valentinus')).toBe(true);
+  });
 });
