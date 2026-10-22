@@ -2052,7 +2052,19 @@ test.describe('Selection and the larger view (2026-10-09)', () => {
   test('only the body of the larger view scrolls; the band and buttons stay put', async ({ page }) => {
     // The frame used to scroll itself, and Windows drew its square scrollbar
     // over the rounded corners (owner, 2026-10-09).
-    await loadPage(page, { viewport: { width: 1280, height: 600 } });
+    // The dialog must be taller than the window for there to be anything to
+    // scroll. It used to get that from the static works.js list, which Lifelines
+    // no longer falls back to (Link Status, 2026-10-19), so give him works here.
+    const work = (id, name) => ({ work_id: id, person_id: 'athanasius', name, text_url: `https://example.org/${id}`, link_status: 'Verified' });
+    const tables = {
+      ...TABLES,
+      CH_Works: [
+        work(1, 'On the Incarnation'), work(2, 'Life of Antony'), work(3, 'Orations Against the Arians'),
+        work(4, 'Letters to Serapion on the Holy Spirit'), work(5, 'Festal Letters'), work(6, 'Apologia contra Arianos'),
+        work(7, 'Defence of His Flight'), work(8, 'History of the Arians'), work(9, 'On the Councils of Ariminum and Seleucia'),
+      ],
+    };
+    await loadPage(page, { viewport: { width: 1280, height: 600 }, tables });
     await openAthanasius(page);
     await page.getByRole('button', { name: 'Open larger view' }).click();
     const frame = page.locator('.timeline-modal .modal-content');
@@ -2337,5 +2349,103 @@ test.describe('Descriptions keep their lines and links (2026-10-11)', () => {
     await expect(bare).toHaveAttribute('rel', /noopener/);
     await expect(text.locator('a.modal-description-link', { hasText: 'the Life' }))
       .toHaveAttribute('href', 'https://example.org/life');
+  });
+});
+
+test.describe('Link Status: unverified works and sources are hidden (2026-10-19)', () => {
+  test.beforeEach(() => {
+    const built = path.join(REPO_ROOT, 'apps/church-history-2.html');
+    test.skip(!fs.existsSync(built), 'apps/ not built — run `npm run build` first');
+  });
+
+  // Athanasius: a checked work, an unchecked one with a link, one with no link
+  // (always shown), and the same for sources. Gregory has only an unchecked work.
+  const tables = {
+    ...TABLES,
+    CH_Works: [
+      { work_id: 1, person_id: 'athanasius', name: 'Checked work', text_url: 'https://example.org/a', link_status: 'Verified' },
+      { work_id: 2, person_id: 'athanasius', name: 'Unchecked work', text_url: 'https://example.org/b', link_status: 'Unverified' },
+      { work_id: 3, person_id: 'athanasius', name: 'Unlinked work', text_url: null, link_status: 'Unverified' },
+      { work_id: 4, person_id: 'gregory-nyssa', name: 'Only unchecked', text_url: 'https://example.org/c', link_status: 'Unverified' },
+    ],
+    CH_Sources: [
+      { source_id: 's-ok', title: 'Checked source', url: 'https://example.org/s1', link_status: 'Verified' },
+      { source_id: 's-no', title: 'Unchecked source', url: 'https://example.org/s2', link_status: 'Unverified' },
+    ],
+    CH_Source_Figures: [
+      { id: 1, source_id: 's-ok', person_id: 'athanasius' },
+      { id: 2, source_id: 's-no', person_id: 'athanasius' },
+    ],
+  };
+
+  const openFigure = async (page, name) => {
+    await page.locator('.timeline-search input').first().fill(name);
+    await page.locator('.timeline-search-option', { hasText: name }).first().click();
+    await expect(page.locator('.timeline-modal--panel .modal-title')).toContainText(name);
+  };
+
+  test('a reader sees the checked and the unlinked, and nothing unverified', async ({ page }) => {
+    await loadPage(page, { tables });
+    await openFigure(page, 'Athanasius');
+    const works = page.locator('.timeline-modal--panel .modal-works');
+    await expect(works).toContainText('Checked work');
+    await expect(works).toContainText('Unlinked work');
+    await expect(works).toContainText('Checked source');
+    await expect(works).not.toContainText('Unchecked work');
+    await expect(works).not.toContainText('Unchecked source');
+    await expect(works.getByText('Unverified')).toHaveCount(0);
+  });
+
+  test('a figure whose works are all unverified has no Works section, and no stand-in list', async ({ page }) => {
+    await loadPage(page, { tables });
+    await openFigure(page, 'Gregory of Nyssa');
+    await expect(page.locator('.timeline-modal--panel .modal-works')).toHaveCount(0);
+  });
+
+  test("an admin's Expanded view shows them, tagged", async ({ page }) => {
+    await loadPage(page, { clerkKey: TEST_CLERK_KEY, query: '?admin', tables, setup: (p) => signInAsAdmin(p, []) });
+    await page.getByRole('checkbox', { name: /Expanded view/ }).check();
+    await openFigure(page, 'Athanasius');
+    const works = page.locator('.timeline-modal--panel .modal-works');
+    await expect(works).toContainText('Unchecked work');
+    await expect(works).toContainText('Unchecked source');
+    await expect(works.locator('.modal-unverified-tag')).toHaveCount(2);
+  });
+
+  test('editing works keeps the unverified ones and their status', async ({ page }) => {
+    const posts = [];
+    await loadPage(page, {
+      clerkKey: TEST_CLERK_KEY, query: '?admin', tables,
+      setup: async (p) => {
+        await signInAsAdmin(p, []);
+        await p.route('**/rest/v1/CH_Works**', (route) => {
+          const req = route.request();
+          if (req.method() === 'POST') {
+            posts.push(req.postDataJSON());
+            return route.fulfill({ status: 201, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '[]' });
+          }
+          if (req.method() === 'DELETE') {
+            return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' }, body: '' });
+          }
+          return route.fallback();
+        });
+      },
+    });
+    await openFigure(page, 'Athanasius');
+    const panel = page.locator('.timeline-modal--panel');
+    // Out of Expanded view the unchecked work is not on show, but the admin is told.
+    await expect(panel.locator('.modal-unverified-note')).toContainText('2 unverified entries are hidden');
+    await panel.locator('.modal-works h3 .modal-edit-btn', { hasText: /^Edit$/ }).click();
+    const statuses = panel.getByLabel('Link status');
+    await expect(statuses).toHaveCount(3);
+    await expect(statuses.nth(0)).toHaveValue('Verified');
+    await expect(statuses.nth(1)).toHaveValue('Unverified');
+    await panel.getByRole('button', { name: 'Save' }).click();
+    await expect.poll(() => posts.length).toBe(1);
+    expect(posts[0].map(r => [r.name, r.link_status])).toEqual([
+      ['Checked work', 'Verified'],
+      ['Unlinked work', 'Unverified'],
+      ['Unchecked work', 'Unverified'],
+    ]);
   });
 });

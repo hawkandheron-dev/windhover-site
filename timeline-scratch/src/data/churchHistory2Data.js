@@ -116,6 +116,9 @@ export const churchHistory2Config = {
 
   /** Detail panel: one "Works & Sources" section rather than two. */
   mergeWorksAndSources: true,
+  // A figure whose works are all held back for an unverified link must show
+  // none, not the static list in works.js that the detail falls back to.
+  staticWorksFallback: false,
   /** Detail panel: description first, a smaller map after it, sentence-case
    *  headings (DESIGN.md §6). */
   panelLayout: 'compact',

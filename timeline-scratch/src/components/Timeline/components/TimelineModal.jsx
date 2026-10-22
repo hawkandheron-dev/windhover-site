@@ -194,6 +194,10 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
   // map was the largest thing in the panel, ahead of what the event was.
   const compactLayout = config?.panelLayout === 'compact';
   const hasSources = Boolean(item?.sources?.length);
+  // Works and sources held back for an unverified link (Lifelines). Readers
+  // never see them; an admin's editor lists them so a save keeps them.
+  const heldWorks = useMemo(() => item?.unverifiedWorks || [], [item?.unverifiedWorks]);
+  const heldSources = useMemo(() => item?.unverifiedSources || [], [item?.unverifiedSources]);
   // ── Remove from view / Return to view (config.adminVisibility) ─────────
   const [visibilityBusy, setVisibilityBusy] = useState(false);
   const [visibilityError, setVisibilityError] = useState(null);
@@ -418,8 +422,9 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
     if (itemType !== 'person') return [];
     // Prefer works from item data (Supabase), fall back to static lookup
     if (item?.works?.length) return item.works;
+    if (config?.staticWorksFallback === false) return [];
     return getWorksForAuthor(item?.name);
-  }, [itemType, item?.name, item?.works]);
+  }, [itemType, item?.name, item?.works, config?.staticWorksFallback]);
 
   const searchQuery = useMemo(() => {
     if (itemType !== 'person') return '';
@@ -469,17 +474,21 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   // ── Edit handlers ──────────────────────────────────────────────────────
   const startEditWorks = useCallback(() => {
-    setEditWorks(worksForPerson.map(w => ({ name: w.name, textUrl: w.textUrl || '' })));
+    setEditWorks([...worksForPerson, ...heldWorks].map(w => ({
+      name: w.name,
+      textUrl: w.textUrl || '',
+      linkStatus: w.linkStatus || 'Verified',
+    })));
     setEditSection('works');
     setSaveError(null);
-  }, [worksForPerson]);
+  }, [worksForPerson, heldWorks]);
 
   const startEditSources = useCallback(() => {
-    const sources = item?.sources || [];
-    setEditSources(sources.map(s => ({ ...s })));
+    const sources = [...(item?.sources || []), ...heldSources];
+    setEditSources(sources.map((s) => ({ ...s, hidden: undefined, linkStatus: s.linkStatus || 'Verified' })));
     setEditSection('sources');
     setSaveError(null);
-  }, [item]);
+  }, [item, heldSources]);
 
   const startEditConnections = useCallback(() => {
     const conns = item?.connections || [];
@@ -528,7 +537,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   // ── Edit Works helpers ─────────────────────────────────────────────────
   const addWork = useCallback(() => {
-    setEditWorks(prev => [...prev, { name: '', textUrl: '' }]);
+    setEditWorks(prev => [...prev, { name: '', textUrl: '', linkStatus: 'Unverified' }]);
   }, []);
 
   const removeWork = useCallback((idx) => {
@@ -541,7 +550,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
 
   // ── Edit Sources helpers ───────────────────────────────────────────────
   const addSource = useCallback(() => {
-    setEditSources(prev => [...prev, { title: '', url: '', source: '', year: '', notes: '' }]);
+    setEditSources(prev => [...prev, { title: '', url: '', source: '', year: '', notes: '', linkStatus: 'Unverified' }]);
   }, []);
 
   const removeSource = useCallback((idx) => {
@@ -642,10 +651,11 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
         const metaParts = [source.source, source.year].filter(Boolean);
         const metaText = metaParts.length ? ` (${metaParts.join(', ')})` : '';
         return (
-          <li key={source.id}>
+          <li key={source.id} className={source.hidden ? 'modal-unverified' : undefined}>
             <a href={source.url} target="_blank" rel="noopener noreferrer">
               {source.title}
             </a>
+            {source.hidden && <span className="modal-hidden-tag modal-unverified-tag">Unverified</span>}
             {metaText && <span>{metaText}</span>}
             {source.notes && <div>{source.notes}</div>}
           </li>
@@ -880,14 +890,14 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
         {/* Works / Texts — comma-separated hyperlinks (not a list).
             When merged, the sources list follows under the same heading, and
             the section also appears for a figure who has sources but no works. */}
-        {(worksForPerson.length > 0 || (mergeWorksAndSources && hasSources)) && editSection !== 'works' && (
+        {(worksForPerson.length > 0 || (mergeWorksAndSources && hasSources) || (canEdit && (heldWorks.length > 0 || heldSources.length > 0))) && editSection !== 'works' && (
           <div className="modal-links modal-works">
             <h3>
               {mergeWorksAndSources ? 'Works & Sources' : 'Works'}
-              {canEdit && worksForPerson.length > 0 && (
+              {canEdit && (worksForPerson.length > 0 || heldWorks.length > 0) && (
                 <button type="button" className="modal-edit-btn" onClick={startEditWorks}>Edit</button>
               )}
-              {canEdit && mergeWorksAndSources && hasSources && (
+              {canEdit && mergeWorksAndSources && (hasSources || heldSources.length > 0) && (
                 <button type="button" className="modal-edit-btn" onClick={startEditSources}>Edit sources</button>
               )}
             </h3>
@@ -903,8 +913,15 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
                     ) : (
                       <span>{work.name}</span>
                     )}
+                    {work.hidden && <span className="modal-hidden-tag modal-unverified-tag">Unverified</span>}
                   </span>
                 ))}
+              </p>
+            )}
+            {canEdit && (heldWorks.length > 0 || heldSources.length > 0) && (
+              <p className="modal-unverified-note">
+                {heldWorks.length + heldSources.length} unverified {heldWorks.length + heldSources.length === 1 ? 'entry is' : 'entries are'} hidden
+                from readers. Turn on Expanded view to see {heldWorks.length + heldSources.length === 1 ? 'it' : 'them'}, or Edit to set the link status.
               </p>
             )}
             {mergeWorksAndSources && hasSources && editSection !== 'sources' && sourcesList}
@@ -916,7 +933,7 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
           <div className="modal-links modal-edit-section">
             <h3>Edit Works</h3>
             {editWorks.map((work, idx) => (
-              <div key={idx} className="modal-edit-row">
+              <div key={idx} className="modal-edit-row modal-edit-row-work">
                 <input
                   type="text"
                   className="modal-edit-input"
@@ -931,6 +948,15 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
                   value={work.textUrl}
                   onChange={e => updateWork(idx, 'textUrl', e.target.value)}
                 />
+                <select
+                  className="modal-edit-input modal-edit-status"
+                  aria-label="Link status"
+                  value={work.linkStatus}
+                  onChange={e => updateWork(idx, 'linkStatus', e.target.value)}
+                >
+                  <option value="Verified">Verified</option>
+                  <option value="Unverified">Unverified</option>
+                </select>
                 <button type="button" className="modal-edit-remove" onClick={() => removeWork(idx)}>&times;</button>
               </div>
             ))}
@@ -1189,6 +1215,15 @@ export function TimelineModal({ isOpen, item, itemType, config, onClose, itemInd
                   value={src.url || ''}
                   onChange={e => updateSource(idx, 'url', e.target.value)}
                 />
+                <select
+                  className="modal-edit-input"
+                  aria-label="Link status"
+                  value={src.linkStatus || 'Unverified'}
+                  onChange={e => updateSource(idx, 'linkStatus', e.target.value)}
+                >
+                  <option value="Verified">Link verified</option>
+                  <option value="Unverified">Link unverified (hidden from readers)</option>
+                </select>
                 <div className="modal-edit-row-pair">
                   <input
                     type="text"

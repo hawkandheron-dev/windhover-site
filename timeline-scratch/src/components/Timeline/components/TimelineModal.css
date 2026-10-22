@@ -1399,3 +1399,40 @@
   font-size: 13px;
   color: var(--color-error, #b3261e);
 }
+
+/* A work's row: the title on its own line, then URL, Link Status and remove. */
+.modal-edit-row-work {
+  flex-wrap: wrap;
+}
+.modal-edit-row-work > input[type="text"] {
+  flex: 1 1 100%;
+}
+.modal-edit-row-work > input[type="url"] {
+  min-width: 0;
+}
+
+/* Link Status select beside a work's URL: sized to "Unverified". */
+.modal-edit-status {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* Lifelines admins: a work or source held back for an unverified link, seen in
+   Expanded view. Faint, like a hidden figure, with a tag saying why. */
+.modal-unverified {
+  opacity: 0.6;
+}
+.modal-works-inline > span:has(> .modal-unverified-tag) {
+  opacity: 0.6;
+}
+.modal-unverified-tag {
+  margin-left: 6px;
+  font-size: 11px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.modal-unverified-note {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--color-ink-faded);
+}

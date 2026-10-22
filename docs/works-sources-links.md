@@ -54,3 +54,23 @@ that are dead (a real 404), 83 still on an author page where nothing was found, 
 that load or could not be read but do not clearly name the work. `tests/unit/work-links.test.js` keeps the
 migration and the snapshot in agreement and checks none of the changes points back
 at an author page.
+
+## Link Status: hiding what is not verified (2026-10-19)
+
+`CH_Works.link_status` and `CH_Sources.link_status` hold `Verified` or `Unverified`
+(default `Unverified`, so a work added in the admin tools stays hidden until its
+link is confirmed). Lifelines drops an entry that is Unverified **and has a link**;
+an entry with no link has nothing to verify and always shows. Admins see the held-back
+ones in Expanded view, tagged, and the Edit form for Works and Sources carries a status
+select. The Edit form lists the hidden entries too, because it saves a figure's works by
+replacing the whole list. Other apps share the tables but do not read the column.
+
+`supabase/migrations/20261019120000_ch_link_status.sql` adds the columns and, only when it
+creates them, marks everything Verified except the 138 works left unresolved by the audit
+(after the owner's decisions on the first list) and the 6 Britannica sources, which a
+script cannot open and which stay Unverified until the owner checks them. It also applies
+those decisions: six links deleted (the work stays as plain text), one work removed
+(Caesarius's Rule for Nuns). To restore an entry once its link is found, set the new
+address and `link_status = 'Verified'` together, guarded by the old address.
+`tests/unit/link-status.test.js` and the "Link Status" e2e block cover the behaviour.
+
